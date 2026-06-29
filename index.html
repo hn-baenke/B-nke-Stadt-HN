@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sitzbank-Kataster Heilbronn</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; flex-direction: column; background: #f4f6f8; color: #333; overflow: hidden; }
+        header { background: #2c3e50; color: white; padding: 12px; text-align: center; font-size: 14px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1001; position: relative; }
+        .main-container { display: flex; flex: 1; flex-direction: column; overflow: hidden; position: relative; }
+        
+        #map { flex: 1; width: 100%; height: 100%; z-index: 1; background-color: #e5e9f0; }
+        
+        /* Filter-Button oben rechts */
+        #menu-toggle-btn {
+            position: absolute;
+            top: 10px; 
+            right: 10px;
+            z-index: 1000;
+            background: #2c3e50;
+            color: white;
+            border: none;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.2s;
+        }
+        #menu-toggle-btn:hover { background: #34495e; }
+
+        /* Ausfahrbare Sidebar */
+        #sidebar { 
+            position: absolute;
+            bottom: -100%; 
+            left: 0;
+            width: 100%;
+            height: 65%; 
+            background: white; 
+            padding: 20px 15px 15px 15px; 
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.2); 
+            z-index: 1005; 
+            overflow-y: auto; 
+            box-sizing: border-box; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px; 
+            border-top-left-radius: 20px; 
+            border-top-right-radius: 20px;
+            transition: bottom 0.3s ease-in-out; 
+        }
+        
+        #sidebar.open { bottom: 0; }
+
+        .close-sidebar-btn { background: #95a5a6; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; text-align: center; font-size: 14px; }
+        .filter-group { display: flex; flex-direction: column; gap: 4px; }
+        .filter-group label { font-weight: bold; font-size: 12px; color: #7f8c8d; text-transform: uppercase; }
+        .filter-group select, .filter-group input { padding: 12px; border-radius: 8px; border: 1px solid #ccd1d9; width: 100%; font-size: 16px; box-sizing: border-box; background: #f8f9fa; }
+        .btn { background: #3498db; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; text-align: center; box-sizing: border-box; }
+        .btn-save { background: #27ae60; margin-top: 10px; }
+        .btn-delete { background: #e74c3c; margin-top: 8px; }
+        .btn-cancel { background: #95a5a6; margin-top: 8px; }
+        .stats-box { background: #f1f5f9; padding: 12px; border-radius: 8px; font-size: 14px; border-left: 4px solid #2c3e50; }
+        .stats-box ul { margin: 6px 0 0 0; padding-left: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; list-style: none; }
+        
+        #fullscreen-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 2000; overflow-y: auto; padding: 20px; box-sizing: border-box; }
+        #fullscreen-overlay h3 { margin-top: 10px; font-size: 20px; color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; }
+        #fullscreen-overlay label { display: block; font-weight: bold; margin-top: 15px; font-size: 14px; color: #34495e; }
+        #fullscreen-overlay select, #fullscreen-overlay input { width: 100%; padding: 14px; margin-top: 5px; border-radius: 8px; border: 1px solid #bdc3c7; font-size: 16px; box-sizing: border-box; }
+        .legend { font-size: 11px; color: #7f8c8d; line-height: 1.5; background: #fff; padding: 8px; border-radius: 6px; }
+
+        @media (min-width: 768px) {
+            #sidebar { bottom: auto; top: 0; right: -400px; left: auto; width: 380px; height: 100%; border-top-left-radius: 0px; border-top-right-radius: 0px; box-shadow: -5px 0 20px rgba(0,0,0,0.2); transition: right 0.3s ease-in-out; }
+            #sidebar.open { right: 0; }
+        }
+        
+        /* Satellitenbild-Umschalter sauber unter den Filter-Button setzen */
+        .leaflet-top.leaflet-right .leaflet-control-layers { margin-top: 55px !important; }
+    </style>
+</head>
+<body>
+
+    <header>
+        🌲 HN-Sitzbank-Kataster (<span id="total-count">0</span> Bänke)
+    </header>
+    
+    <div class="main-container">
+        <button id="menu-toggle-btn" onclick="toggleSidebar()">☰ Filter & Infos</button>
+        <div id="map"></div>
+        
+        <div id="sidebar">
+            <button class="close-sidebar-btn" onclick="toggleSidebar()">✕ Menü schließen</button>
+            <div class="filter-group">
+                <label>📍 Stadtteil / Park</label>
+                <select id="filter-district"><option value="Alle">Ganz Heilbronn (Alle)</option></select>
+            </div>
+            <div class="filter-group">
+                <label>🔍 Bautyp filtern</label>
+                <select id="filter-type"><option value="Alle">Alle Bautypen</option></select>
+            </div>
+            <div class="stats-box">
+                <strong id="stats-title">Auswertung</strong>
+                <ul id="stats-list"></ul>
+            </div>
+            <hr style="width:100%; border:0; border-top:1px solid #e2e8f0; margin: 5px 0;"/>
+            <div class="filter-group">
+                <label>🛠️ Neuen Bautyp hinzufügen</label>
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="new-type-input" placeholder="z.B. Holz-Spezial" style="flex:1;">
+                    <button id="add-type-btn" class="btn" style="width:auto; padding:0 20px;">+</button>
+                </div>
+            </div>
+            <div class="legend">
+                <strong>Status:</strong> 🟢 Gut | 🟡 ~3J | 🔴 &gt;5J | 🔴⚪ Defekt | ⚫ Austauschen<br>
+                💡 <em>Karte antippen = Bank anlegen. Punkt antippen = Bearbeiten.</em>
+            </div>
+        </div>
+    </div>
+
+    <div id="fullscreen-overlay">
+        <h3 id="form-title">Sitzbank eintragen</h3>
+        <label>Bautyp:</label><select id="pop-type"></select>
+        <label>Stadtteil / Bereich:</label><select id="pop-district"></select>
+        <label>Letzte Wartung:</label><input type="date" id="pop-date">
+        <label>Sonderstatus:</label>
+        <select id="pop-manual">
+            <option value="Automatisch">Nach Datum berechnen</option>
+            <option value="Beschädigt">Beschädigt (Rot-Weiß)</option>
+            <option value="Totalschaden">Totalschaden (Austausch nötig)</option>
+        </select>
+        <label>Maße (z.B. 180x50x45 cm):</label><input type="text" id="pop-dimensions" placeholder="Länge x Breite x Höhe...">
+        <label>Notiz:</label><input type="text" id="pop-note" placeholder="Notiz eingeben...">
+        <button id="pop-save-btn" class="btn btn-save">Speichern</button>
+        <button id="pop-delete-btn" class="btn btn-delete" style="display: none;">Bank löschen</button>
+        <button id="pop-cancel-btn" class="btn btn-cancel">Abbrechen</button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+    <script>
+        // ==========================================================
+        // ⚠️ ZUGANGSDATEN HIER EINTRAGEN:
+        // ==========================================================
+        const SUPABASE_URL = "https://aqownulwmwdtrgzmsgqn.supabase.co"; 
+        const SUPABASE_ANON_KEY = "sb_publishable_a_CXe4OWZN0vdnUPPF_Avg_AY55SFMN";
+        // ==========================================================
+
+        const DISTRICTS = [
+            "Heilbronn Zentrum", "Heilbronn Ost", "Heilbronn Süd", "Heilbronn West", "Heilbronn Nord",
+            "Böckingen", "Frankenbach", "Biberach", "Kirchhausen", "Klingenberg", "Neckargartach",
+            "Pfühlpark", "Ziegeleipark", "Wertwiesenpark"
+        ];
+
+        let types = ["H-Bank", "Wetz Ergo7000", "Bitburg", "Sonstige"];
+        let benches = [];
+        let map, markersLayer, supabaseClient;
+        let currentEditingBench = null;
+        let isNewBenchMode = false;
+
+        function initSupabase() {
+            if(SUPABASE_URL.includes("DEINE_SUPABASE")) {
+                alert("Bitte trage zuerst deine Supabase URL und den Key im Code ein!");
+                return false;
+            }
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            return true;
+        }
+
+        async function fetchBenchesFromCloud() {
+            const { data, error } = await supabaseClient.from('benches').select('*');
+            if (error) { console.error("Fehler beim Laden:", error); } 
+            else {
+                benches = data || [];
+                updateApp();
+            }
+        }
+
+        function subscribeToRealtime() {
+            supabaseClient.channel('custom-all-channel')
+            .on('postgres_changes', { event: '*', pattern: 'public', table: 'benches' }, (payload) => {
+                fetchBenchesFromCloud();
+            })
+            .subscribe();
+        }
+
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+            setTimeout(forceMapUpdate, 350);
+        };
+
+        function calculateStatus(bench) {
+            if (bench.manual_status === 'Beschädigt') return 'Beschädigt';
+            if (bench.manual_status === 'Totalschaden') return 'Totalschaden';
+            if (!bench.last_maintenance) return 'Wartung nötig';
+            const maintDate = new Date(bench.last_maintenance);
+            const today = new Date();
+            const diffYears = Math.abs(today - maintDate) / (1000 * 60 * 60 * 24 * 365.25);
+            if (diffYears >= 5) return 'Wartung nötig';
+            if (diffYears >= 3) return 'Wartung empfohlen';
+            return 'Gut';
+        }
+
+        function getMarkerStyle(status) {
+            switch(status) {
+                case 'Gut': return { radius: 9, fillColor: '#27ae60', color: '#fff', weight: 2, fillOpacity: 0.9 };
+                case 'Wartung empfohlen': return { radius: 9, fillColor: '#f1c40f', color: '#fff', weight: 2, fillOpacity: 0.9 };
+                case 'Wartung nötig': return { radius: 9, fillColor: '#c0392b', color: '#fff', weight: 2, fillOpacity: 0.9 };
+                case 'Beschädigt': return { radius: 14, fillColor: '#e74c3c', color: '#ffffff', weight: 4, fillOpacity: 1 };
+                case 'Totalschaden': return { radius: 11, fillColor: '#000000', color: '#ffffff', weight: 3, fillOpacity: 1 };
+                default: return { radius: 9, fillColor: '#7f8c8d', color: '#fff', weight: 2, fillOpacity: 0.9 };
+            }
+        }
+
+        function initDropdowns() {
+            const dSelect = document.getElementById('filter-district');
+            if(dSelect && dSelect.options.length <= 1) {
+                DISTRICTS.forEach(d => { dSelect.innerHTML += `<option value="${d}">${d}</option>`; });
+            }
+            updateTypeDropdowns();
+        }
+
+        function updateTypeDropdowns() {
+            const tSelect = document.getElementById('filter-type');
+            if(!tSelect) return;
+            const currentFilter = tSelect.value || "Alle";
+            tSelect.innerHTML = '<option value="Alle">Alle Bautypen</option>';
+            types.forEach(t => { tSelect.innerHTML += `<option value="${t}">${t}</option>`; });
+            tSelect.value = currentFilter;
+        }
+
+        function updateApp() {
+            document.getElementById('total-count').innerText = benches.length;
+            const filterDistrict = document.getElementById('filter-district').value || 'Alle';
+            const filterType = document.getElementById('filter-type').value || 'Alle';
+            document.getElementById('stats-title').innerText = `Bestand: ${filterDistrict === 'Alle' ? 'Gesamt HN' : filterDistrict}`;
+
+            let stats = {};
+            types.forEach(t => stats[t] = 0);
+
+            if (markersLayer) { markersLayer.clearLayers(); }
+
+            benches.forEach(bench => {
+                const matchDistrict = filterDistrict === 'Alle' || bench.district === filterDistrict;
+                const matchType = filterType === 'Alle' || bench.type === filterType;
+
+                if (matchDistrict) { 
+                    if(stats[bench.type] === undefined) stats[bench.type] = 0;
+                    stats[bench.type]++; 
+                }
+
+                if (matchDistrict && matchType && markersLayer && typeof L !== 'undefined') {
+                    const status = calculateStatus(bench);
+                    const style = getMarkerStyle(status);
+                    const marker = L.circleMarker([bench.lat, bench.lng], style);
+
+                    let dimHtml = bench.dimensions ? `<br/>📐 Maße: ${bench.dimensions}` : '';
+                    let noteHtml = bench.note ? `<br/>📝 ${bench.note}` : '';
+
+                    let popupHtml = `
+                        <div style="font-size:14px; line-height:1.4; min-width:180px; color:#333;">
+                            <strong>${bench.type}</strong><br/>
+                            ⚠️ Status: ${status}
+                            ${dimHtml}
+                            ${noteHtml}
+                            <br/><button onclick="triggerEdit(${bench.id})" class="btn" style="padding:6px; font-size:12px; margin-top:8px;">Bearbeiten / Löschen</button>
+                        </div>
+                    `;
+                    marker.bindPopup(popupHtml);
+                    markersLayer.addLayer(marker);
+                }
+            });
+
+            const statsList = document.getElementById('stats-list');
+            if(statsList) {
+                statsList.innerHTML = '';
+                Object.entries(stats).forEach(([type, count]) => {
+                    statsList.innerHTML += `<li>${type}: <strong>${count}</strong></li>`;
+                });
+            }
+        }
+
+        window.triggerEdit = function(id) {
+            const bench = benches.find(b => b.id === id);
+            if (bench) {
+                if(map) map.closePopup();
+                openFullscreenForm(bench, false);
+            }
+        };
+
+        function openFullscreenForm(bench, isNew) {
+            currentEditingBench = bench;
+            isNewBenchMode = isNew;
+            document.getElementById('form-title').innerText = isNew ? 'Neue Sitzbank eintragen' : 'Sitzbank bearbeiten';
+            
+            document.getElementById('pop-type').innerHTML = types.map(t => `<option value="${t}" ${bench.type === t ? 'selected':''}>${t}</option>`).join('');
+            document.getElementById('pop-district').innerHTML = DISTRICTS.map(d => `<option value="${d}" ${bench.district === d ? 'selected':''}>${d}</option>`).join('');
+
+            document.getElementById('pop-date').value = bench.last_maintenance || '';
+            document.getElementById('pop-manual').value = bench.manual_status || 'Automatisch';
+            document.getElementById('pop-dimensions').value = bench.dimensions || '';
+            document.getElementById('pop-note').value = bench.note || '';
+            
+            document.getElementById('pop-delete-btn').style.display = isNew ? 'none' : 'block';
+            document.getElementById('fullscreen-overlay').style.display = 'block';
+        }
+
+        document.getElementById('pop-save-btn').onclick = async () => {
+            const rowData = {
+                lat: currentEditingBench.lat,
+                lng: currentEditingBench.lng,
+                type: document.getElementById('pop-type').value,
+                district: document.getElementById('pop-district').value,
+                last_maintenance: document.getElementById('pop-date').value || null,
+                manual_status: document.getElementById('pop-manual').value,
+                dimensions: document.getElementById('pop-dimensions').value,
+                note: document.getElementById('pop-note').value
+            };
+
+            if (isNewBenchMode) {
+                await supabaseClient.from('benches').insert([rowData]);
+            } else {
+                await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id);
+            }
+            
+            document.getElementById('fullscreen-overlay').style.display = 'none';
+            fetchBenchesFromCloud();
+        };
+
+        document.getElementById('pop-delete-btn').onclick = async () => {
+            if (confirm('Möchtest du diese Sitzbank wirklich unwiderruflich löschen?')) {
+                await supabaseClient.from('benches').delete().eq('id', currentEditingBench.id);
+                document.getElementById('fullscreen-overlay').style.display = 'none';
+                fetchBenchesFromCloud();
+            }
+        };
+
+        document.getElementById('pop-cancel-btn').onclick = () => {
+            document.getElementById('fullscreen-overlay').style.display = 'none';
+        };
+
+        function forceMapUpdate() { if (map) { map.invalidateSize(); } }
+
+        function startApp() {
+            if(!initSupabase()) return;
+            fetchBenchesFromCloud();
+            subscribeToRealtime();
+            initDropdowns();
+            
+            if (typeof L !== 'undefined') {
+                try {
+                    const osmStreets = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' });
+                    const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' });
+
+                    map = L.map('map', { fadeAnimation: false, layers: [osmStreets] }).setView([49.1426, 9.2177], 13);
+                    markersLayer = L.layerGroup().addTo(map);
+
+                    const baseMaps = { "Straßenkarte": osmStreets, "Satellitenbild": esriSatellite };
+                    L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+
+                    map.on('click', (e) => {
+                        if(document.getElementById('sidebar').classList.contains('open')) { toggleSidebar(); return; }
+                        openFullscreenForm({ 
+                            lat: e.latlng.lat, lng: e.latlng.lng, type: types[0], district: DISTRICTS[0], 
+                            last_maintenance: new Date().toISOString().split('T')[0], manual_status: 'Automatisch', dimensions: '', note: '' 
+                        }, true);
+                    });
+
+                    setTimeout(forceMapUpdate, 100);
+                    window.addEventListener('resize', forceMapUpdate);
+                } catch(e) { console.log("Karten-Fehler:", e); }
+            }
+
+            document.getElementById('filter-district').addEventListener('change', updateApp);
+            document.getElementById('filter-type').addEventListener('change', updateApp);
+
+            document.getElementById('add-type-btn').onclick = () => {
+                const input = document.getElementById('new-type-input');
+                const val = input.value.trim();
+                if (val && !types.includes(val)) {
+                    types.push(val);
+                    input.value = '';
+                    updateTypeDropdowns();
+                    updateApp();
+                }
+            };
+        }
+
+        window.addEventListener('load', startApp);
+    </script>
+</body>
+</html>
