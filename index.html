@@ -36,7 +36,7 @@
         }
         #menu-toggle-btn:hover { background: #34495e; }
 
-        /* Standort-Button oben links unter den Zoom-Buttons */
+        /* Standort-Button oben links */
         #locate-btn {
             position: absolute;
             top: 80px;
@@ -93,6 +93,7 @@
         .stats-box { background: #f1f5f9; padding: 12px; border-radius: 8px; font-size: 14px; border-left: 4px solid #2c3e50; }
         .stats-box ul { margin: 6px 0 0 0; padding-left: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; list-style: none; }
         
+        /* Fullscreen Overlay Formular */
         #fullscreen-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 2000; overflow-y: auto; padding: 20px; box-sizing: border-box; }
         #fullscreen-overlay h3 { margin-top: 10px; font-size: 20px; color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; }
         #fullscreen-overlay label { display: block; font-weight: bold; margin-top: 15px; font-size: 14px; color: #34495e; }
@@ -171,9 +172,10 @@
 
     <script>
         // ==========================================================
-        // ✅ DEINE REALEN ZUGANGSDATEN DIREKT HIER EINGEFÜGT:
+        // 🛠️ FÜGE HIER DEINE ZUGANGSDATEN EIN:
+        // Wichtig: Am Ende der URL darf kein /rest/v1/ stehen!
         // ==========================================================
-        const SUPABASE_URL = "https://aqownulwmwdtrgzmsgqn.supabase.co";
+        const SUPABASE_URL = "https://aqownulwmwdtrgzmsgqn.supabase.co/rest/v1/"; 
         const SUPABASE_ANON_KEY = "sb_publishable_a_CXe4OWZN0vdnUPPF_Avg_AY55SFMN";
         // ==========================================================
 
@@ -189,24 +191,32 @@
         let currentEditingBench = null;
         let isNewBenchMode = false;
 
+        // Parameter-Speicher für fortlaufendes Eintragen
         let lastSelectedType = types[0];
         let lastSelectedDistrict = DISTRICTS[0];
 
         function initSupabase() {
+            if(SUPABASE_URL.includes("HIER_DEINE_SUPABASE")) {
+                console.log("Supabase-Verbindung pausiert: Keine Keys eingetragen.");
+                return false;
+            }
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             return true;
         }
 
         async function fetchBenchesFromCloud() {
+            if (!supabaseClient) return;
             const { data, error } = await supabaseClient.from('benches').select('*');
-            if (error) { console.error("Fehler beim Laden:", error); } 
-            else {
+            if (error) { 
+                console.error("Fehler beim Laden aus Supabase:", error); 
+            } else {
                 benches = data || [];
                 updateApp();
             }
         }
 
         function subscribeToRealtime() {
+            if (!supabaseClient) return;
             supabaseClient.channel('custom-all-channel')
             .on('postgres_changes', { event: '*', pattern: 'public', table: 'benches' }, (payload) => {
                 fetchBenchesFromCloud();
@@ -225,7 +235,6 @@
                 alert("Dein Browser unterstützt leider keine Standortermittlung.");
                 return;
             }
-
             const btn = document.getElementById('locate-btn');
             btn.innerText = "⏳";
 
@@ -233,7 +242,230 @@
                 (position) => {
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
-
                     if (map) {
                         map.setView([lat, lng], 17);
-                        if
+                        if (userLocationMarker) { map.removeLayer(userLocationMarker); }
+                        userLocationMarker = L.circleMarker([lat, lng], {
+                            radius: 8, fillColor: '#3498db', color: '#fff', weight: 3, fillOpacity: 1
+                        }).addTo(map).bindPopup("<b>Du bist hier</b>").openPopup();
+                    }
+                    btn.innerText = "🎯";
+                },
+                (error) => {
+                    btn.innerText = "🎯";
+                    alert("Standort konnte nicht ermittelt werden.");
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        };
+
+        function calculateStatus(bench) {
+            if (bench.manual_status === 'Beschädigt') return 'Beschädigt';
+            if (bench.manual_status === 'Totalschaden') return 'Totalschaden';
+            if (!bench.last_maintenance) return 'Wartung nötig';
+            const maintDate = new Date(bench.last_maintenance);
+            const today = new Date();
+            const diffYears = Math.abs(today - maintDate) / (1000 * 60 * 60 * 24 * 365.25);
+            if (diffYears >= 5) return 'Wartung nötig';
+            if (diffYears >= 3) return 'Wartung empfohlen';
+            return 'Gut';
+        }
+
+        function getMarkerStyle(status) {
+            switch(status) {
+                case 'Gut': return { radius: 9, fillColor: '#27ae60', color: '#fff', weight: 2, fillOpacity: 0.9 };
+                case 'Wartung empfohlen': return { radius: 9, fillColor: '#f1c40f', color: '#fff', weight: 2, fillOpacity: 0.9 };
+                case 'Wartung nötig': return { radius: 9, fillColor: '#c0392b', color: '#fff', weight: 2, fillOpacity: 0.9 };
+                case 'Beschädigt': return { radius: 14, fillColor: '#e74c3c', color: '#ffffff', weight: 4, fillOpacity: 1 };
+                case 'Totalschaden': return { radius: 11, fillColor: '#000000', color: '#ffffff', weight: 3, fillOpacity: 1 };
+                default: return { radius: 9, fillColor: '#7f8c8d', color: '#fff', weight: 2, fillOpacity: 0.9 };
+            }
+        }
+
+        function initDropdowns() {
+            const dSelect = document.getElementById('filter-district');
+            if(dSelect && dSelect.options.length <= 1) {
+                DISTRICTS.forEach(d => { dSelect.innerHTML += `<option value="${d}">${d}</option>`; });
+            }
+            updateTypeDropdowns();
+        }
+
+        function updateTypeDropdowns() {
+            const tSelect = document.getElementById('filter-type');
+            if(!tSelect) return;
+            const currentFilter = tSelect.value || "Alle";
+            tSelect.innerHTML = '<option value="Alle">Alle Bautypen</option>';
+            types.forEach(t => { tSelect.innerHTML += `<option value="${t}">${t}</option>`; });
+            tSelect.value = currentFilter;
+        }
+
+        function updateApp() {
+            document.getElementById('total-count').innerText = benches.length;
+            const filterDistrict = document.getElementById('filter-district').value || 'Alle';
+            const filterType = document.getElementById('filter-type').value || 'Alle';
+            document.getElementById('stats-title').innerText = `Bestand: ${filterDistrict === 'Alle' ? 'Gesamt HN' : filterDistrict}`;
+
+            let stats = {};
+            types.forEach(t => stats[t] = 0);
+
+            if (markersLayer) { markersLayer.clearLayers(); }
+
+            benches.forEach(bench => {
+                const matchDistrict = filterDistrict === 'Alle' || bench.district === filterDistrict;
+                const matchType = filterType === 'Alle' || bench.type === filterType;
+
+                if (matchDistrict) { 
+                    if(stats[bench.type] === undefined) stats[bench.type] = 0;
+                    stats[bench.type]++; 
+                }
+
+                if (matchDistrict && matchType && markersLayer && typeof L !== 'undefined') {
+                    const status = calculateStatus(bench);
+                    const style = getMarkerStyle(status);
+                    const marker = L.circleMarker([bench.lat, bench.lng], style);
+
+                    let dimHtml = bench.dimensions ? `<br/>📐 Maße: ${bench.dimensions}` : '';
+                    let noteHtml = bench.note ? `<br/>📝 ${bench.note}` : '';
+
+                    let popupHtml = `
+                        <div style="font-size:14px; line-height:1.4; min-width:180px; color:#333;">
+                            <strong>${bench.type}</strong><br/>
+                            ⚠️ Status: ${status}
+                            ${dimHtml} ${noteHtml}
+                            <br/><button onclick="triggerEdit(${bench.id})" class="btn" style="padding:6px; font-size:12px; margin-top:8px;">Bearbeiten / Löschen</button>
+                        </div>
+                    `;
+                    marker.bindPopup(popupHtml);
+                    markersLayer.addLayer(marker);
+                }
+            });
+
+            const statsList = document.getElementById('stats-list');
+            if(statsList) {
+                statsList.innerHTML = '';
+                Object.entries(stats).forEach(([type, count]) => {
+                    statsList.innerHTML += `<li>${type}: <strong>${count}</strong></li>`;
+                });
+            }
+        }
+
+        window.triggerEdit = function(id) {
+            const bench = benches.find(b => b.id === id);
+            if (bench) {
+                if(map) map.closePopup();
+                openFullscreenForm(bench, false);
+            }
+        };
+
+        function openFullscreenForm(bench, isNew) {
+            currentEditingBench = bench;
+            isNewBenchMode = isNew;
+            document.getElementById('form-title').innerText = isNew ? 'Neue Sitzbank eintragen' : 'Sitzbank bearbeiten';
+            
+            const targetType = isNew ? lastSelectedType : bench.type;
+            const targetDistrict = isNew ? lastSelectedDistrict : bench.district;
+
+            document.getElementById('pop-type').innerHTML = types.map(t => `<option value="${t}" ${targetType === t ? 'selected':''}>${t}</option>`).join('');
+            document.getElementById('pop-district').innerHTML = DISTRICTS.map(d => `<option value="${d}" ${targetDistrict === d ? 'selected':''}>${d}</option>`).join('');
+
+            document.getElementById('pop-date').value = bench.last_maintenance || '';
+            document.getElementById('pop-manual').value = bench.manual_status || 'Automatisch';
+            document.getElementById('pop-dimensions').value = bench.dimensions || '';
+            document.getElementById('pop-note').value = bench.note || '';
+            
+            document.getElementById('pop-delete-btn').style.display = isNew ? 'none' : 'block';
+            document.getElementById('fullscreen-overlay').style.display = 'block';
+        }
+
+        document.getElementById('pop-save-btn').onclick = async () => {
+            lastSelectedType = document.getElementById('pop-type').value;
+            lastSelectedDistrict = document.getElementById('pop-district').value;
+
+            const rowData = {
+                lat: currentEditingBench.lat,
+                lng: currentEditingBench.lng,
+                type: lastSelectedType,
+                district: lastSelectedDistrict,
+                last_maintenance: document.getElementById('pop-date').value || null,
+                manual_status: document.getElementById('pop-manual').value,
+                dimensions: document.getElementById('pop-dimensions').value,
+                note: document.getElementById('pop-note').value
+            };
+
+            if (supabaseClient) {
+                if (isNewBenchMode) {
+                    await supabaseClient.from('benches').insert([rowData]);
+                } else {
+                    await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id);
+                }
+            }
+            
+            document.getElementById('fullscreen-overlay').style.display = 'none';
+            fetchBenchesFromCloud();
+        };
+
+        document.getElementById('pop-delete-btn').onclick = async () => {
+            if (confirm('Möchtest du diese Sitzbank wirklich unwiderruflich löschen?') && supabaseClient) {
+                await supabaseClient.from('benches').delete().eq('id', currentEditingBench.id);
+                document.getElementById('fullscreen-overlay').style.display = 'none';
+                fetchBenchesFromCloud();
+            }
+        };
+
+        document.getElementById('pop-cancel-btn').onclick = () => {
+            document.getElementById('fullscreen-overlay').style.display = 'none';
+        };
+
+        function forceMapUpdate() { if (map) { map.invalidateSize(); } }
+
+        function startApp() {
+            const hasKeys = initSupabase();
+            if(hasKeys) {
+                fetchBenchesFromCloud();
+                subscribeToRealtime();
+            }
+            initDropdowns();
+            
+            if (typeof L !== 'undefined') {
+                try {
+                    const osmStreets = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' });
+                    const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' });
+
+                    map = L.map('map', { fadeAnimation: false, layers: [osmStreets] }).setView([49.1426, 9.2177], 13);
+                    markersLayer = L.layerGroup().addTo(map);
+
+                    const baseMaps = { "Straßenkarte": osmStreets, "Satellitenbild": esriSatellite };
+                    L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+
+                    map.on('click', (e) => {
+                        if(document.getElementById('sidebar').classList.contains('open')) { toggleSidebar(); return; }
+                        openFullscreenForm({ 
+                            lat: e.latlng.lat, lng: e.latlng.lng, type: lastSelectedType, district: lastSelectedDistrict, 
+                            last_maintenance: new Date().toISOString().split('T')[0], manual_status: 'Automatisch', dimensions: '', note: '' 
+                        }, true);
+                    });
+
+                    setTimeout(forceMapUpdate, 100);
+                    window.addEventListener('resize', forceMapUpdate);
+                } catch(e) { console.error("Karten-Initialisierungsfehler:", e); }
+            }
+
+            document.getElementById('filter-district').addEventListener('change', updateApp);
+            document.getElementById('filter-type').addEventListener('change', updateApp);
+
+            document.getElementById('add-type-btn').onclick = () => {
+                const input = document.getElementById('new-type-input');
+                const val = input.value.trim();
+                if (val && !types.includes(val)) {
+                    types.push(val);
+                    input.value = '';
+                    updateTypeDropdowns();
+                    updateApp();
+                }
+            };
+        }
+
+        window.addEventListener('load', startApp);
+    </script>
+</body>
+</html>
