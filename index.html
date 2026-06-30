@@ -93,6 +93,18 @@
                 <label>🔍 Bautyp filtern</label>
                 <select id="filter-type"><option value="Alle">Alle Bautypen</option></select>
             </div>
+            <div class="filter-group">
+                <label>🚦 Status filtern</label>
+                <select id="filter-status">
+                    <option value="Alle">Alle Status-Typen</option>
+                    <option value="Gut">🟢 Gut</option>
+                    <option value="Wartung empfohlen">🟡 Wartung empfohlen (~3J)</option>
+                    <option value="Wartung nötig">🔴 Wartung nötig (>5J)</option>
+                    <option value="Beschädigt">🔴⚪ Beschädigt</option>
+                    <option value="Irreparabel">⚫ Irreparabel</option>
+                    <option value="Ungeprüft">⚪ Ungeprüft</option>
+                </select>
+            </div>
             <div class="stats-box">
                 <strong id="stats-title">Auswertung</strong>
                 <ul id="stats-list"></ul>
@@ -105,7 +117,7 @@
             </div>
             
             <div class="legend">
-                <strong>Status:</strong> 🟢 Gut | 🟡 ~3J | 🔴 >5J | 🔴⚪ Defekt | ⚫ Austauschen<br>
+                <strong>Status:</strong> 🟢 Gut | 🟡 ~3J | 🔴 >5J | 🔴⚪ Defekt | ⚫ Irreparabel<br>
                 💡 <em>Karte antippen = Bank anlegen. Punkt antippen = Bearbeiten.</em>
             </div>
         </div>
@@ -142,8 +154,9 @@
         <select id="pop-manual">
             <option value="Ungeprüft">Ungeprüft (Grau)</option>
             <option value="Automatisch">Nach Datum berechnen</option>
+            <option value="Wartung empfohlen">Wartung empfohlen (Gelb)</option>
             <option value="Beschädigt">Beschädigt (Rot-Weiß)</option>
-            <option value="Totalschaden">Totalschaden (Austausch nötig)</option>
+            <option value="Irreparabel">Irreparabel (Austausch nötig)</option>
         </select>
         <label>Maße (z.B. 180x50x45 cm):</label><input type="text" id="pop-dimensions" placeholder="Länge x Breite x Höhe...">
         <label>Notiz:</label><input type="text" id="pop-note" placeholder="Notiz eingeben...">
@@ -194,10 +207,10 @@
         let isTakingPhoto = false; 
         let isFirstLoad = true;
         
-        window.markerDict = {}; // Speichert die Map-Marker anhand der ID für Deep-Links
+        window.markerDict = {}; 
 
         let activeTypeFileInput = null; 
-        let activeCustomFileInput = null; // Speichert das genutzte Input für Sonderanfertigungen
+        let activeCustomFileInput = null; 
 
         let lastSelectedType = types[0];
         let lastSelectedDistrict = DISTRICTS[0];
@@ -241,7 +254,6 @@
                 benches = data || [];
                 updateApp();
                 
-                // Deep-Link Check (nur beim allerersten Laden der Bänke)
                 if (isFirstLoad) {
                     handleDeepLink();
                     isFirstLoad = false;
@@ -324,7 +336,6 @@
             );
         };
 
-        // --- NEU: Deep Link und Teilen Logik ---
         function handleDeepLink() {
             const urlParams = new URLSearchParams(window.location.search);
             const benchId = urlParams.get('id');
@@ -336,15 +347,13 @@
                 if (bench && marker && map) {
                     map.setView([bench.lat, bench.lng], 18);
                     marker.openPopup();
-                    
-                    // URL aufräumen, damit bei einem Reload nicht sofort wieder reingezoomt wird
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
             }
         }
 
         window.openRoute = function(lat, lng) {
-            window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
+            window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
         };
 
         window.shareBench = function(id) {
@@ -352,7 +361,6 @@
             if (!bench) return;
             const status = calculateStatus(bench);
             
-            // Generiert den Deep-Link zur App basierend auf der aktuellen URL (ohne bestehende Parameter)
             const baseUrl = window.location.href.split('?')[0];
             const shareUrl = `${baseUrl}?id=${bench.id}`;
             
@@ -368,8 +376,9 @@
 
         function calculateStatus(bench) {
             if (bench.manual_status === 'Ungeprüft') return 'Ungeprüft';
+            if (bench.manual_status === 'Wartung empfohlen') return 'Wartung empfohlen'; 
             if (bench.manual_status === 'Beschädigt') return 'Beschädigt';
-            if (bench.manual_status === 'Totalschaden') return 'Totalschaden';
+            if (bench.manual_status === 'Irreparabel') return 'Irreparabel';
             if (!bench.last_maintenance) return 'Wartung nötig';
             const maintDate = new Date(bench.last_maintenance);
             const today = new Date();
@@ -386,7 +395,7 @@
                 case 'Wartung empfohlen': return { radius: 9, fillColor: '#f1c40f', color: '#fff', weight: 2, fillOpacity: 0.9 };
                 case 'Wartung nötig': return { radius: 9, fillColor: '#c0392b', color: '#fff', weight: 2, fillOpacity: 0.9 };
                 case 'Beschädigt': return { radius: 14, fillColor: '#e74c3c', color: '#ffffff', weight: 4, fillOpacity: 1 };
-                case 'Totalschaden': return { radius: 11, fillColor: '#000000', color: '#ffffff', weight: 3, fillOpacity: 1 };
+                case 'Irreparabel': return { radius: 11, fillColor: '#000000', color: '#ffffff', weight: 3, fillOpacity: 1 };
                 default: return { radius: 9, fillColor: '#7f8c8d', color: '#fff', weight: 2, fillOpacity: 0.9 };
             }
         }
@@ -476,27 +485,30 @@
             document.getElementById('total-count').innerText = benches.length;
             const filterDistrict = document.getElementById('filter-district').value || 'Alle';
             const filterType = document.getElementById('filter-type').value || 'Alle';
+            const filterStatus = document.getElementById('filter-status').value || 'Alle'; 
+            
             document.getElementById('stats-title').innerText = `Bestand: ${filterDistrict === 'Alle' ? 'Gesamt HN' : filterDistrict}`;
 
             let stats = {}; types.forEach(t => stats[t] = 0);
             
             if (markersLayer) { markersLayer.clearLayers(); }
-            window.markerDict = {}; // Zurücksetzen für neue Render-Schleife
+            window.markerDict = {}; 
 
             benches.forEach(bench => {
+                const status = calculateStatus(bench);
                 const matchDistrict = filterDistrict === 'Alle' || bench.district === filterDistrict;
                 const matchType = filterType === 'Alle' || bench.type === filterType;
+                const matchStatus = filterStatus === 'Alle' || status === filterStatus; 
+
                 if (matchDistrict) { if(stats[bench.type] === undefined) stats[bench.type] = 0; stats[bench.type]++; }
 
-                if (matchDistrict && matchType && markersLayer && typeof L !== 'undefined') {
-                    const status = calculateStatus(bench);
+                if (matchDistrict && matchType && matchStatus && markersLayer && typeof L !== 'undefined') {
                     const style = getMarkerStyle(status);
                     const marker = L.circleMarker([bench.lat, bench.lng], style);
 
                     let dimHtml = bench.dimensions ? `<br/>📐 Maße: ${bench.dimensions}` : '';
                     let noteHtml = bench.note ? `<br/>📝 ${bench.note}` : '';
 
-                    // --- NEU: Popup Button Layout (Bearbeiten | Route | Teilen) ---
                     let popupHtml = `
                         <div style="font-size:14px; line-height:1.4; min-width:230px; color:#333;">
                             <strong>${bench.type}</strong><br/>⚠️ Status: ${status}${dimHtml}${noteHtml}
@@ -509,8 +521,7 @@
                     `;
                     marker.bindPopup(popupHtml); 
                     markersLayer.addLayer(marker);
-                    
-                    window.markerDict[bench.id] = marker; // Marker in Lexikon speichern für Deep Links
+                    window.markerDict[bench.id] = marker; 
                 }
             });
 
@@ -541,7 +552,6 @@
             document.getElementById('pop-dimensions').value = bench.dimensions || '';
             document.getElementById('pop-note').value = bench.note || '';
             
-            // Custom Upload zurücksetzen
             document.getElementById('custom-bench-image-camera').value = '';
             document.getElementById('custom-bench-image-gallery').value = '';
             activeCustomFileInput = null;
@@ -579,7 +589,6 @@
                     await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id); 
                 }
 
-                // Custom Bild Upload Logik via neuem "activeCustomFileInput"
                 if (lastSelectedType === 'Sonstige' && activeCustomFileInput && activeCustomFileInput.files.length > 0 && savedId) {
                     const file = activeCustomFileInput.files[0];
                     const compressedFile = await compressImage(file, 800, 0.7);
@@ -628,13 +637,13 @@
                     });
                     setTimeout(forceMapUpdate, 100); window.addEventListener('resize', forceMapUpdate);
                     
-                    // Supabase erst laden, wenn die Karte steht (wichtig für Deep Linking und Popups)
                     if(hasKeys) { fetchBenchesFromCloud(); subscribeToRealtime(); }
 
                 } catch(e) { console.error("Kartenfehler:", e); }
             }
             document.getElementById('filter-district').addEventListener('change', updateApp);
             document.getElementById('filter-type').addEventListener('change', updateApp);
+            document.getElementById('filter-status').addEventListener('change', updateApp);
 
             document.getElementById('add-type-btn').onclick = async () => {
                 const input = document.getElementById('new-type-input'); 
