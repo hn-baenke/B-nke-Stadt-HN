@@ -37,8 +37,9 @@
         
         .btn { background: #3498db; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; text-align: center; box-sizing: border-box; }
         .btn-camera { background: #e67e22; margin-top: 5px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-gallery { background: #8e44ad; }
         .btn-save { background: #27ae60; margin-top: 10px; }
-        .btn-add-type-trigger { background: #2c3e50; margin-top: 5px; } /* Dunkelblau für den Menü-Trigger */
+        .btn-add-type-trigger { background: #2c3e50; margin-top: 5px; }
         .btn-delete { background: #e74c3c; margin-top: 8px; }
         .btn-cancel { background: #95a5a6; margin-top: 8px; }
         
@@ -56,10 +57,12 @@
             width: 100%; height: 200px; margin-top: 8px; border-radius: 8px; border: 1px solid #ccd1d9; background-color: #2c3e50; overflow: hidden; display: flex; align-items: center; justify-content: center;
         }
         .type-preview-box img { width: 100%; height: 100%; object-fit: contain; display: none; }
-        .type-preview-box .no-image-text { color: #fff; font-size: 14px; font-style: italic; }
+        .type-preview-box .no-image-text { color: #fff; font-size: 14px; font-style: italic; text-align: center; padding: 10px; }
 
         .file-input-container { margin-top: 5px; background: #eaeded; padding: 12px; border-radius: 8px; font-size: 14px; text-align: center; }
-        #file-status-text { display: block; margin-top: 8px; font-weight: bold; color: #e67e22; font-size: 13px; }
+        .file-status-text { display: block; margin-top: 8px; font-weight: bold; color: #e67e22; font-size: 13px; }
+
+        #custom-image-upload-container { display: none; margin-top: 15px; padding: 15px; background: #fdf2e9; border-radius: 8px; border: 1px dashed #e67e22; }
 
         @media (min-width: 768px) {
             #sidebar { bottom: auto; top: 0; right: -400px; left: auto; width: 380px; height: 100%; border-top-left-radius: 0px; border-top-right-radius: 0px; box-shadow: -5px 0 20px rgba(0,0,0,0.2); transition: right 0.3s ease-in-out; }
@@ -102,7 +105,7 @@
             </div>
             
             <div class="legend">
-                <strong>Status:</strong> 🟢 Gut | 🟡 ~3J | 🔴 &gt;5J | 🔴⚪ Defekt | ⚫ Austauschen<br>
+                <strong>Status:</strong> 🟢 Gut | 🟡 ~3J | 🔴 >5J | 🔴⚪ Defekt | ⚫ Austauschen<br>
                 💡 <em>Karte antippen = Bank anlegen. Punkt antippen = Bearbeiten.</em>
             </div>
         </div>
@@ -112,11 +115,25 @@
         <h3 id="form-title">Sitzbank eintragen</h3>
         
         <label>Bautyp:</label>
-        <select id="pop-type" onchange="updatePreviewImage()"></select>
+        <select id="pop-type" onchange="handleTypeChange()"></select>
         
         <div class="type-preview-box" id="image-preview-container">
             <span class="no-image-text" id="preview-placeholder">Kein Bild für diesen Typ hinterlegt</span>
             <img id="preview-img" src="" alt="Vorschau Banktyp">
+        </div>
+
+        <div id="custom-image-upload-container">
+            <label style="margin-top:0;">📸 Einzelfoto für Sonderanfertigung:</label>
+            <div class="file-input-container" style="background: transparent; padding: 0; margin-top: 0;">
+                <input type="file" id="custom-bench-image-camera" accept="image/*" capture="environment" style="display: none;" onchange="handleCustomFileSelection(this)">
+                <input type="file" id="custom-bench-image-gallery" accept="image/*" style="display: none;" onchange="handleCustomFileSelection(this)">
+                
+                <button type="button" class="btn btn-camera" onclick="document.getElementById('custom-bench-image-camera').click()">📸 Foto aufnehmen</button>
+                <button type="button" class="btn btn-camera btn-gallery" onclick="document.getElementById('custom-bench-image-gallery').click()">📁 Aus Galerie wählen</button>
+                
+                <span id="custom-file-status-text" class="file-status-text">Kein neues Foto gewählt</span>
+            </div>
+            <p style="font-size: 11px; color: #7f8c8d; margin-top: 5px; margin-bottom: 0;">Das Bild wird beim Speichern komprimiert hochgeladen.</p>
         </div>
 
         <label>Stadtteil / Bereich:</label><select id="pop-district"></select>
@@ -143,9 +160,13 @@
         
         <label>Musterfoto hinterlegen:</label>
         <div class="file-input-container">
-            <input type="file" id="new-type-image" accept="image/*" capture="environment" style="display: none;" onchange="handleFileSelection()">
-            <button type="button" class="btn btn-camera" onclick="triggerCameraInput()">📸 Foto live aufnehmen</button>
-            <span id="file-status-text">Kein Foto aufgenommen</span>
+            <input type="file" id="new-type-image-camera" accept="image/*" capture="environment" style="display: none;" onchange="handleTypeFileSelection(this)">
+            <input type="file" id="new-type-image-gallery" accept="image/*" style="display: none;" onchange="handleTypeFileSelection(this)">
+            
+            <button type="button" class="btn btn-camera" onclick="triggerTypeCameraInput()">📸 Foto live aufnehmen</button>
+            <button type="button" class="btn btn-camera btn-gallery" onclick="triggerTypeGalleryInput()">📁 Bild aus Galerie wählen</button>
+            
+            <span id="type-file-status-text" class="file-status-text">Kein Foto ausgewählt</span>
         </div>
         
         <button id="add-type-btn" class="btn btn-save" style="margin-top: 30px;">Typ & Bild speichern</button>
@@ -156,17 +177,13 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
     <script>
-        // ==========================================================
-        // 🛠️ FÜGE HIER DEINE ZUGANGSDATEN EIN:
-        // ==========================================================
         const SUPABASE_URL = "https://aqownulwmwdtrgzmsgqn.supabase.co"; 
         const SUPABASE_ANON_KEY = "sb_publishable_a_CXe4OWZN0vdnUPPF_Avg_AY55SFMN";
-        // ==========================================================
 
         const DISTRICTS = [
             "Heilbronn Zentrum", "Heilbronn Ost", "Heilbronn Süd", "Heilbronn West", "Heilbronn Nord",
             "Böckingen", "Frankenbach", "Biberach", "Kirchhausen", "Klingenberg", "Neckargartach",
-            "Pfühlpark", "Ziegeleipark", "Wertwiesenpark"
+            "Horkheim", "Pfühlpark", "Ziegeleipark", "Wertwiesenpark"
         ];
 
         let types = ["H-Bank", "Wetz Ergo7000", "Bitburg", "Sonstige"];
@@ -175,14 +192,45 @@
         let currentEditingBench = null;
         let isNewBenchMode = false;
         let isTakingPhoto = false; 
+        let isFirstLoad = true;
+        
+        window.markerDict = {}; // Speichert die Map-Marker anhand der ID für Deep-Links
+
+        let activeTypeFileInput = null; 
+        let activeCustomFileInput = null; // Speichert das genutzte Input für Sonderanfertigungen
 
         let lastSelectedType = types[0];
         let lastSelectedDistrict = DISTRICTS[0];
 
         function initSupabase() {
-            if(SUPABASE_URL.includes("HIER_DEINE_SUPABASE")) { return false; }
+            if(SUPABASE_URL.includes("DEINE_SUPABASE_URL")) { return false; }
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             return true;
+        }
+
+        async function compressImage(file, maxWidth = 800, quality = 0.7) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width; let height = img.height;
+                        if (width > maxWidth) {
+                            height = Math.round(height * maxWidth / width);
+                            width = maxWidth;
+                        }
+                        canvas.width = width; canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        canvas.toBlob((blob) => {
+                            resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+                        }, 'image/jpeg', quality);
+                    };
+                };
+            });
         }
 
         async function fetchBenchesFromCloud() {
@@ -192,6 +240,12 @@
             else {
                 benches = data || [];
                 updateApp();
+                
+                // Deep-Link Check (nur beim allerersten Laden der Bänke)
+                if (isFirstLoad) {
+                    handleDeepLink();
+                    isFirstLoad = false;
+                }
             }
         }
 
@@ -210,38 +264,46 @@
             setTimeout(forceMapUpdate, 350);
         };
 
-        // Typen-Fenster Steuerung
         window.openTypeOverlay = function() {
-            toggleSidebar(); // schließt das Seitenmenü
+            toggleSidebar();
             document.getElementById('new-type-input').value = '';
-            document.getElementById('new-type-image').value = '';
-            document.getElementById('file-status-text').innerText = "Kein Foto aufgenommen";
-            document.getElementById('file-status-text').style.color = "#333";
+            document.getElementById('new-type-image-camera').value = '';
+            document.getElementById('new-type-image-gallery').value = '';
+            activeTypeFileInput = null;
+            document.getElementById('type-file-status-text').innerText = "Kein Foto ausgewählt";
+            document.getElementById('type-file-status-text').style.color = "#333";
             document.getElementById('type-fullscreen-overlay').style.display = 'block';
         };
 
         window.closeTypeOverlay = function() {
             document.getElementById('type-fullscreen-overlay').style.display = 'none';
-            // Kurz warten, damit Klicks auf der Karte wieder sicher sind
             setTimeout(() => { isTakingPhoto = false; }, 400);
         };
 
-        window.triggerCameraInput = function() {
-            isTakingPhoto = true;
-            document.getElementById('new-type-image').click();
+        window.triggerTypeCameraInput = function() {
+            isTakingPhoto = true; document.getElementById('new-type-image-camera').click();
+        };
+        window.triggerTypeGalleryInput = function() {
+            isTakingPhoto = true; document.getElementById('new-type-image-gallery').click();
         };
 
-        window.handleFileSelection = function() {
-            const fileInput = document.getElementById('new-type-image');
-            const statusText = document.getElementById('file-status-text');
-            if(fileInput.files.length > 0) {
-                statusText.innerText = `✅ Foto bereit (${fileInput.files[0].name.substring(0, 15)}...)`;
+        window.handleTypeFileSelection = function(inputElement) {
+            const statusText = document.getElementById('type-file-status-text');
+            if(inputElement.files.length > 0) {
+                activeTypeFileInput = inputElement; 
+                statusText.innerText = `✅ Bild bereit (${inputElement.files[0].name.substring(0, 15)}...)`;
                 statusText.style.color = "#27ae60";
-            } else {
-                statusText.innerText = "Kein Foto aufgenommen";
-                statusText.style.color = "#333";
             }
             setTimeout(() => { isTakingPhoto = false; }, 1000);
+        };
+
+        window.handleCustomFileSelection = function(inputElement) {
+            const statusText = document.getElementById('custom-file-status-text');
+            if(inputElement.files.length > 0) {
+                activeCustomFileInput = inputElement;
+                statusText.innerText = `✅ Neues Foto markiert (${inputElement.files[0].name.substring(0, 15)}...)`;
+                statusText.style.color = "#27ae60";
+            }
         };
 
         window.locateUser = function() {
@@ -260,6 +322,48 @@
                 () => { btn.innerText = "🎯"; alert("Standort nicht ermittelt."); },
                 { enableHighAccuracy: true, timeout: 10000 }
             );
+        };
+
+        // --- NEU: Deep Link und Teilen Logik ---
+        function handleDeepLink() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const benchId = urlParams.get('id');
+            
+            if (benchId && window.markerDict && window.markerDict[benchId]) {
+                const bench = benches.find(b => b.id == benchId);
+                const marker = window.markerDict[benchId];
+                
+                if (bench && marker && map) {
+                    map.setView([bench.lat, bench.lng], 18);
+                    marker.openPopup();
+                    
+                    // URL aufräumen, damit bei einem Reload nicht sofort wieder reingezoomt wird
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }
+        }
+
+        window.openRoute = function(lat, lng) {
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
+        };
+
+        window.shareBench = function(id) {
+            const bench = benches.find(b => b.id === id);
+            if (!bench) return;
+            const status = calculateStatus(bench);
+            
+            // Generiert den Deep-Link zur App basierend auf der aktuellen URL (ohne bestehende Parameter)
+            const baseUrl = window.location.href.split('?')[0];
+            const shareUrl = `${baseUrl}?id=${bench.id}`;
+            
+            const shareText = `Sitzbank-Prüfung in ${bench.district}\nTyp: ${bench.type}\nStatus: ${status}${bench.note ? '\nNotiz: ' + bench.note : ''}\n\nIn App öffnen & auf Karte anzeigen:`;
+            
+            if (navigator.share) {
+                navigator.share({ title: 'Sitzbank-Kataster Details', text: shareText, url: shareUrl })
+                .catch(console.error);
+            } else {
+                prompt("Kopiere diesen Text, um ihn zu teilen:", `${shareText} \n${shareUrl}`);
+            }
         };
 
         function calculateStatus(bench) {
@@ -303,33 +407,65 @@
             tSelect.value = currentFilter;
         }
 
+        window.handleTypeChange = function() {
+            const selectedType = document.getElementById('pop-type').value;
+            const customContainer = document.getElementById('custom-image-upload-container');
+            
+            if(selectedType === 'Sonstige') {
+                customContainer.style.display = 'block';
+            } else {
+                customContainer.style.display = 'none';
+            }
+            updatePreviewImage();
+        };
+
         window.updatePreviewImage = function() {
             const selectedType = document.getElementById('pop-type').value;
             const imgElement = document.getElementById('preview-img');
             const placeholderText = document.getElementById('preview-placeholder');
             
+            if (selectedType === 'Sonstige') {
+                if (currentEditingBench && currentEditingBench.id) {
+                    const cacheBuster = new Date().getTime(); 
+                    const customUrl = `${SUPABASE_URL}/storage/v1/object/public/bench-custom-images/${currentEditingBench.id}.jpg?t=${cacheBuster}`;
+                    
+                    const imgTest = new Image();
+                    imgTest.onload = function() {
+                        imgElement.src = customUrl;
+                        imgElement.style.display = "block";
+                        placeholderText.style.display = "none";
+                    };
+                    imgTest.onerror = function() {
+                        imgElement.src = "";
+                        imgElement.style.display = "none";
+                        placeholderText.innerText = "Noch kein Einzelfoto hochgeladen.";
+                        placeholderText.style.display = "block";
+                    };
+                    imgTest.src = customUrl;
+                } else {
+                    imgElement.src = "";
+                    imgElement.style.display = "none";
+                    placeholderText.innerText = "Sonderanfertigung (Foto kann beim Speichern hinzugefügt werden)";
+                    placeholderText.style.display = "block";
+                }
+                return;
+            }
+
             const cleanName = selectedType.replace(/\s+/g, '_');
-            
             const jpgUrl = `${SUPABASE_URL}/storage/v1/object/public/bench-images/${cleanName}.jpg`;
             const pngUrl = `${SUPABASE_URL}/storage/v1/object/public/bench-images/${cleanName}.png`;
             
             const imgTestJpg = new Image();
             imgTestJpg.onload = function() {
-                imgElement.src = jpgUrl;
-                imgElement.style.display = "block";
-                placeholderText.style.display = "none";
+                imgElement.src = jpgUrl; imgElement.style.display = "block"; placeholderText.style.display = "none";
             };
             imgTestJpg.onerror = function() {
                 const imgTestPng = new Image();
                 imgTestPng.onload = function() {
-                    imgElement.src = pngUrl;
-                    imgElement.style.display = "block";
-                    placeholderText.style.display = "none";
+                    imgElement.src = pngUrl; imgElement.style.display = "block"; placeholderText.style.display = "none";
                 };
                 imgTestPng.onerror = function() {
-                    imgElement.src = "";
-                    imgElement.style.display = "none";
-                    placeholderText.style.display = "block";
+                    imgElement.src = ""; imgElement.style.display = "none"; placeholderText.innerText = "Kein Bild für diesen Typ hinterlegt"; placeholderText.style.display = "block";
                 };
                 imgTestPng.src = pngUrl;
             };
@@ -343,7 +479,9 @@
             document.getElementById('stats-title').innerText = `Bestand: ${filterDistrict === 'Alle' ? 'Gesamt HN' : filterDistrict}`;
 
             let stats = {}; types.forEach(t => stats[t] = 0);
+            
             if (markersLayer) { markersLayer.clearLayers(); }
+            window.markerDict = {}; // Zurücksetzen für neue Render-Schleife
 
             benches.forEach(bench => {
                 const matchDistrict = filterDistrict === 'Alle' || bench.district === filterDistrict;
@@ -358,13 +496,21 @@
                     let dimHtml = bench.dimensions ? `<br/>📐 Maße: ${bench.dimensions}` : '';
                     let noteHtml = bench.note ? `<br/>📝 ${bench.note}` : '';
 
+                    // --- NEU: Popup Button Layout (Bearbeiten | Route | Teilen) ---
                     let popupHtml = `
-                        <div style="font-size:14px; line-height:1.4; min-width:180px; color:#333;">
+                        <div style="font-size:14px; line-height:1.4; min-width:230px; color:#333;">
                             <strong>${bench.type}</strong><br/>⚠️ Status: ${status}${dimHtml}${noteHtml}
-                            <br/><button onclick="triggerEdit(${bench.id})" class="btn" style="padding:6px; font-size:12px; margin-top:8px;">Anzeigen / Bearbeiten</button>
+                            <div style="display: flex; gap: 4px; margin-top: 10px;">
+                                <button onclick="triggerEdit(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1;">Bearbeiten</button>
+                                <button onclick="openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
+                                <button onclick="shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
+                            </div>
                         </div>
                     `;
-                    marker.bindPopup(popupHtml); markersLayer.addLayer(marker);
+                    marker.bindPopup(popupHtml); 
+                    markersLayer.addLayer(marker);
+                    
+                    window.markerDict[bench.id] = marker; // Marker in Lexikon speichern für Deep Links
                 }
             });
 
@@ -395,15 +541,26 @@
             document.getElementById('pop-dimensions').value = bench.dimensions || '';
             document.getElementById('pop-note').value = bench.note || '';
             
+            // Custom Upload zurücksetzen
+            document.getElementById('custom-bench-image-camera').value = '';
+            document.getElementById('custom-bench-image-gallery').value = '';
+            activeCustomFileInput = null;
+            document.getElementById('custom-file-status-text').innerText = "Kein neues Foto gewählt";
+            document.getElementById('custom-file-status-text').style.color = "#e67e22";
+            
             document.getElementById('pop-delete-btn').style.display = isNew ? 'none' : 'block';
             document.getElementById('fullscreen-overlay').style.display = 'block';
             
-            updatePreviewImage();
+            handleTypeChange(); 
         }
 
         document.getElementById('pop-save-btn').onclick = async () => {
             lastSelectedType = document.getElementById('pop-type').value;
             lastSelectedDistrict = document.getElementById('pop-district').value;
+            
+            const btn = document.getElementById('pop-save-btn');
+            btn.innerText = "⏳ Speichere...";
+            btn.disabled = true;
 
             const rowData = {
                 lat: currentEditingBench.lat, lng: currentEditingBench.lng, type: lastSelectedType, district: lastSelectedDistrict,
@@ -412,10 +569,31 @@
             };
 
             if (supabaseClient) {
-                if (isNewBenchMode) { await supabaseClient.from('benches').insert([rowData]); } 
-                else { await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id); }
+                let savedId = currentEditingBench.id;
+                
+                if (isNewBenchMode) { 
+                    const { data, error } = await supabaseClient.from('benches').insert([rowData]).select(); 
+                    if (data && data.length > 0) savedId = data[0].id;
+                } 
+                else { 
+                    await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id); 
+                }
+
+                // Custom Bild Upload Logik via neuem "activeCustomFileInput"
+                if (lastSelectedType === 'Sonstige' && activeCustomFileInput && activeCustomFileInput.files.length > 0 && savedId) {
+                    const file = activeCustomFileInput.files[0];
+                    const compressedFile = await compressImage(file, 800, 0.7);
+                    
+                    await supabaseClient.storage
+                        .from('bench-custom-images')
+                        .upload(`${savedId}.jpg`, compressedFile, { upsert: true, contentType: 'image/jpeg' });
+                }
             }
-            document.getElementById('fullscreen-overlay').style.display = 'none'; fetchBenchesFromCloud();
+            
+            btn.innerText = "Speichern";
+            btn.disabled = false;
+            document.getElementById('fullscreen-overlay').style.display = 'none'; 
+            fetchBenchesFromCloud();
         };
 
         document.getElementById('pop-delete-btn').onclick = async () => {
@@ -429,12 +607,13 @@
         function forceMapUpdate() { if (map) { map.invalidateSize(); } }
 
         function startApp() {
-            const hasKeys = initSupabase(); if(hasKeys) { fetchBenchesFromCloud(); subscribeToRealtime(); }
+            const hasKeys = initSupabase(); 
             initDropdowns();
+            
             if (typeof L !== 'undefined') {
                 try {
-                    const osmStreets = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' });
-                    const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' });
+                    const osmStreets = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+                    const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles © Esri' });
                     map = L.map('map', { fadeAnimation: false, layers: [osmStreets] }).setView([49.1426, 9.2177], 13);
                     markersLayer = L.layerGroup().addTo(map);
                     const baseMaps = { "Straßenkarte": osmStreets, "Satellitenbild": esriSatellite };
@@ -448,24 +627,25 @@
                         openFullscreenForm({ lat: e.latlng.lat, lng: e.latlng.lng, type: lastSelectedType, district: lastSelectedDistrict, last_maintenance: new Date().toISOString().split('T')[0], manual_status: 'Automatisch', dimensions: '', note: '' }, true);
                     });
                     setTimeout(forceMapUpdate, 100); window.addEventListener('resize', forceMapUpdate);
+                    
+                    // Supabase erst laden, wenn die Karte steht (wichtig für Deep Linking und Popups)
+                    if(hasKeys) { fetchBenchesFromCloud(); subscribeToRealtime(); }
+
                 } catch(e) { console.error("Kartenfehler:", e); }
             }
             document.getElementById('filter-district').addEventListener('change', updateApp);
             document.getElementById('filter-type').addEventListener('change', updateApp);
 
-            // Logik zum Speichern des Bautyps aus dem neuen Fenster
             document.getElementById('add-type-btn').onclick = async () => {
                 const input = document.getElementById('new-type-input'); 
                 const val = input.value.trim();
-                const fileInput = document.getElementById('new-type-image');
                 
                 if (!val) { alert("Bitte gib einen Namen für den Bautyp ein."); return; }
                 if (types.includes(val)) { alert("Dieser Typ existiert bereits."); return; }
                 
-                if (fileInput.files.length > 0 && supabaseClient) {
-                    const file = fileInput.files[0];
+                if (activeTypeFileInput && activeTypeFileInput.files.length > 0 && supabaseClient) {
+                    const file = activeTypeFileInput.files[0];
                     const cleanName = val.replace(/\s+/g, '_');
-                    // Erkennt automatisch ob .jpg oder .png hochgeladen wurde, behält aber die Logik bei
                     const extension = file.name.split('.').pop().toLowerCase();
                     const filePath = `${cleanName}.${extension === 'png' ? 'png' : 'jpg'}`;
                     
@@ -489,7 +669,7 @@
                 types.push(val); 
                 updateTypeDropdowns(); 
                 updateApp();
-                closeTypeOverlay(); // Schließt das Fenster automatisch
+                closeTypeOverlay();
                 alert(`Typ "${val}" erfolgreich angelegt!`);
             };
         }
