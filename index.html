@@ -501,38 +501,56 @@ window.onerror = function(message, source, lineno, colno, error) {
     
     if (!benchId) return;
 
-    // Wir erhöhen die Wartezeit leicht, damit alles sicher geladen ist
-    setTimeout(() => {
+    console.log("Suche nach Bank-ID:", benchId);
+
+    // Wir suchen bis zu 10 Sekunden lang (alle 500ms), 
+    // falls der Marker erst später durch das Daten-Laden erstellt wird.
+    let attempts = 0;
+    const interval = setInterval(() => {
+        attempts++;
         const marker = window.markerDict[benchId];
         
         if (marker) {
-            // 1. Wir zentrieren die Karte hart auf den Punkt
-            map.setView(marker.getLatLng(), 18);
+            clearInterval(interval);
+            console.log("Marker gefunden!");
 
-            // 2. Wir prüfen, ob der Marker überhaupt sichtbar im Cluster ist
-            // Wenn er in einem Cluster steckt, gibt getVisibleParent() das Cluster-Objekt zurück
-            const parent = markersLayer.getVisibleParent(marker);
-            
-            if (parent !== marker) {
-                // Er ist im Cluster versteckt -> Wir öffnen das Cluster
+            // 1. Zoom/Spiderfy erzwingen
+            if (markersLayer.getVisibleParent(marker)) {
                 markersLayer.zoomToShowLayer(marker, () => {
-                    // Nach dem Zoom öffnen wir das Pop-up verzögert
-                    setTimeout(() => marker.openPopup(), 500);
+                    performAction(marker);
                 });
             } else {
-                // Er ist bereits sichtbar -> Einfach öffnen
-                marker.openPopup();
+                performAction(marker);
             }
-            
-            // 3. URL aufräumen
+        }
+
+        if (attempts > 20) {
+            clearInterval(interval);
+            console.log("Bank leider nicht gefunden.");
+        }
+    }, 500);
+}
+
+function performAction(marker) {
+    // Kurze Pause, um den Zoom zu vollenden
+    setTimeout(() => {
+        map.setView(marker.getLatLng(), 18);
+        
+        // Popup Zwang
+        marker.openPopup();
+        
+        // Das ist der "Trick": Leaflet-Popup-Update triggern
+        setTimeout(() => {
+            if (marker.getPopup()) {
+                marker.getPopup()._updateLayout();
+                marker.getPopup()._updatePosition();
+            }
             window.history.replaceState({}, document.title, window.location.pathname);
-        }
-    }, 1200);
-        }
-        
-        
-        
-                          
+        }, 300);
+    }, 300);
+}
+
+                                  
         window.openRoute = function(lat, lng) {
             const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
             if (isApple) {
