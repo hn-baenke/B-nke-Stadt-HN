@@ -261,6 +261,21 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
     <script>
+      // Debug-Konsole für das Handy
+window.onerror = function(message, source, lineno, colno, error) {
+    const debugDiv = document.createElement('div');
+    debugDiv.style.position = 'fixed';
+    debugDiv.style.bottom = '10px';
+    debugDiv.style.left = '10px';
+    debugDiv.style.background = 'black';
+    debugDiv.style.color = 'lime';
+    debugDiv.style.padding = '10px';
+    debugDiv.style.zIndex = '9999';
+    debugDiv.style.fontSize = '12px';
+    debugDiv.innerText = `FEHLER: ${message} (Zeile: ${lineno})`;
+    document.body.appendChild(debugDiv);
+};
+      
         const SUPABASE_URL = "https://aqownulwmwdtrgzmsgqn.supabase.co"; 
         const SUPABASE_ANON_KEY = "sb_publishable_a_CXe4OWZN0vdnUPPF_Avg_AY55SFMN";
 
