@@ -806,61 +806,57 @@
             handleTypeChange(); 
         }
 
-        document.getElementById('pop-save-btn').onclick = async () => {
-    lastSelectedType = document.getElementById('pop-type').value;
-    lastSelectedDistrict = document.getElementById('pop-district').value;
-    
-    const btn = document.getElementById('pop-save-btn');
-    btn.innerText = "⏳ Speichere...";
-    btn.disabled = true;
-
-    const rowData = {
-        lat: currentEditingBench.lat, lng: currentEditingBench.lng, type: lastSelectedType, district: lastSelectedDistrict,
-        last_maintenance: document.getElementById('pop-date').value || null, manual_status: document.getElementById('pop-manual').value,
-        dimensions: document.getElementById('pop-dimensions').value, note: document.getElementById('pop-note').value
-    };
-
-    try {
-        let savedId = currentEditingBench.id;
-
-        // 1. Speichern (Insert oder Update)
-        if (isNewBenchMode) { 
-            const { data, error } = await supabaseClient.from('benches').insert([rowData]).select(); 
-            if (error) throw error;
-            if (data && data.length > 0) savedId = data[0].id;
-        } else { 
-            const { error } = await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id);
-            if (error) throw error;
-        }
-
-        // 2. Foto-Upload, falls vorhanden
-        if (lastSelectedType === 'Sonstige' && activeCustomFileInput && activeCustomFileInput.files.length > 0 && savedId) {
-            const file = activeCustomFileInput.files[0];
-            const compressedFile = await compressImage(file, 800, 0.7);
+                document.getElementById('pop-save-btn').onclick = async () => {
+            lastSelectedType = document.getElementById('pop-type').value;
+            lastSelectedDistrict = document.getElementById('pop-district').value;
             
-            // WICHTIG: explizit contentType setzen
-            const { error: uploadError } = await supabaseClient.storage
-                .from('bench-custom-images')
-                .upload(`${savedId}.jpg`, compressedFile, { 
-                    upsert: true, 
-                    contentType: 'image/jpeg' 
-                });
-            
-            if (uploadError) throw new Error("Upload fehlgeschlagen: " + uploadError.message);
-        }
+            const btn = document.getElementById('pop-save-btn');
+            btn.innerText = "⏳ Speichere...";
+            btn.disabled = true;
 
-        fetchBenchesFromCloud();
-        document.getElementById('fullscreen-overlay').style.display = 'none';
+            const rowData = {
+                lat: currentEditingBench.lat, lng: currentEditingBench.lng, type: lastSelectedType, district: lastSelectedDistrict,
+                last_maintenance: document.getElementById('pop-date').value || null, manual_status: document.getElementById('pop-manual').value,
+                dimensions: document.getElementById('pop-dimensions').value, note: document.getElementById('pop-note').value
+            };
+
+            try {
+                let savedId = currentEditingBench.id;
+
+                // 1. Bank-Daten in Datenbank speichern
+                if (isNewBenchMode) { 
+                    const { data, error } = await supabaseClient.from('benches').insert([rowData]).select(); 
+                    if (error) throw error;
+                    if (data && data.length > 0) savedId = data[0].id;
+                } else { 
+                    const { error } = await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id);
+                    if (error) throw error;
+                }
+
+                // 2. Foto-Upload nur, wenn es "Sonstige" ist
+                if (lastSelectedType === 'Sonstige' && activeCustomFileInput && activeCustomFileInput.files.length > 0 && savedId) {
+                    const file = activeCustomFileInput.files[0];
+                    const compressedFile = await compressImage(file, 800, 0.7);
+                    
+                    const { error: uploadError } = await supabaseClient.storage
+                        .from('bench-custom-images')
+                        .upload(`${savedId}.jpg`, compressedFile, { upsert: true, contentType: 'image/jpeg' });
+                    
+                    if (uploadError) throw new Error("Upload-Fehler: " + uploadError.message);
+                }
+
+                fetchBenchesFromCloud();
+                document.getElementById('fullscreen-overlay').style.display = 'none';
+            } catch (e) {
+                console.error(e);
+                alert("Fehler beim Speichern: " + e.message);
+                saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id);
+            } finally {
+                btn.innerText = "Speichern";
+                btn.disabled = false;
+            }
+        };
         
-    } catch (e) {
-        console.error(e);
-        alert("Fehler beim Speichern: " + e.message);
-        saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id);
-    } finally {
-        btn.innerText = "Speichern";
-        btn.disabled = false;
-    }
-};
 
 
         document.getElementById('pop-delete-btn').onclick = async () => {
