@@ -11,18 +11,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 
     <style>
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; 
-            margin: 0; 
-            padding: 0; 
-            display: flex; 
-            height: 100vh; 
-            height: 100dvh; /* Fix für mobile Browser-Leisten */
-            flex-direction: column; 
-            background: #f4f6f8; 
-            color: #333; 
-            overflow: hidden; 
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; flex-direction: column; background: #f4f6f8; color: #333; overflow: hidden; }
         header { background: #2c3e50; color: white; padding: 12px; text-align: center; font-size: 14px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1001; position: relative; }
         .main-container { display: flex; flex: 1; flex-direction: column; overflow: hidden; position: relative; }
         
@@ -65,7 +54,7 @@
         }
         #live-stats-widget.minimized { max-height: 36px; }
         .widget-header { background: #f8f9fa; padding: 8px 12px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; cursor: pointer; }
-        .widget-content { padding: 10px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; max-height: 200px; }
+        .widget-content { padding: 10px; display: flex; flex-direction: column; gap: 6px; }
         .widget-content ul { margin: 0; padding-left: 15px; list-style-type: square; }
 
         /* Vollbild Overlays */
@@ -441,13 +430,12 @@
             
             if (benchId && window.markerDict && window.markerDict[benchId]) {
                 const marker = window.markerDict[benchId];
-                if (marker && map && markersLayer) {
-                    // ZoomToShowLayer bricht das Cluster sauber auf und zoomt hinein.
-                    // Durch das direkte Aufrufen des Popups im Callback klappt es ohne Animationskonflikt.
+                if (marker && map) {
                     markersLayer.zoomToShowLayer(marker, () => {
+                        map.setView(marker.getLatLng(), 18);
                         setTimeout(() => {
                             marker.openPopup();
-                        }, 250);
+                        }, 200);
                     });
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
@@ -457,9 +445,11 @@
         window.openRoute = function(lat, lng) {
             const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
             if (isApple) {
+                // Erzwingt die native Apple Maps App auf Apple-Geräten
                 window.open(`maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`, '_blank');
             } else {
-                window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
+                // Korrekte Google Maps URL für Android/PC
+                window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
             }
         };
 
@@ -471,13 +461,17 @@
             const baseUrl = window.location.href.split('?')[0];
             const shareUrl = `${baseUrl}?id=${bench.id}`;
             
-            const shareText = `Sitzbank-Prüfung in ${bench.district}\nTyp: ${bench.type}\nStatus: ${status}${bench.note ? '\nNotiz: ' + bench.note : ''}\n\nIn App öffnen & auf Karte anzeigen:`;
+            // Text bricht nicht vor dem Link ab
+            const shareText = `Sitzbank-Prüfung: ${bench.district}\nTyp: ${bench.type}\nStatus: ${status}${bench.note ? '\nNotiz: ' + bench.note : ''}`;
             
             if (navigator.share) {
-                navigator.share({ title: 'Sitzbank-Kataster Details', text: shareText, url: shareUrl })
-                .catch(console.error);
+                navigator.share({ 
+                    title: 'Sitzbank-Kataster HN', 
+                    text: shareText, 
+                    url: shareUrl 
+                }).catch(console.error);
             } else {
-                prompt("Kopiere diesen Text, um ihn zu teilen:", `${shareText} \n${shareUrl}`);
+                prompt("Kopiere diesen Link, um ihn zu teilen:", `${shareText}\nLink: ${shareUrl}`);
             }
         };
 
