@@ -7,9 +7,6 @@
     <link class="favicon" rel="icon" href="data:,">
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
-
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; flex-direction: column; background: #f4f6f8; color: #333; overflow: hidden; }
         header { background: #2c3e50; color: white; padding: 12px; text-align: center; font-size: 14px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1001; position: relative; }
@@ -257,24 +254,23 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
     <script>
-      // Debug-Konsole für das Handy
-window.onerror = function(message, source, lineno, colno, error) {
-    const debugDiv = document.createElement('div');
-    debugDiv.style.position = 'fixed';
-    debugDiv.style.bottom = '10px';
-    debugDiv.style.left = '10px';
-    debugDiv.style.background = 'black';
-    debugDiv.style.color = 'lime';
-    debugDiv.style.padding = '10px';
-    debugDiv.style.zIndex = '9999';
-    debugDiv.style.fontSize = '12px';
-    debugDiv.innerText = `FEHLER: ${message} (Zeile: ${lineno})`;
-    document.body.appendChild(debugDiv);
-};
+        // Debug-Konsole für das Handy
+        window.onerror = function(message, source, lineno, colno, error) {
+            const debugDiv = document.createElement('div');
+            debugDiv.style.position = 'fixed';
+            debugDiv.style.bottom = '10px';
+            debugDiv.style.left = '10px';
+            debugDiv.style.background = 'black';
+            debugDiv.style.color = 'lime';
+            debugDiv.style.padding = '10px';
+            debugDiv.style.zIndex = '9999';
+            debugDiv.style.fontSize = '12px';
+            debugDiv.innerText = `FEHLER: ${message} (Zeile: ${lineno})`;
+            document.body.appendChild(debugDiv);
+        };
       
         const SUPABASE_URL = "https://aqownulwmwdtrgzmsgqn.supabase.co"; 
         const SUPABASE_ANON_KEY = "sb_publishable_a_CXe4OWZN0vdnUPPF_Avg_AY55SFMN";
@@ -291,7 +287,6 @@ window.onerror = function(message, source, lineno, colno, error) {
         let currentEditingBench = null;
         let isNewBenchMode = false;
         let isTakingPhoto = false; 
-        let isFirstLoad = true;
         
         let pendingShareId = null;
 
@@ -352,21 +347,11 @@ window.onerror = function(message, source, lineno, colno, error) {
                 localStorage.setItem('benches_cache', JSON.stringify(benches)); 
                 updateApp();
                 
-                // FIX 1: Verzögerung eingebaut, damit Leaflet die Cluster vollständig auf der Karte rendern kann
-                if (isFirstLoad) {
-                    setTimeout(() => {
-                        handleDeepLink();
-                    }, 600);
-                    isFirstLoad = false;
-                }
+                // Deep Link Handler starten, sobald die Daten frisch geladen sind
+                handleDeepLink();
             } catch (err) {
                 console.warn("Offline-Modus aktiv: Daten aus dem lokalen Speicher geladen.", err);
-                if (isFirstLoad) {
-                    setTimeout(() => {
-                        handleDeepLink();
-                    }, 600);
-                    isFirstLoad = false;
-                }
+                handleDeepLink();
             }
         }
 
@@ -388,7 +373,7 @@ window.onerror = function(message, source, lineno, colno, error) {
                         await supabaseClient.from('benches').delete().eq('id', item.id);
                     }
                 } catch (e) {
-                    console.error("Fehler beim Sync eines Eintrags, bleibt in Warteschlange:", e);
+                    console.error("Fehler beim Sync eines Eintrags:", e);
                     remainingQueue.push(item);
                 }
             }
@@ -496,36 +481,43 @@ window.onerror = function(message, source, lineno, colno, error) {
         };
 
         function handleDeepLink() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const benchId = urlParams.get('id');
-    
-    if (!benchId) return;
-
-    // Wir warten, bis die Marker sicher geladen sind
-    const checkMarker = setInterval(() => {
-        const marker = window.markerDict[benchId];
-        
-        if (marker) {
-            clearInterval(checkMarker);
+            const urlParams = new URLSearchParams(window.location.search);
+            const benchId = parseInt(urlParams.get('id'), 10);
             
-            // 1. Zwinge die Karte, den Marker sichtbar zu machen (auch in Clustern)
-            markersLayer.zoomToShowLayer(marker, () => {
-                // 2. Jetzt erst zentrieren
-                map.setView(marker.getLatLng(), 18);
-                
-                // 3. Popup mit kurzer Verzögerung öffnen, damit Leaflet Zeit zum Zeichnen hat
-                setTimeout(() => {
-                    marker.openPopup();
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                }, 500);
-            });
-        }
-    }, 500);
-        }
-        
-        
+            if (!benchId) return;
 
-                                  
+            // Wir prüfen in einer kurzen Schleife, ob der Marker bereit ist
+            let attempts = 0;
+            const checkMarker = setInterval(() => {
+                attempts++;
+                const marker = window.markerDict[benchId];
+                
+                if (marker) {
+                    clearInterval(checkMarker);
+                    
+                    // Filter zurücksetzen, falls die Bank gefiltert war
+                    document.getElementById('filter-district').value = 'Alle';
+                    document.getElementById('filter-type').value = 'Alle';
+                    document.getElementById('filter-status').value = 'Alle';
+                    updateApp(); 
+                    
+                    // Frischen Marker greifen und direkt zentrieren
+                    const activeMarker = window.markerDict[benchId];
+                    if (activeMarker) {
+                        map.setView(activeMarker.getLatLng(), 18, { animate: false });
+                        
+                        // Das Popup sofort triggern
+                        setTimeout(() => {
+                            activeMarker.openPopup();
+                            window.history.replaceState({}, document.title, window.location.pathname);
+                        }, 500);
+                    }
+                }
+                
+                if (attempts > 20) { clearInterval(checkMarker); } // Abbruch nach 10 Sekunden
+            }, 500);
+        }
+
         window.openRoute = function(lat, lng) {
             const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
             if (isApple) {
@@ -558,7 +550,6 @@ window.onerror = function(message, source, lineno, colno, error) {
                 navigator.share({ title: 'Sitzbank-Kataster Details', text: shareText, url: shareUrl })
                 .then(() => console.log('Erfolgreich geteilt'))
                 .catch((err) => {
-                    console.warn("Teilen abgebrochen oder durch System blockiert, nutze Prompt-Fallback:", err);
                     if(err.name !== "AbortError") {
                         showFallbackPrompt();
                     }
@@ -659,22 +650,14 @@ window.onerror = function(message, source, lineno, colno, error) {
                     
                     const imgTest = new Image();
                     imgTest.onload = function() {
-                        imgElement.src = customUrl;
-                        imgElement.style.display = "block";
-                        placeholderText.style.display = "none";
+                        imgElement.src = customUrl; imgElement.style.display = "block"; placeholderText.style.display = "none";
                     };
                     imgTest.onerror = function() {
-                        imgElement.src = "";
-                        imgElement.style.display = "none";
-                        placeholderText.innerText = "Noch kein Einzelfoto hochgeladen.";
-                        placeholderText.style.display = "block";
+                        imgElement.src = ""; imgElement.style.display = "none"; placeholderText.innerText = "Noch kein Einzelfoto hochgeladen."; placeholderText.style.display = "block";
                     };
                     imgTest.src = customUrl;
                 } else {
-                    imgElement.src = "";
-                    imgElement.style.display = "none";
-                    placeholderText.innerText = "Sonderanfertigung (Foto kann beim Speichern hinzugefügt werden)";
-                    placeholderText.style.display = "block";
+                    imgElement.src = ""; imgElement.style.display = "none"; placeholderText.innerText = "Sonderanfertigung (Foto kann beim Speichern hinzugefügt werden)"; placeholderText.style.display = "block";
                 }
                 return;
             }
@@ -693,7 +676,7 @@ window.onerror = function(message, source, lineno, colno, error) {
                     imgElement.src = pngUrl; imgElement.style.display = "block"; placeholderText.style.display = "none";
                 };
                 imgTestPng.onerror = function() {
-                    imgElement.src = ""; imgElement.style.display = "none"; placeholderText.innerText = "Kein Bild für diesen Typ hinterlegt"; placeholderText.style.display = "block";
+                    imgElement.src = ""; imgElement.style.display = "none"; placeholderText.innerText = "Kein Bild hinterlegt"; placeholderText.style.display = "block";
                 };
                 imgTestPng.src = pngUrl;
             };
@@ -773,7 +756,7 @@ window.onerror = function(message, source, lineno, colno, error) {
                     }
                 });
                 if (widgetDetails.innerHTML === '') {
-                    widgetDetails.innerHTML = '<li style="list-style:none; margin-left:-15px; color:#7f8c8d; font-style:italic;">Keine Bänke in dieser Auswahl</li>';
+                    widgetDetails.innerHTML = '<li style="list-style:none; margin-left:-15px; color:#7f8c8d; font-style:italic;">Keine Auswahl</li>';
                 }
             }
         }
@@ -815,8 +798,7 @@ window.onerror = function(message, source, lineno, colno, error) {
             document.getElementById('custom-bench-image-camera').value = '';
             document.getElementById('custom-bench-image-gallery').value = '';
             activeCustomFileInput = null;
-            document.getElementById('custom-file-status-text').innerText = "Kein neues Foto gewählt";
-            document.getElementById('custom-file-status-text').style.color = "#e67e22";
+            document.getElementById('custom-file-status-text').innerText = "Kein Foto gewählt";
             
             document.getElementById('pop-delete-btn').style.display = isNew ? 'none' : 'block';
             document.getElementById('fullscreen-overlay').style.display = 'block';
@@ -841,29 +823,23 @@ window.onerror = function(message, source, lineno, colno, error) {
             if (supabaseClient && navigator.onLine) {
                 try {
                     let savedId = currentEditingBench.id;
-                    
                     if (isNewBenchMode) { 
                         const { data, error } = await supabaseClient.from('benches').insert([rowData]).select(); 
                         if (data && data.length > 0) savedId = data[0].id;
-                    } 
-                    else { 
+                    } else { 
                         await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id); 
                     }
 
                     if (lastSelectedType === 'Sonstige' && activeCustomFileInput && activeCustomFileInput.files.length > 0 && savedId) {
                         const file = activeCustomFileInput.files[0];
                         const compressedFile = await compressImage(file, 800, 0.7);
-                        
-                        await supabaseClient.storage
-                            .from('bench-custom-images')
-                            .upload(`${savedId}.jpg`, compressedFile, { upsert: true, contentType: 'image/jpeg' });
+                        await supabaseClient.storage.from('bench-custom-images').upload(`${savedId}.jpg`, compressedFile, { upsert: true, contentType: 'image/jpeg' });
                     }
                     fetchBenchesFromCloud();
                 } catch (e) {
                     saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id);
                 }
-            } 
-            else {
+            } else {
                 saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id);
             }
             
@@ -873,14 +849,12 @@ window.onerror = function(message, source, lineno, colno, error) {
         };
 
         document.getElementById('pop-delete-btn').onclick = async () => {
-            if (confirm('Möchtest du diese Sitzbank wirklich unwiderruflich löschen?')) {
+            if (confirm('Sitzbank unwiderruflich löschen?')) {
                 if (supabaseClient && navigator.onLine) {
                     try {
                         await supabaseClient.from('benches').delete().eq('id', currentEditingBench.id);
                         fetchBenchesFromCloud();
-                    } catch (e) {
-                        saveOfflineAction('delete', null, currentEditingBench.id);
-                    }
+                    } catch (e) { saveOfflineAction('delete', null, currentEditingBench.id); }
                 } else {
                     saveOfflineAction('delete', null, currentEditingBench.id);
                 }
@@ -902,11 +876,8 @@ window.onerror = function(message, source, lineno, colno, error) {
                     
                     map = L.map('map', { fadeAnimation: false, layers: [osmStreets] }).setView([49.1426, 9.2177], 13);
                     
-                    markersLayer = L.markerClusterGroup({
-                        disableClusteringAtZoom: 17, 
-                        spiderfyOnMaxZoom: true,
-                        showCoverageOnHover: false
-                    }).addTo(map);
+                    // WICHTIG: Das MarkerClusterGroup wurde hier durch eine einfache FeatureGroup ersetzt!
+                    markersLayer = L.featureGroup().addTo(map);
 
                     const baseMaps = { "Straßenkarte": osmStreets, "Satellitenbild": esriSatellite };
                     L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
@@ -916,19 +887,8 @@ window.onerror = function(message, source, lineno, colno, error) {
                             if(!isTakingPhoto) toggleSidebar(); 
                             return; 
                         }
-                        
-                        const clickPopupHtml = `
-                            <div style="text-align: center; padding: 5px;">
-                                <button onclick="window.triggerNewBenchCreation(${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="padding: 8px 12px; font-size: 13px; background: #27ae60;">
-                                    ➕ Hier Bank anlegen
-                                </button>
-                            </div>
-                        `;
-                        
-                        L.popup()
-                            .setLatLng(e.latlng)
-                            .setContent(clickPopupHtml)
-                            .openOn(map);
+                        const clickPopupHtml = `<div style="text-align: center; padding: 5px;"><button onclick="window.triggerNewBenchCreation(${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="padding: 8px 12px; font-size: 13px; background: #27ae60;">➕ Hier Bank anlegen</button></div>`;
+                        L.popup().setLatLng(e.latlng).setContent(clickPopupHtml).openOn(map);
                     });
                     setTimeout(forceMapUpdate, 100); window.addEventListener('resize', forceMapUpdate);
                     
@@ -960,27 +920,20 @@ window.onerror = function(message, source, lineno, colno, error) {
                     btn.innerText = "⏳ Bild wird hochgeladen...";
                     btn.disabled = true;
                     
-                    const { error: uploadError } = await supabaseClient.storage
-                        .from('bench-images')
-                        .upload(filePath, file, { upsert: true });
-                        
-                    if (uploadError) {
-                        console.error("Upload-Fehler:", uploadError);
-                        alert("Das Bild konnte nicht hochgeladen werden.");
-                    }
-                    
+                    await supabaseClient.storage.from('bench-images').upload(filePath, file, { upsert: true });
                     btn.innerText = "Typ & Bild speichern";
                     btn.disabled = false;
                 }
                 
-                types.push(val); 
-                updateTypeDropdowns(); 
-                updateApp();
-                closeTypeOverlay();
-                alert(`Typ "${val}" erfolgreich angelegt!`);
+                types.push(val); updateTypeDropdowns(); updateApp(); closeTypeOverlay();
             };
         }
         window.addEventListener('load', startApp);
     </script>
 </body>
-</html>
+<style>html{
+ color:darkviolet;
+ font-size:25px;
+ font-weight:600;
+}
+</style><script>/*Here write your javascript code*/</script></html>
