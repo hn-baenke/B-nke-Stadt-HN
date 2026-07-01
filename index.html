@@ -501,24 +501,35 @@ window.onerror = function(message, source, lineno, colno, error) {
     
     if (!benchId) return;
 
+    // Wir erhöhen die Wartezeit leicht, damit alles sicher geladen ist
     setTimeout(() => {
         const marker = window.markerDict[benchId];
+        
         if (marker) {
-            // 1. Zoomt auf den Marker und löst das Clustering auf (spiderfy)
-            // 'zoomToShowLayer' ist die offizielle Funktion von MarkerCluster
-            markersLayer.zoomToShowLayer(marker, () => {
-                // 2. Sobald das Cluster offen ist, den Marker in die Mitte setzen
-                map.setView(marker.getLatLng(), 18);
-                
-                // 3. Popup mit kurzer Verzögerung öffnen
-                setTimeout(() => {
-                    marker.openPopup();
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                }, 300);
-            });
+            // 1. Wir zentrieren die Karte hart auf den Punkt
+            map.setView(marker.getLatLng(), 18);
+
+            // 2. Wir prüfen, ob der Marker überhaupt sichtbar im Cluster ist
+            // Wenn er in einem Cluster steckt, gibt getVisibleParent() das Cluster-Objekt zurück
+            const parent = markersLayer.getVisibleParent(marker);
+            
+            if (parent !== marker) {
+                // Er ist im Cluster versteckt -> Wir öffnen das Cluster
+                markersLayer.zoomToShowLayer(marker, () => {
+                    // Nach dem Zoom öffnen wir das Pop-up verzögert
+                    setTimeout(() => marker.openPopup(), 500);
+                });
+            } else {
+                // Er ist bereits sichtbar -> Einfach öffnen
+                marker.openPopup();
+            }
+            
+            // 3. URL aufräumen
+            window.history.replaceState({}, document.title, window.location.pathname);
         }
-    }, 800);
+    }, 1200);
         }
+        
         
         
                           
