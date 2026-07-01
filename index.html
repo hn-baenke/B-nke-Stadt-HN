@@ -484,12 +484,28 @@
             if (benchId && window.markerDict && window.markerDict[benchId]) {
                 const marker = window.markerDict[benchId];
                 if (marker && map) {
-                    markersLayer.zoomToShowLayer(marker, () => {
-                        map.setView(marker.getLatLng(), 18);
+                    // Falls die Filter aktiv sind und die Bank verstecken, Filter zurücksetzen
+                    document.getElementById('filter-district').value = 'Alle';
+                    document.getElementById('filter-type').value = 'Alle';
+                    document.getElementById('filter-status').value = 'Alle';
+                    updateApp(); // Karte updaten, damit der Marker sicher existiert
+                    
+                    // Re-Evaluierung des korrekten Markers nach dem Update
+                    const activeMarker = window.markerDict[benchId];
+                    if (!activeMarker) return;
+
+                    // Cluster aufbrechen und Animation abwarten
+                    markersLayer.zoomToShowLayer(activeMarker, () => {
+                        // Nach dem Aufbrechen fest auf den Marker zoomen
+                        map.setView(activeMarker.getLatLng(), 18, { animate: false });
+                        
+                        // Kleiner Timeout, damit Leaflet Zeit zum Rendern hat, bevor das Popup triggert
                         setTimeout(() => {
-                            marker.openPopup();
-                        }, 200);
+                            activeMarker.openPopup();
+                        }, 250);
                     });
+                    
+                    // URL aufräumen ohne Neuladen der Seite
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
             }
@@ -500,7 +516,7 @@
             if (isApple) {
                 window.open(`maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`, '_blank');
             } else {
-                window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
+                window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
             }
         };
 
@@ -941,7 +957,7 @@
                         alert("Das Bild konnte nicht hochgeladen werden.");
                     }
                     
-                    btn.innerText = "Typ & Bild speichern";
+                    btn.innerText = "Typ & Bild保存";
                     btn.disabled = false;
                 }
                 
