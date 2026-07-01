@@ -496,40 +496,29 @@ window.onerror = function(message, source, lineno, colno, error) {
         };
 
         function handleDeepLink() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const rawId = urlParams.get('id');
-            
-            if (!rawId) return;
-            
-            // FIX 2: String aus der URL explizit in eine Ganzzahl (Integer) konvertieren, um Typsicherheit zu garantieren
-            const benchId = parseInt(rawId, 10);
-            
-            if (window.markerDict && window.markerDict[benchId]) {
-                const marker = window.markerDict[benchId];
-                if (marker && map) {
-                    document.getElementById('filter-district').value = 'Alle';
-                    document.getElementById('filter-type').value = 'Alle';
-                    document.getElementById('filter-status').value = 'Alle';
-                    updateApp();
-                    
-                    const activeMarker = window.markerDict[benchId];
-                    if (!activeMarker) return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const benchId = urlParams.get('id');
+    
+    if (!benchId) return;
 
-                    // Cluster aufbrechen und die Karte ohne Kamera-Verwirrung sauber ausrichten
-                    markersLayer.zoomToShowLayer(activeMarker, () => {
-                        map.setView(activeMarker.getLatLng(), 18, { animate: false });
-                        
-                        // Kleiner Puffer-Timeout vor dem Öffnen, damit Leaflet stabil steht
-                        setTimeout(() => {
-                            activeMarker.openPopup();
-                        }, 250);
-                    });
-                    
+    // Wir warten kurz, bis die Karte sicher geladen hat
+    setTimeout(() => {
+        const marker = window.markerDict[benchId];
+        if (marker) {
+            // Zuerst zentrieren
+            map.setView(marker.getLatLng(), 18);
+            
+            // Jetzt eine Sequenz, die Leaflet zwingt, das Popup zu rendern
+            map.once('moveend', () => {
+                setTimeout(() => {
+                    marker.openPopup();
                     window.history.replaceState({}, document.title, window.location.pathname);
-                }
-            }
+                }, 100);
+            });
         }
-
+    }, 1000);
+      }
+                          
         window.openRoute = function(lat, lng) {
             const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
             if (isApple) {
