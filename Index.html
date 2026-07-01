@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Sitzbank-Kataster Heilbronn</title>
+    <link class="favicon" rel="icon" href="data:,">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+
+    <style>
+        /* Verhindert, dass Mobilbrowser Schriften willkürlich skalieren */
+        html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; margin: 0; padding: 0; height: 100%; }
+        
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; height: -webkit-fill-available; flex-direction: column; background: #f4f6f8; color: #333; overflow: hidden; }
+        header { background: #2c3e50; color: white; padding: 12px; text-align: center; font-size: 14px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1001; position: relative; }
+        .main-container { display: flex; flex: 1; flex-direction: column; overflow: hidden; position: relative; height: 100%; }
+        
+        #map { flex: 1; width: 100%; height: 100%; z-index: 1; background-color: #e5e9f0; }
+        
+        #menu-toggle-btn {
+            position: absolute; top: 10px; right: 10px; z-index: 1000; background: #2c3e50; color: white; border: none; padding: 10px 14px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 6px; transition: background 0.2s;
+        }
+        #menu-toggle-btn:hover { background: #34495e; }
+
+        #locate-btn {
+            position: absolute; top: 80px; left: 10px; z-index: 1000; background: white; color: #333; border: 2px solid rgba(0,0,0,0.2); border-radius: 4px; width: 34px; height: 34px; font-size: 18px; cursor: pointer; box-shadow: 0 1px 5px rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; font-weight: bold; transition: background 0.2s;
+        }
+        #locate-btn:hover { background: #f4f4f4; }
+
+        #sidebar { 
+            position: absolute; bottom: -100%; left: 0; width: 100%; height: 65%; background: white; padding: 20px 15px 15px 15px; box-shadow: 0 -5px 20px rgba(0,0,0,0.2); z-index: 1005; overflow-y: auto; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; border-top-left-radius: 20px; border-top-right-radius: 20px; transition: bottom 0.3s ease-in-out; 
+        }
+        #sidebar.open { bottom: 0; }
+
+        .close-sidebar-btn { background: #95a5a6; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; text-align: center; font-size: 14px; }
+        .filter-group { display: flex; flex-direction: column; gap: 4px; }
+        .filter-group label { font-weight: bold; font-size: 12px; color: #7f8c8d; text-transform: uppercase; }
+        .filter-group select, .filter-group input { padding: 12px; border-radius: 8px; border: 1px solid #ccd1d9; width: 100%; font-size: 16px; box-sizing: border-box; background: #f8f9fa; }
+        
+        .btn { background: #3498db; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; text-align: center; box-sizing: border-box; }
+        .btn-camera { background: #e67e22; margin-top: 5px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-gallery { background: #8e44ad; }
+        .btn-save { background: #27ae60; margin-top: 10px; }
+        .btn-add-type-trigger { background: #2c3e50; margin-top: 5px; }
+        .btn-delete { background: #e74c3c; margin-top: 8px; }
+        .btn-cancel { background: #95a5a6; margin-top: 8px; }
+        
+        .stats-box { background: #f1f5f9; padding: 12px; border-radius: 8px; font-size: 14px; border-left: 4px solid #2c3e50; }
+        .stats-box ul { margin: 6px 0 0 0; padding-left: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; list-style: none; }
+        
+        /* Schwebendes Live-Statistik Fenster */
+        #live-stats-widget {
+            position: absolute; bottom: 10px; right: 10px; z-index: 1000; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.25); width: 220px; box-sizing: border-box; font-size: 13px; border-left: 4px solid #3498db; overflow: hidden;
+        }
+        .widget-header { background: #f8f9fa; padding: 10px 12px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; cursor: pointer; user-select: none; }
+        .widget-content { padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+        .widget-content ul { margin: 0; padding-left: 15px; list-style-type: square; }
+
+        #live-stats-widget.minimized .widget-content {
+            display: none !important;
+        }
+        #live-stats-widget.minimized {
+            border-bottom: none;
+        }
+
+        /* Vollbild Overlays */
+        .fullscreen-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 2000; overflow-y: auto; padding: 20px; box-sizing: border-box; }
+        .fullscreen-overlay h3 { margin-top: 10px; font-size: 20px; color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; }
+        .fullscreen-overlay label { display: block; font-weight: bold; margin-top: 15px; font-size: 14px; color: #34495e; }
+        .fullscreen-overlay select, .fullscreen-overlay input { width: 100%; padding: 14px; margin-top: 5px; border-radius: 8px; border: 1px solid #bdc3c7; font-size: 16px; box-sizing: border-box; }
+        .legend { font-size: 11px; color: #7f8c8d; line-height: 1.5; background: #fff; padding: 8px; border-radius: 6px; }
+
+        .type-preview-box {
+            width: 100%; height: 200px; margin-top: 8px; border-radius: 8px; border: 1px solid #ccd1d9; background-color: #2c3e50; overflow: hidden; display: flex; align-items: center; justify-content: center;
+        }
+        .type-preview-box img { width: 100%; height: 100%; object-fit: contain; display: none; }
+        .type-preview-box .no-image-text { color: #fff; font-size: 14px; font-style: italic; text-align: center; padding: 10px; }
+
+        .file-input-container { margin-top: 5px; background: #eaeded; padding: 12px; border-radius: 8px; font-size: 14px; text-align: center; }
+        .file-status-text { display: block; margin-top: 8px; font-weight: bold; color: #e67e22; font-size: 13px; }
+
+        #custom-image-upload-container { display: none; margin-top: 15px; padding: 15px; background: #fdf2e9; border-radius: 8px; border: 1px dashed #e67e22; }
+
+        @media (min-width: 768px) {
+            #sidebar { bottom: auto; top: 0; right: -400px; left: auto; width: 380px; height: 100%; border-top-left-radius: 0px; border-top-right-radius: 0px; box-shadow: -5px 0 20px rgba(0,0,0,0.2); transition: right 0.3s ease-in-out; }
+            #sidebar.open { right: 0; }
+        }
+        @media (max-width: 767px) {
+            /* Absolut robuste Platzierung am unteren Bildschirmrand unabhängig von der Adressleiste */
+            #live-stats-widget { bottom: 12px; left: 10px; right: 10px; width: calc(100% - 20px); position: absolute; }
+            .widget-content { max-height: 30vh; overflow-y: auto; }
+        }
+        .leaflet-top.leaflet-right .leaflet-control-layers { margin-top: 55px !important; }
+    </style>
+</head>
+<body>
+
+    <header>
+        🌲 HN-Sitzbank-Kataster (<span id="total-count">0</span> Bänke)
+    </header>
+    
+    <div class="main-container">
+        <button id="menu-toggle-btn" onclick="toggleSidebar()">☰ Filter & Infos</button>
+        <button id="locate-btn" onclick="locateUser()" title="Meinen Standort zeigen">🎯</button>
+        
+        <div id="map"></div>
+
+        <div id="live-stats-widget">
+            <div class="widget-header" onclick="toggleWidget()">
+                <span>📊 Filter-Ansicht</span>
+                <span id="widget-toggle-icon">➖</span>
+            </div>
+            <div class="widget-content">
+                <div>Angezeigte Bänke: <strong id="widget-total">0</strong></div>
+                <ul id="widget-details"></ul>
+            </div>
+        </div>
+        
+        <div id="sidebar">
+            <button class="close-sidebar-btn" onclick="toggleSidebar()">✕ Menü schließen</button>
+            <div class="filter-group">
+                <label>📍 Stadtteil / Park</label>
+                <select id="filter-district"><option value="Alle">Ganz Heilbronn (Alle)</option></select>
+            </div>
+            <div class="filter-group">
+                <label>🔍 Bautyp filtern</label>
+                <select id="filter-type"><option value="Alle">Alle Bautypen</option></select>
+            </div>
+            <div class="filter-group">
+                <label>🚦 Status filtern</label>
+                <select id="filter-status">
+                    <option value="Alle">Alle Status-Typen</option>
+                    <option value="Gut">🟢 Gut</option>
+                    <option value="Wartung empfohlen">🟡 Wartung empfohlen (~3J)</option>
+                    <option value="Wartung nötig">🔴 Wartung nötig (>5J)</option>
+                    <option value="Beschädigt">🔴⚪ Beschädigt</option>
+                    <option value="Irreparabel">⚫ Irreparabel</option>
+                    <option value="Ungeprüft">⚪ Ungeprüft</option>
+                </select>
+            </div>
+            <div class="stats-box">
+                <strong id="stats-title">Auswertung</strong>
+                <ul id="stats-list"></ul>
+            </div>
+            <hr style="width:100%; border:0; border-top:1px solid #e2e8f0; margin: 5px 0;"/>
+            
+            <div class="filter-group">
+                <label>🛠️ System-Verwaltung</label>
+                <button class="btn btn-add-type-trigger" onclick="openTypeOverlay()">➕ Neuen Bautyp anlegen</button>
+            </div>
+            
+            <div class="legend">
+                <strong>Status:</strong> 🟢 Gut | 🟡 ~3J | 🔴 >5J | 🔴⚪ Defekt | ⚫ Irreparabel<br>
+                💡 <em>Karte antippen = Button zum Anlegen öffnen. Punkt antippen = Bearbeiten.</em>
+            </div>
+        </div>
+    </div>
+
+    <div id="fullscreen-overlay" class="fullscreen-overlay">
+        <h3 id="form-title">Sitzbank eintragen</h3>
+        
+        <label>Bautyp:</label>
+        <select id="pop-type" onchange="handleTypeChange()"></select>
+        
+        <div class="type-preview-box" id="image-preview-container">
+            <span class="no-image-text" id="preview-placeholder">Kein Bild für diesen Typ hinterlegt</span>
+            <img id="preview-img" src="" alt="Vorschau Banktyp">
+        </div>
+
+        <div id="custom-image-upload-container">
+            <label style="margin-top:0;">📸 Einzelfoto für Sonderanfertigung:</label>
+            <div class="file-input-container" style="background: transparent; padding: 0; margin-top: 0;">
+                <input type="file" id="custom-bench-image-camera" accept="image/*" capture="environment" style="display: none;" onchange="handleCustomFileSelection(this)">
+                <input type="file" id="custom-bench-image-gallery" accept="image/*" style="display: none;" onchange="handleCustomFileSelection(this)">
+                
+                <button type="button" class="btn btn-camera" onclick="document.getElementById('custom-bench-image-camera').click()">📸 Foto aufnehmen</button>
+                <button type="button" class="btn btn-camera btn-gallery" onclick="document.getElementById('custom-bench-image-gallery').click()">📁 Aus Galerie wählen</button>
+                
+                <span id="custom-file-status-text" class="file-status-text">Kein neues Foto gewählt</span>
+            </div>
+            <p style="font-size: 11px; color: #7f8c8d; margin-top: 5px; margin-bottom: 0;">Das Bild wird beim Speichern komprimiert hochgeladen.</p>
+        </div>
+
+        <label>Stadtteil / Bereich:</label><select id="pop-district"></select>
+        <label>Letzte Wartung:</label><input type="date" id="pop-date">
+        <label>Sonderstatus:</label>
+        <select id="pop-manual">
+            <option value="Ungeprüft">Ungeprüft (Grau)</option>
+            <option value="Automatisch">Nach Datum berechnen</option>
+            <option value="Wartung empfohlen">Wartung empfohlen (Gelb)</option>
+            <option value="Beschädigt">Beschädigt (Rot-Weiß)</option>
+            <option value="Irreparabel">Irreparabel (Austausch nötig)</option>
+        </select>
+        <label>Maße (z.B. 180x50x45 cm):</label><input type="text" id="pop-dimensions" placeholder="Länge x Breite x Höhe...">
+        <label>Notiz:</label><input type="text" id="pop-note" placeholder="Notiz eingeben...">
+        <button id="pop-save-btn" class="btn btn-save">Speichern</button>
+        <button id="pop-delete-btn" class="btn btn-delete" style="display: none;">Bank löschen</button>
+        <button id="pop-cancel-btn" class="btn btn-cancel">Abbrechen</button>
+    </div>
+
+    <div id="type-fullscreen-overlay" class="fullscreen-overlay">
+        <h3>Neuen Bautyp registrieren</h3>
+        
+        <label>Name des Bautyps:</label>
+        <input type="text" id="new-type-input" placeholder="z.B. Holz-Spezial V2, Betonbank, etc.">
+        
+        <label>Musterfoto hinterlegen:</label>
+        <div class="file-input-container">
+            <input type="file" id="new-type-image-camera" accept="image/*" capture="environment" style="display: none;" onchange="handleTypeFileSelection(this)">
+            <input type="file" id="new-type-image-gallery" accept="image/*" style="display: none;" onchange="handleTypeFileSelection(this)">
+            
+            <button type="button" class="btn btn-camera" onclick="triggerTypeCameraInput()">📸 Foto live aufnehmen</button>
+            <button type="button" class="btn btn-camera btn-gallery" onclick="triggerTypeGalleryInput()">📁 Bild aus Galerie wählen</button>
+            
+            <span id="type-file-status-text" class="file-status-text">Kein Foto ausgewählt</span>
+        </div>
+        
+        <button id="add-type-btn" class="btn btn-save" style="margin-top: 30px;">Typ & Bild speichern</button>
+        <button type="button" class="btn btn-cancel" onclick="closeTypeOverlay()">Abbrechen</button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+    <script>
+        const SUPABASE_URL = "https://aqownulwmwdtrgzmsgqn.supabase.co"; 
+        const SUPABASE_ANON_KEY = "sb_publishable_a_CXe4OWZN0vdnUPPF_Avg_AY55SFMN";
+
+        const DISTRICTS = [
+            "Heilbronn Zentrum", "Heilbronn Ost", "Heilbronn Süd", "Heilbronn West", "Heilbronn Nord",
+            "Böckingen", "Sontheim", "Frankenbach", "Biberach", "Kirchhausen", "Klingenberg", "Neckargartach",
+            "Horkheim", "Pfühlpark", "Ziegeleipark", "Wertwiesenpark"
+        ];
+
+        let types = ["H-Bank", "Wetz Ergo7000", "Bitburg", "Sonstige"];
+        let benches = [];
+        let map, markersLayer, supabaseClient, userLocationMarker;
+        let currentEditingBench = null;
+        let isNewBenchMode = false;
+        let isTakingPhoto = false; 
+        let isFirstLoad = true;
+        
+        window.markerDict = {}; 
+
+        let activeTypeFileInput = null; 
+        let activeCustomFileInput = null; 
+
+        let lastSelectedType = types[0];
+        let lastSelectedDistrict = DISTRICTS[0];
+
+        function initSupabase() {
+            if(SUPABASE_URL.includes("DEINE_SUPABASE_URL")) { return false; }
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            return true;
+        }
+
+        async function compressImage(file, maxWidth = 800, quality = 0.7) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width; let height = img.height;
+                        if (width > maxWidth) {
+                            height = Math.round(height * maxWidth / width);
+                            width = maxWidth;
+                        }
+                        canvas.width = width; canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        canvas.toBlob((blob) => {
+                            resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+                        }, 'image/jpeg', quality);
+                    };
+                };
+            });
+        }
+
+        async function fetchBenchesFromCloud() {
+            const cachedData = localStorage.getItem('benches_cache');
+            if (cachedData) {
+                benches = JSON.parse(cachedData);
+                updateApp();
+            }
+
+            await syncOfflineQueue();
+
+            if (!supabaseClient) return;
+            try {
+                const { data, error } = await supabaseClient.from('benches').select('*');
+                if (error) throw error;
+                
+                benches = data || [];
+                localStorage.setItem('benches_cache', JSON.stringify(benches)); 
+                updateApp();
+                
+                if (isFirstLoad) {
+                    handleDeepLink();
+                    isFirstLoad = false;
+                }
+            } catch (err) {
+                console.warn("Offline-Modus aktiv: Daten aus dem lokalen Speicher geladen.", err);
+            }
+        }
+
+        async function syncOfflineQueue() {
+            if (!supabaseClient || !navigator.onLine) return;
+            const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
+            if (queue.length === 0) return;
+
+            console.log(`Synchronisiere ${queue.length} Offline-Aktionen mit der Cloud...`);
+            const remainingQueue = [];
+
+            for (const item of queue) {
+                try {
+                    if (item.action === 'insert') {
+                        await supabaseClient.from('benches').insert([item.data]);
+                    } else if (item.action === 'update') {
+                        await supabaseClient.from('benches').update(item.data).eq('id', item.id);
+                    } else if (item.action === 'delete') {
+                        await supabaseClient.from('benches').delete().eq('id', item.id);
+                    }
+                } catch (e) {
+                    console.error("Fehler beim Sync eines Eintrags, bleibt in Warteschlange:", e);
+                    remainingQueue.push(item);
+                }
+            }
+            localStorage.setItem('offline_sync_queue', JSON.stringify(remainingQueue));
+        }
+
+        function saveOfflineAction(action, data, id = null) {
+            const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
+            queue.push({ action, data, id, timestamp: Date.now() });
+            localStorage.setItem('offline_sync_queue', JSON.stringify(queue));
+            
+            if (action === 'insert') {
+                const mockId = id || Math.floor(Math.random() * -100000); 
+                benches.push({ id: mockId, ...data });
+            } else if (action === 'update') {
+                const index = benches.findIndex(b => b.id === id);
+                if (index !== -1) benches[index] = { ...benches[index], ...data };
+            } else if (action === 'delete') {
+                benches = benches.filter(b => b.id !== id);
+            }
+            localStorage.setItem('benches_cache', JSON.stringify(benches));
+            updateApp();
+        }
+
+        function subscribeToRealtime() {
+            if (!supabaseClient) return;
+            supabaseClient.channel('custom-all-channel')
+            .on('postgres_changes', { event: '*', pattern: 'public', table: 'benches' }, (payload) => {
+                fetchBenchesFromCloud();
+            })
+            .subscribe();
+        }
+
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+            setTimeout(forceMapUpdate, 350);
+        };
+
+        window.toggleWidget = function() {
+            const widget = document.getElementById('live-stats-widget');
+            const icon = document.getElementById('widget-toggle-icon');
+            widget.classList.toggle('minimized');
+            icon.innerText = widget.classList.contains('minimized') ? "➕" : "➖";
+        };
+
+        window.openTypeOverlay = function() {
+            toggleSidebar();
+            document.getElementById('new-type-input').value = '';
+            document.getElementById('new-type-image-camera').value = '';
+            document.getElementById('new-type-image-gallery').value = '';
+            activeTypeFileInput = null;
+            document.getElementById('type-file-status-text').innerText = "Kein Foto ausgewählt";
+            document.getElementById('type-file-status-text').style.color = "#333";
+            document.getElementById('type-fullscreen-overlay').style.display = 'block';
+        };
+
+        window.closeTypeOverlay = function() {
+            document.getElementById('type-fullscreen-overlay').style.display = 'none';
+            setTimeout(() => { isTakingPhoto = false; }, 400);
+        };
+
+        window.triggerTypeCameraInput = function() {
+            isTakingPhoto = true; document.getElementById('new-type-image-camera').click();
+        };
+        window.triggerTypeGalleryInput = function() {
+            isTakingPhoto = true; document.getElementById('new-type-image-gallery').click();
+        };
+
+        window.handleTypeFileSelection = function(inputElement) {
+            const statusText = document.getElementById('type-file-status-text');
+            if(inputElement.files.length > 0) {
+                activeTypeFileInput = inputElement; 
+                statusText.innerText = `✅ Bild bereit (${inputElement.files[0].name.substring(0, 15)}...)`;
+                statusText.style.color = "#27ae60";
+            }
+            setTimeout(() => { isTakingPhoto = false; }, 1000);
+        };
+
+        window.handleCustomFileSelection = function(inputElement) {
+            const statusText = document.getElementById('custom-file-status-text');
+            if(inputElement.files.length > 0) {
+                activeCustomFileInput = inputElement;
+                statusText.innerText = `✅ Neues Foto markiert (${inputElement.files[0].name.substring(0, 15)}...)`;
+                statusText.style.color = "#27ae60";
+            }
+        };
+
+        window.locateUser = function() {
+            if (!navigator.geolocation) { alert("Keine Standortermittlung unterstützt."); return; }
+            const btn = document.getElementById('locate-btn'); btn.innerText = "⏳";
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude; const lng = position.coords.longitude;
+                    if (map) {
+                        map.setView([lat, lng], 17);
+                        if (userLocationMarker) { map.removeLayer(userLocationMarker); }
+                        userLocationMarker = L.circleMarker([lat, lng], { radius: 8, fillColor: '#3498db', color: '#fff', weight: 3, fillOpacity: 1 }).addTo(map).bindPopup("<b>Du bist hier</b>").openPopup();
+                    }
+                    btn.innerText = "🎯";
+                },
+                () => { btn.innerText = "🎯"; alert("Standort nicht ermittelt."); },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        };
+
+        function handleDeepLink() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const benchId = urlParams.get('id');
+            
+            if (benchId && window.markerDict && window.markerDict[benchId]) {
+                const marker = window.markerDict[benchId];
+                if (marker && map) {
+                    markersLayer.zoomToShowLayer(marker, () => {
+                        marker.openPopup();
+                    });
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }
+        }
+
+        window.openRoute = function(lat, lng) {
+            const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
+            if (isApple) {
+                window.open(`maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`, '_blank');
+            } else {
+                window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
+            }
+        };
+
+        window.shareBench = function(id) {
+            const bench = benches.find(b => b.id === id);
+            if (!bench) return;
+            const status = calculateStatus(bench);
+            
+            const baseUrl = window.location.href.split('?')[0];
+            const shareUrl = `${baseUrl}?id=${bench.id}`;
+            
+            const shareText = `Sitzbank-Prüfung in ${bench.district}\nTyp: ${bench.type}\nStatus: ${status}${bench.note ? '\nNotiz: ' + bench.note : ''}\n\nIn App öffnen & auf Karte anzeigen:`;
+            
+            if (navigator.share) {
+                navigator.share({ title: 'Sitzbank-Kataster Details', text: shareText, url: shareUrl })
+                .catch(console.error);
+            } else {
+                prompt("Kopiere diesen Text, um ihn zu teilen:", `${shareText} \n${shareUrl}`);
+            }
+        };
+
+        window.quickMaintenance = async function(id) {
+            const bench = benches.find(b => b.id === id);
+            if (!bench) return;
+
+            const todayStr = new Date().toISOString().split('T')[0];
+            const updatedData = {
+                last_maintenance: todayStr,
+                manual_status: 'Automatisch'
+            };
+
+            if (map) map.closePopup();
+
+            if (supabaseClient && navigator.onLine) {
+                try {
+                    await supabaseClient.from('benches').update(updatedData).eq('id', id);
+                    fetchBenchesFromCloud();
+                } catch (e) {
+                    saveOfflineAction('update', updatedData, id);
+                }
+            } else {
+                saveOfflineAction('update', updatedData, id);
+            }
+        };
+
+        function calculateStatus(bench) {
+            if (bench.manual_status === 'Ungeprüft') return 'Ungeprüft';
+            if (bench.manual_status === 'Wartung empfohlen') return 'Wartung empfohlen'; 
+            if (bench.manual_status === 'Beschädigt') return 'Beschädigt';
+            if (bench.manual_status === 'Irreparabel') return 'Irreparabel';
+            if (!bench.last_maintenance) return 'Wartung nötig';
+            const maintDate = new Date(bench.last_maintenance);
+            const today = new Date();
+            const diffYears = Math.abs(today - maintDate) / (1000 * 60 * 60 * 24 * 365.25);
+            if (diffYears >= 5) return 'Wartung nötig';
+            if (diffYears >= 3) return 'Wartung empfohlen';
+            return 'Gut';
+        }
+
+        function getMarkerStyle(status) {
+            switch(status) {
+                case 'Ungeprüft': return { radius: 8, fillColor: '#7f8c8d', color: '#333', weight: 2, fillOpacity: 0.6 };
+                case 'Gut': return { radius: 9, fillColor: '#27ae60', color: '#fff', weight: 2, fillOpacity: 0.9 };
+                case 'Wartung empfohlen': return { radius: 9, fillColor: '#f1c40f', color: '#fff', weight: 2, fillOpacity: 0.9 };
+                case 'Wartung nötig': return { radius: 9, fillColor: '#c0392b', color: '#fff', weight: 2, fillOpacity: 0.9 };
+                case 'Beschädigt': return { radius: 14, fillColor: '#e74c3c', color: '#ffffff', weight: 4, fillOpacity: 1 };
+                case 'Irreparabel': return { radius: 11, fillColor: '#000000', color: '#ffffff', weight: 3, fillOpacity: 1 };
+                default: return { radius: 9, fillColor: '#7f8c8d', color: '#fff', weight: 2, fillOpacity: 0.9 };
+            }
+        }
+
+        function initDropdowns() {
+            const dSelect = document.getElementById('filter-district');
+            if(dSelect && dSelect.options.length <= 1) {
+                DISTRICTS.forEach(d => { dSelect.innerHTML += `<option value="${d}">${d}</option>`; });
+            }
+            updateTypeDropdowns();
+        }
+
+        function updateTypeDropdowns() {
+            const tSelect = document.getElementById('filter-type'); if(!tSelect) return;
+            const currentFilter = tSelect.value || "Alle";
+            tSelect.innerHTML = '<option value="Alle">Alle Bautypen</option>';
+            types.forEach(t => { tSelect.innerHTML += `<option value="${t}">${t}</option>`; });
+            tSelect.value = currentFilter;
+        }
+
+        window.handleTypeChange = function() {
+            const selectedType = document.getElementById('pop-type').value;
+            const customContainer = document.getElementById('custom-image-upload-container');
+            
+            if(selectedType === 'Sonstige') {
+                customContainer.style.display = 'block';
+            } else {
+                customContainer.style.display = 'none';
+            }
+            updatePreviewImage();
+        };
+
+        window.updatePreviewImage = function() {
+            const selectedType = document.getElementById('pop-type').value;
+            const imgElement = document.getElementById('preview-img');
+            const placeholderText = document.getElementById('preview-placeholder');
+            
+            if (selectedType === 'Sonstige') {
+                if (currentEditingBench && currentEditingBench.id) {
+                    const cacheBuster = new Date().getTime(); 
+                    const customUrl = `${SUPABASE_URL}/storage/v1/object/public/bench-custom-images/${currentEditingBench.id}.jpg?t=${cacheBuster}`;
+                    
+                    const imgTest = new Image();
+                    imgTest.onload = function() {
+                        imgElement.src = customUrl;
+                        imgElement.style.display = "block";
+                        placeholderText.style.display = "none";
+                    };
+                    imgTest.onerror = function() {
+                        imgElement.src = "";
+                        imgElement.style.display = "none";
+                        placeholderText.innerText = "Noch kein Einzelfoto hochgeladen.";
+                        placeholderText.style.display = "block";
+                    };
+                    imgTest.src = customUrl;
+                } else {
+                    imgElement.src = "";
+                    imgElement.style.display = "none";
+                    placeholderText.innerText = "Sonderanfertigung (Foto kann beim Speichern hinzugefügt werden)";
+                    placeholderText.style.display = "block";
+                }
+                return;
+            }
+
+            const cleanName = selectedType.replace(/\s+/g, '_');
+            const jpgUrl = `${SUPABASE_URL}/storage/v1/object/public/bench-images/${cleanName}.jpg`;
+            const pngUrl = `${SUPABASE_URL}/storage/v1/object/public/bench-images/${cleanName}.png`;
+            
+            const imgTestJpg = new Image();
+            imgTestJpg.onload = function() {
+                imgElement.src = jpgUrl; imgElement.style.display = "block"; placeholderText.style.display = "none";
+            };
+            imgTestJpg.onerror = function() {
+                const imgTestPng = new Image();
+                imgTestPng.onload = function() {
+                    imgElement.src = pngUrl; imgElement.style.display = "block"; placeholderText.style.display = "none";
+                };
+                imgTestPng.onerror = function() {
+                    imgElement.src = ""; imgElement.style.display = "none"; placeholderText.innerText = "Kein Bild für diesen Typ hinterlegt"; placeholderText.style.display = "block";
+                };
+                imgTestPng.src = pngUrl;
+            };
+            imgTestJpg.src = jpgUrl;
+        }
+
+        function updateApp() {
+            document.getElementById('total-count').innerText = benches.length;
+            const filterDistrict = document.getElementById('filter-district').value || 'Alle';
+            const filterType = document.getElementById('filter-type').value || 'Alle';
+            const filterStatus = document.getElementById('filter-status').value || 'Alle'; 
+            
+            document.getElementById('stats-title').innerText = `Bestand: ${filterDistrict === 'Alle' ? 'Gesamt HN' : filterDistrict}`;
+
+            let sidebarStats = {}; types.forEach(t => sidebarStats[t] = 0);
+            let liveFilteredStats = {}; types.forEach(t => liveFilteredStats[t] = 0);
+            let totalLiveVisible = 0;
+            
+            if (markersLayer) { markersLayer.clearLayers(); }
+            window.markerDict = {}; 
+
+            benches.forEach(bench => {
+                const status = calculateStatus(bench);
+                const matchDistrict = filterDistrict === 'Alle' || bench.district === filterDistrict;
+                const matchType = filterType === 'Alle' || bench.type === filterType;
+                const matchStatus = filterStatus === 'Alle' || status === filterStatus; 
+
+                if (matchDistrict) { 
+                    if(sidebarStats[bench.type] === undefined) sidebarStats[bench.type] = 0; 
+                    sidebarStats[bench.type]++; 
+                }
+
+                if (matchDistrict && matchType && matchStatus) {
+                    liveFilteredStats[bench.type]++;
+                    totalLiveVisible++;
+
+                    if (markersLayer && typeof L !== 'undefined') {
+                        const style = getMarkerStyle(status);
+                        const marker = L.circleMarker([bench.lat, bench.lng], style);
+
+                        let dimHtml = bench.dimensions ? `<br/>📐 Maße: ${bench.dimensions}` : '';
+                        let noteHtml = bench.note ? `<br/>📝 ${bench.note}` : '';
+
+                        let popupHtml = `
+                            <div style="font-size:14px; line-height:1.4; min-width:240px; color:#333;">
+                                <strong>${bench.type}</strong><br/>⚠️ Status: ${status}${dimHtml}${noteHtml}
+                                <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
+                                    <button onclick="window.quickMaintenance(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold;">🟢 Wartung heute</button>
+                                    <div style="display: flex; gap: 4px;">
+                                        <button onclick="triggerEdit(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1;">Bearbeiten</button>
+                                        <button onclick="openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
+                                        <button onclick="shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        marker.bindPopup(popupHtml); 
+                        markersLayer.addLayer(marker);
+                        window.markerDict[bench.id] = marker; 
+                    }
+                }
+            });
+
+            const statsList = document.getElementById('stats-list');
+            if(statsList) {
+                statsList.innerHTML = '';
+                Object.entries(sidebarStats).forEach(([type, count]) => { statsList.innerHTML += `<li>${type}: <strong>${count}</strong></li>`; });
+            }
+
+            document.getElementById('widget-total').innerText = totalLiveVisible;
+            const widgetDetails = document.getElementById('widget-details');
+            if (widgetDetails) {
+                widgetDetails.innerHTML = '';
+                Object.entries(liveFilteredStats).forEach(([type, count]) => {
+                    if (count > 0) {
+                        widgetDetails.innerHTML += `<li>${type}: <strong>${count}</strong></li>`;
+                    }
+                });
+                if (widgetDetails.innerHTML === '') {
+                    widgetDetails.innerHTML = '<li style="list-style:none; margin-left:-15px; color:#7f8c8d; font-style:italic;">Keine Bänke in dieser Auswahl</li>';
+                }
+            }
+        }
+
+        window.triggerEdit = function(id) {
+            const bench = benches.find(b => b.id === id);
+            if (bench) { if(map) map.closePopup(); openFullscreenForm(bench, false); }
+        };
+
+        window.triggerNewBenchCreation = function(lat, lng) {
+            if (map) map.closePopup();
+            openFullscreenForm({ 
+                lat: lat, 
+                lng: lng, 
+                type: lastSelectedType, 
+                district: lastSelectedDistrict, 
+                last_maintenance: new Date().toISOString().split('T')[0], 
+                manual_status: 'Automatisch', 
+                dimensions: '', 
+                note: '' 
+            }, true);
+        };
+
+        function openFullscreenForm(bench, isNew) {
+            currentEditingBench = bench; isNewBenchMode = isNew;
+            document.getElementById('form-title').innerText = isNew ? 'Neue Sitzbank eintragen' : 'Sitzbank Details';
+            
+            const targetType = isNew ? lastSelectedType : bench.type;
+            const targetDistrict = isNew ? lastSelectedDistrict : bench.district;
+
+            document.getElementById('pop-type').innerHTML = types.map(t => `<option value="${t}" ${targetType === t ? 'selected':''}>${t}</option>`).join('');
+            document.getElementById('pop-district').innerHTML = DISTRICTS.map(d => `<option value="${d}" ${targetDistrict === d ? 'selected':''}>${d}</option>`).join('');
+
+            document.getElementById('pop-date').value = bench.last_maintenance || '';
+            document.getElementById('pop-manual').value = bench.manual_status || 'Automatisch';
+            document.getElementById('pop-dimensions').value = bench.dimensions || '';
+            document.getElementById('pop-note').value = bench.note || '';
+            
+            document.getElementById('custom-bench-image-camera').value = '';
+            document.getElementById('custom-bench-image-gallery').value = '';
+            activeCustomFileInput = null;
+            document.getElementById('custom-file-status-text').innerText = "Kein neues Foto gewählt";
+            document.getElementById('custom-file-status-text').style.color = "#e67e22";
+            
+            document.getElementById('pop-delete-btn').style.display = isNew ? 'none' : 'block';
+            document.getElementById('fullscreen-overlay').style.display = 'block';
+            
+            handleTypeChange(); 
+        }
+
+        document.getElementById('pop-save-btn').onclick = async () => {
+            lastSelectedType = document.getElementById('pop-type').value;
+            lastSelectedDistrict = document.getElementById('pop-district').value;
+            
+            const btn = document.getElementById('pop-save-btn');
+            btn.innerText = "⏳ Speichere...";
+            btn.disabled = true;
+
+            const rowData = {
+                lat: currentEditingBench.lat, lng: currentEditingBench.lng, type: lastSelectedType, district: lastSelectedDistrict,
+                last_maintenance: document.getElementById('pop-date').value || null, manual_status: document.getElementById('pop-manual').value,
+                dimensions: document.getElementById('pop-dimensions').value, note: document.getElementById('pop-note').value
+            };
+
+            if (supabaseClient && navigator.onLine) {
+                try {
+                    let savedId = currentEditingBench.id;
+                    
+                    if (isNewBenchMode) { 
+                        const { data, error } = await supabaseClient.from('benches').insert([rowData]).select(); 
+                        if (data && data.length > 0) savedId = data[0].id;
+                    } 
+                    else { 
+                        await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id); 
+                    }
+
+                    if (lastSelectedType === 'Sonstige' && activeCustomFileInput && activeCustomFileInput.files.length > 0 && savedId) {
+                        const file = activeCustomFileInput.files[0];
+                        const compressedFile = await compressImage(file, 800, 0.7);
+                        
+                        await supabaseClient.storage
+                            .from('bench-custom-images')
+                            .upload(`${savedId}.jpg`, compressedFile, { upsert: true, contentType: 'image/jpeg' });
+                    }
+                    fetchBenchesFromCloud();
+                } catch (e) {
+                    saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id);
+                }
+            } 
+            else {
+                saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id);
+            }
+            
+            btn.innerText = "Speichern";
+            btn.disabled = false;
+            document.getElementById('fullscreen-overlay').style.display = 'none'; 
+        };
+
+        document.getElementById('pop-delete-btn').onclick = async () => {
+            if (confirm('Möchtest du diese Sitzbank wirklich unwiderruflich löschen?')) {
+                if (supabaseClient && navigator.onLine) {
+                    try {
+                        await supabaseClient.from('benches').delete().eq('id', currentEditingBench.id);
+                        fetchBenchesFromCloud();
+                    } catch (e) {
+                        saveOfflineAction('delete', null, currentEditingBench.id);
+                    }
+                } else {
+                    saveOfflineAction('delete', null, currentEditingBench.id);
+                }
+                document.getElementById('fullscreen-overlay').style.display = 'none';
+            }
+        };
+
+        document.getElementById('pop-cancel-btn').onclick = () => { document.getElementById('fullscreen-overlay').style.display = 'none'; };
+        function forceMapUpdate() { if (map) { map.invalidateSize(); } }
+
+        function startApp() {
+            const hasKeys = initSupabase(); 
+            initDropdowns();
+            
+            if (typeof L !== 'undefined') {
+                try {
+                    const osmStreets = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+                    const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles © Esri' });
+                    
+                    map = L.map('map', { fadeAnimation: false, layers: [osmStreets] }).setView([49.1426, 9.2177], 13);
+                    
+                    markersLayer = L.markerClusterGroup({
+                        disableClusteringAtZoom: 17, 
+                        spiderfyOnMaxZoom: true,
+                        showCoverageOnHover: false
+                    }).addTo(map);
+
+                    const baseMaps = { "Straßenkarte": osmStreets, "Satellitenbild": esriSatellite };
+                    L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+
+                    map.on('click', (e) => {
+                        if(document.getElementById('sidebar').classList.contains('open') || isTakingPhoto) { 
+                            if(!isTakingPhoto) toggleSidebar(); 
+                            return; 
+                        }
+                        
+                        const clickPopupHtml = `
+                            <div style="text-align: center; padding: 5px;">
+                                <button onclick="window.triggerNewBenchCreation(${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="padding: 8px 12px; font-size: 13px; background: #27ae60;">
+                                    ➕ Hier Bank anlegen
+                                </button>
+                            </div>
+                        `;
+                        
+                        L.popup()
+                            .setLatLng(e.latlng)
+                            .setContent(clickPopupHtml)
+                            .openOn(map);
+                    });
+                    setTimeout(forceMapUpdate, 100); window.addEventListener('resize', forceMapUpdate);
+                    
+                    fetchBenchesFromCloud();
+                    if(hasKeys) { subscribeToRealtime(); }
+
+                    window.addEventListener('online', syncOfflineQueue);
+
+                } catch(e) { console.error("Kartenfehler:", e); }
+            }
+            document.getElementById('filter-district').addEventListener('change', updateApp);
+            document.getElementById('filter-type').addEventListener('change', updateApp);
+            document.getElementById('filter-status').addEventListener('change', updateApp);
+
+            document.getElementById('add-type-btn').onclick = async () => {
+                const input = document.getElementById('new-type-input'); 
+                const val = input.value.trim();
+                
+                if (!val) { alert("Bitte gib einen Namen für den Bautyp ein."); return; }
+                if (types.includes(val)) { alert("Dieser Typ existiert bereits."); return; }
+                
+                if (activeTypeFileInput && activeTypeFileInput.files.length > 0 && supabaseClient) {
+                    const file = activeTypeFileInput.files[0];
+                    const cleanName = val.replace(/\s+/g, '_');
+                    const extension = file.name.split('.').pop().toLowerCase();
+                    const filePath = `${cleanName}.${extension === 'png' ? 'png' : 'jpg'}`;
+                    
+                    const btn = document.getElementById('add-type-btn');
+                    btn.innerText = "⏳ Bild wird hochgeladen...";
+                    btn.disabled = true;
+                    
+                    const { error: uploadError } = await supabaseClient.storage
+                        .from('bench-images')
+                        .upload(filePath, file, { upsert: true });
+                        
+                    if (uploadError) {
+                        console.error("Upload-Fehler:", uploadError);
+                        alert("Das Bild konnte nicht hochgeladen werden.");
+                    }
+                    
+                    btn.innerText = "Typ & Bild speichern";
+                    btn.disabled = false;
+                }
+                
+                types.push(val); 
+                updateTypeDropdowns(); 
+                updateApp();
+                closeTypeOverlay();
+                alert(`Typ "${val}" erfolgreich angelegt!`);
+            };
+        }
+        window.addEventListener('load', startApp);
+    </script>
+</body>
+<style>html{
+ color:darkviolet;
+ font-size:25px;
+ font-weight:600;
+}
+</style><script>/*Here write your javascript code*/</script></html>
