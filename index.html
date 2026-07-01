@@ -501,54 +501,22 @@ window.onerror = function(message, source, lineno, colno, error) {
     
     if (!benchId) return;
 
-    console.log("Suche nach Bank-ID:", benchId);
-
-    // Wir suchen bis zu 10 Sekunden lang (alle 500ms), 
-    // falls der Marker erst später durch das Daten-Laden erstellt wird.
-    let attempts = 0;
-    const interval = setInterval(() => {
-        attempts++;
-        const marker = window.markerDict[benchId];
+    // Wir suchen den Marker in unserem Datensatz
+    const bench = benches.find(b => b.id == benchId);
+    
+    if (bench) {
+        // 1. Wir öffnen direkt unser Fullscreen-Overlay (da sind alle Details drin!)
+        // Wir übergeben 'false' für isNewBenchMode
+        openFullscreenForm(bench, false);
         
-        if (marker) {
-            clearInterval(interval);
-            console.log("Marker gefunden!");
-
-            // 1. Zoom/Spiderfy erzwingen
-            if (markersLayer.getVisibleParent(marker)) {
-                markersLayer.zoomToShowLayer(marker, () => {
-                    performAction(marker);
-                });
-            } else {
-                performAction(marker);
-            }
+        // 2. Damit der Nutzer sich nicht in der Karte verliert:
+        // Wir zoomen die Hauptkarte schon mal im Hintergrund darauf
+        if (map) {
+            map.setView([bench.lat, bench.lng], 18);
         }
-
-        if (attempts > 20) {
-            clearInterval(interval);
-            console.log("Bank leider nicht gefunden.");
+    }
         }
-    }, 500);
-}
-
-function performAction(marker) {
-    // Kurze Pause, um den Zoom zu vollenden
-    setTimeout(() => {
-        map.setView(marker.getLatLng(), 18);
         
-        // Popup Zwang
-        marker.openPopup();
-        
-        // Das ist der "Trick": Leaflet-Popup-Update triggern
-        setTimeout(() => {
-            if (marker.getPopup()) {
-                marker.getPopup()._updateLayout();
-                marker.getPopup()._updatePosition();
-            }
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }, 300);
-    }, 300);
-}
 
                                   
         window.openRoute = function(lat, lng) {
