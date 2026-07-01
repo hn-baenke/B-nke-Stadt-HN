@@ -501,21 +501,28 @@ window.onerror = function(message, source, lineno, colno, error) {
     
     if (!benchId) return;
 
-    // Wir suchen den Marker in unserem Datensatz
-    const bench = benches.find(b => b.id == benchId);
-    
-    if (bench) {
-        // 1. Wir öffnen direkt unser Fullscreen-Overlay (da sind alle Details drin!)
-        // Wir übergeben 'false' für isNewBenchMode
-        openFullscreenForm(bench, false);
+    // Wir warten, bis die Marker sicher geladen sind
+    const checkMarker = setInterval(() => {
+        const marker = window.markerDict[benchId];
         
-        // 2. Damit der Nutzer sich nicht in der Karte verliert:
-        // Wir zoomen die Hauptkarte schon mal im Hintergrund darauf
-        if (map) {
-            map.setView([bench.lat, bench.lng], 18);
+        if (marker) {
+            clearInterval(checkMarker);
+            
+            // 1. Zwinge die Karte, den Marker sichtbar zu machen (auch in Clustern)
+            markersLayer.zoomToShowLayer(marker, () => {
+                // 2. Jetzt erst zentrieren
+                map.setView(marker.getLatLng(), 18);
+                
+                // 3. Popup mit kurzer Verzögerung öffnen, damit Leaflet Zeit zum Zeichnen hat
+                setTimeout(() => {
+                    marker.openPopup();
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }, 500);
+            });
         }
-    }
+    }, 500);
         }
+        
         
 
                                   
