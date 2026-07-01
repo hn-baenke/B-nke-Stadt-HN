@@ -504,25 +504,22 @@ window.onerror = function(message, source, lineno, colno, error) {
     setTimeout(() => {
         const marker = window.markerDict[benchId];
         if (marker) {
-            // 1. Karte zentrieren
-            map.setView(marker.getLatLng(), 18);
-            
-            // 2. Warten, bis die Karte stillsteht
-            map.once('moveend', () => {
-                // 3. Der Trick: Wir sagen Leaflet, es soll das Popup öffnen
-                marker.openPopup();
+            // 1. Zoomt auf den Marker und löst das Clustering auf (spiderfy)
+            // 'zoomToShowLayer' ist die offizielle Funktion von MarkerCluster
+            markersLayer.zoomToShowLayer(marker, () => {
+                // 2. Sobald das Cluster offen ist, den Marker in die Mitte setzen
+                map.setView(marker.getLatLng(), 18);
                 
-                // 4. Falls es dann immer noch klemmt: 
-                // Wir erzwingen ein manuelles Neu-Zeichnen des Popups
+                // 3. Popup mit kurzer Verzögerung öffnen
                 setTimeout(() => {
-                    marker.closePopup();
                     marker.openPopup();
                     window.history.replaceState({}, document.title, window.location.pathname);
-                }, 200); 
+                }, 300);
             });
         }
     }, 800);
         }
+        
         
                           
         window.openRoute = function(lat, lng) {
