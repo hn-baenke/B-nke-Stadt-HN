@@ -501,23 +501,29 @@ window.onerror = function(message, source, lineno, colno, error) {
     
     if (!benchId) return;
 
-    // Wir warten kurz, bis die Karte sicher geladen hat
     setTimeout(() => {
         const marker = window.markerDict[benchId];
         if (marker) {
-            // Zuerst zentrieren
+            // 1. Karte zentrieren
             map.setView(marker.getLatLng(), 18);
             
-            // Jetzt eine Sequenz, die Leaflet zwingt, das Popup zu rendern
+            // 2. Warten, bis die Karte stillsteht
             map.once('moveend', () => {
+                // 3. Der Trick: Wir sagen Leaflet, es soll das Popup öffnen
+                marker.openPopup();
+                
+                // 4. Falls es dann immer noch klemmt: 
+                // Wir erzwingen ein manuelles Neu-Zeichnen des Popups
                 setTimeout(() => {
+                    marker.closePopup();
                     marker.openPopup();
                     window.history.replaceState({}, document.title, window.location.pathname);
-                }, 100);
+                }, 200); 
             });
         }
-    }, 1000);
-      }
+    }, 800);
+        }
+        
                           
         window.openRoute = function(lat, lng) {
             const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
