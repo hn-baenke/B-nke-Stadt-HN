@@ -48,7 +48,6 @@
         .stats-box { background: #f1f5f9; padding: 12px; border-radius: 8px; font-size: 14px; border-left: 4px solid #2c3e50; }
         .stats-box ul { margin: 6px 0 0 0; padding-left: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; list-style: none; }
         
-        /* Schwebendes Live-Statistik Fenster */
         #live-stats-widget {
             position: absolute; bottom: 10px; right: 10px; z-index: 1000; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.25); width: 220px; box-sizing: border-box; font-size: 13px; border-left: 4px solid #3498db; overflow: hidden; transition: max-height 0.3s ease-out; max-height: 250px;
         }
@@ -57,7 +56,6 @@
         .widget-content { padding: 10px; display: flex; flex-direction: column; gap: 6px; }
         .widget-content ul { margin: 0; padding-left: 15px; list-style-type: square; }
 
-        /* Vollbild Overlays */
         .fullscreen-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 2000; overflow-y: auto; padding: 20px; box-sizing: border-box; }
         .fullscreen-overlay h3 { margin-top: 10px; font-size: 20px; color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; }
         .fullscreen-overlay label { display: block; font-weight: bold; margin-top: 15px; font-size: 14px; color: #34495e; }
@@ -445,10 +443,8 @@
         window.openRoute = function(lat, lng) {
             const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
             if (isApple) {
-                // Erzwingt die native Apple Maps App auf Apple-Geräten
                 window.open(`maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`, '_blank');
             } else {
-                // Korrekte Google Maps URL für Android/PC
                 window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
             }
         };
@@ -461,19 +457,53 @@
             const baseUrl = window.location.href.split('?')[0];
             const shareUrl = `${baseUrl}?id=${bench.id}`;
             
-            // Text bricht nicht vor dem Link ab
-            const shareText = `Sitzbank-Prüfung: ${bench.district}\nTyp: ${bench.type}\nStatus: ${status}${bench.note ? '\nNotiz: ' + bench.note : ''}`;
-            
+            // Saubere Inhaltstrennung für die native API, um Abstürze/Abschneiden im Messenger zu verhindern
+            const shortText = `Sitzbank-Prüfung: ${bench.district}\nTyp: ${bench.type}\nStatus: ${status}${bench.note ? '\nNotiz: ' + bench.note : ''}`;
+            const completeStringWithUrl = `${shortText}\nLink: ${shareUrl}`;
+
             if (navigator.share) {
                 navigator.share({ 
                     title: 'Sitzbank-Kataster HN', 
-                    text: shareText, 
-                    url: shareUrl 
-                }).catch(console.error);
+                    text: shortText,    // Text OHNE URL ins Textfeld
+                    url: shareUrl       // Die URL kommt explizit in das dafür vorgesehene Feld
+                })
+                .then(() => console.log('Erfolgreich geteilt'))
+                .catch((err) => {
+                    console.log('Natives Teilen fehlgeschlagen, nutze Fallback', err);
+                    showFallbackShareButtons(bench.id, completeStringWithUrl);
+                });
             } else {
-                prompt("Kopiere diesen Link, um ihn zu teilen:", `${shareText}\nLink: ${shareUrl}`);
+                showFallbackShareButtons(bench.id, completeStringWithUrl);
             }
         };
+
+        function showFallbackShareButtons(id, fallbackText) {
+            const marker = window.markerDict[id];
+            if (!marker) return;
+
+            const encodedText = encodeURIComponent(fallbackText);
+            const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
+            const mailtoUrl = `mailto:?subject=${encodeURIComponent('Sitzbank-Kataster HN Meldung')}&body=${encodedText}`;
+
+            const fallbackHtml = `
+                <div id="fallback-container-${id}" style="font-size:12px; margin-top:10px; padding:8px; background:#f8f9fa; border:1px solid #dee2e6; border-radius:6px; color:#333;">
+                    <strong>Direkt teilen über:</strong>
+                    <div style="display:flex; gap:6px; margin-top:6px;">
+                        <a href="${whatsappUrl}" target="_blank" class="btn" style="background:#25D366; text-decoration:none; font-size:12px; padding:6px 0; text-align:center; flex:1; display:inline-block; color:white;">WhatsApp</a>
+                        <a href="${mailtoUrl}" class="btn" style="background:#ea4335; text-decoration:none; font-size:12px; padding:6px 0; text-align:center; flex:1; display:inline-block; color:white;">E-Mail</a>
+                    </div>
+                </div>
+            `;
+
+            const currentPopup = marker.getPopup();
+            if (currentPopup) {
+                const currentContent = currentPopup.getContent();
+                if (!currentContent.includes('Direkt teilen über:')) {
+                    marker.setPopupContent(currentContent + fallbackHtml);
+                    marker.openPopup();
+                }
+            }
+        }
 
         window.quickMaintenance = async function(id) {
             const bench = benches.find(b => b.id === id);
