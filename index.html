@@ -48,7 +48,7 @@
         .stats-box { background: #f1f5f9; padding: 12px; border-radius: 8px; font-size: 14px; border-left: 4px solid #2c3e50; }
         .stats-box ul { margin: 6px 0 0 0; padding-left: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; list-style: none; }
         
-        /* --- SCHWEBENDES LIVE-STATISTIK FENSTER (FIXIERT) --- */
+        /* --- SCHWEBENDES LIVE-STATISTIK FENSTER (FIXIERT RECHTS) --- */
         #live-stats-widget {
             position: fixed; 
             bottom: 10px; 
@@ -119,13 +119,18 @@
         /* --- MOBILE ANPASSUNG (SMARTPHONES) --- */
         @media (max-width: 767px) {
             #live-stats-widget { 
-                bottom: 20px; 
-                left: 10px; 
-                right: auto; 
+                bottom: 15px; 
+                right: 10px; 
+                left: auto; 
                 width: 220px; 
             }
+            /* Blendet den Leaflet-Link unten rechts aus, damit das Widget nicht kollidiert */
+            .leaflet-control-attribution { display: none !important; }
         }
         .leaflet-top.leaflet-right .leaflet-control-layers { margin-top: 55px !important; }
+        
+        /* Unsichtbarer Brücken-Button für absolut sicheres Teilen */
+        #secure-share-bridge { display: none; }
     </style>
 </head>
 <body>
@@ -137,6 +142,8 @@
     <div class="main-container">
         <button id="menu-toggle-btn" onclick="toggleSidebar()">☰ Filter & Infos</button>
         <button id="locate-btn" onclick="locateUser()" title="Meinen Standort zeigen">🎯</button>
+        
+        <button id="secure-share-bridge" onclick="executeSecureShare()"></button>
         
         <div id="map"></div>
 
@@ -276,6 +283,9 @@
         let isTakingPhoto = false; 
         let isFirstLoad = true;
         
+        // Globale Variable, um die zu teilende ID an den Brücken-Button zu übergeben
+        let pendingShareId = null;
+
         window.markerDict = {}; 
 
         let activeTypeFileInput = null; 
@@ -494,29 +504,41 @@
             }
         };
 
+        // Das Popup ruft jetzt nur noch diese Brückenfunktion auf
         window.shareBench = function(id) {
-            const bench = benches.find(b => b.id === id);
+            pendingShareId = id;
+            // Simuliert einen echten Klick auf einen physisch existierenden Button außerhalb der Leaflet-Karte
+            document.getElementById('secure-share-bridge').click();
+        };
+
+        // Wird im globalen Kontext ausgeführt -> Volle Browserberechtigung für das Share-API!
+        window.executeSecureShare = function() {
+            if (!pendingShareId) return;
+            const bench = benches.find(b => b.id === pendingShareId);
             if (!bench) return;
-            const status = calculateStatus(bench);
             
+            const status = calculateStatus(bench);
             const baseUrl = window.location.href.split('?')[0];
             const shareUrl = `${baseUrl}?id=${bench.id}`;
-            
-            const shareText = `Sitzbank-Prüfung in ${bench.district}\nTyp: ${bench.type}\nStatus: ${status}${bench.note ? '\nNotiz: ' + bench.note : ''}\n\nIn App öffnen & auf Karte anzeigen:`;
+            const shareText = `Sitzbank-Prüfung in ${bench.district}\nTyp: ${bench.type}\nStatus: ${status}${bench.note ? '\nNotiz: ' + bench.note : ''}\n\nAuf der Karte anzeigen:`;
             
             const showFallbackPrompt = () => {
-                prompt("Kopiere diesen Text, um ihn zu teilen:", `${shareText} \n${shareUrl}`);
+                prompt("Kopiere diesen Text zum Teilen:", `${shareText} \n${shareUrl}`);
             };
 
             if (navigator.share) {
                 navigator.share({ title: 'Sitzbank-Kataster Details', text: shareText, url: shareUrl })
+                .then(() => console.log('Erfolgreich geteilt'))
                 .catch((err) => {
-                    console.warn("Native Freigabe blockiert oder abgebrochen, nutze Prompt-Fallback:", err);
-                    showFallbackPrompt();
+                    console.warn("Teilen abgebrochen oder durch System blockiert, nutze Prompt-Fallback:", err);
+                    if(err.name !== "AbortError") {
+                        showFallbackPrompt();
+                    }
                 });
             } else {
                 showFallbackPrompt();
             }
+            pendingShareId = null; // Reset
         };
 
         window.quickMaintenance = async function(id) {
