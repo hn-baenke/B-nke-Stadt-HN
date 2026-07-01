@@ -7,6 +7,8 @@
     <link class="favicon" rel="icon" href="data:,">
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; flex-direction: column; background: #f4f6f8; color: #333; overflow: hidden; }
@@ -46,6 +48,15 @@
         .stats-box { background: #f1f5f9; padding: 12px; border-radius: 8px; font-size: 14px; border-left: 4px solid #2c3e50; }
         .stats-box ul { margin: 6px 0 0 0; padding-left: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; list-style: none; }
         
+        /* Schwebendes Live-Statistik Fenster */
+        #live-stats-widget {
+            position: absolute; bottom: 10px; right: 10px; z-index: 1000; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.25); width: 220px; box-sizing: border-box; font-size: 13px; border-left: 4px solid #3498db; overflow: hidden; transition: max-height 0.3s ease-out; max-height: 250px;
+        }
+        #live-stats-widget.minimized { max-height: 36px; }
+        .widget-header { background: #f8f9fa; padding: 8px 12px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; cursor: pointer; }
+        .widget-content { padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+        .widget-content ul { margin: 0; padding-left: 15px; list-style-type: square; }
+
         /* Vollbild Overlays */
         .fullscreen-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 2000; overflow-y: auto; padding: 20px; box-sizing: border-box; }
         .fullscreen-overlay h3 { margin-top: 10px; font-size: 20px; color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; }
@@ -68,6 +79,9 @@
             #sidebar { bottom: auto; top: 0; right: -400px; left: auto; width: 380px; height: 100%; border-top-left-radius: 0px; border-top-right-radius: 0px; box-shadow: -5px 0 20px rgba(0,0,0,0.2); transition: right 0.3s ease-in-out; }
             #sidebar.open { right: 0; }
         }
+        @media (max-width: 767px) {
+            #live-stats-widget { bottom: 15px; left: 10px; right: auto; width: calc(100% - 20px); }
+        }
         .leaflet-top.leaflet-right .leaflet-control-layers { margin-top: 55px !important; }
     </style>
 </head>
@@ -82,6 +96,18 @@
         <button id="locate-btn" onclick="locateUser()" title="Meinen Standort zeigen">🎯</button>
         
         <div id="map"></div>
+
+        <!-- Schwebendes Filter-Statistik Fenster -->
+        <div id="live-stats-widget">
+            <div class="widget-header" onclick="toggleWidget()">
+                <span>📊 Filter-Ansicht</span>
+                <span id="widget-toggle-icon">➖</span>
+            </div>
+            <div class="widget-content">
+                <div>Angetzeigte Bänke: <strong id="widget-total">0</strong></div>
+                <ul id="widget-details"></ul>
+            </div>
+        </div>
         
         <div id="sidebar">
             <button class="close-sidebar-btn" onclick="toggleSidebar()">✕ Menü schließen</button>
@@ -187,6 +213,7 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
     <script>
@@ -246,19 +273,78 @@
             });
         }
 
+        // Offline-fähiges Laden und Synchronisieren
         async function fetchBenchesFromCloud() {
+            // Zuerst lokale Daten aus dem Cache rendern, falls vorhanden
+            const cachedData = localStorage.getItem('benches_cache');
+            if (cachedData) {
+                benches = JSON.parse(cachedData);
+                updateApp();
+            }
+
+            // Sync-Queue abarbeiten, falls Offline-Änderungen ausstehen
+            await syncOfflineQueue();
+
             if (!supabaseClient) return;
-            const { data, error } = await supabaseClient.from('benches').select('*');
-            if (error) { console.error("Fehler beim Laden:", error); } 
-            else {
+            try {
+                const { data, error } = await supabaseClient.from('benches').select('*');
+                if (error) throw error;
+                
                 benches = data || [];
+                localStorage.setItem('benches_cache', JSON.stringify(benches)); // Cache updaten
                 updateApp();
                 
                 if (isFirstLoad) {
                     handleDeepLink();
                     isFirstLoad = false;
                 }
+            } catch (err) {
+                console.warn("Offline-Modus aktiv: Daten aus dem lokalen Speicher geladen.", err);
             }
+        }
+
+        async function syncOfflineQueue() {
+            if (!supabaseClient || !navigator.onLine) return;
+            const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
+            if (queue.length === 0) return;
+
+            console.log(`Synchronisiere ${queue.length} Offline-Aktionen mit der Cloud...`);
+            const remainingQueue = [];
+
+            for (const item of queue) {
+                try {
+                    if (item.action === 'insert') {
+                        await supabaseClient.from('benches').insert([item.data]);
+                    } else if (item.action === 'update') {
+                        await supabaseClient.from('benches').update(item.data).eq('id', item.id);
+                    } else if (item.action === 'delete') {
+                        await supabaseClient.from('benches').delete().eq('id', item.id);
+                    }
+                } catch (e) {
+                    console.error("Fehler beim Sync eines Eintrags, bleibt in Warteschlange:", e);
+                    remainingQueue.push(item);
+                }
+            }
+            localStorage.setItem('offline_sync_queue', JSON.stringify(remainingQueue));
+        }
+
+        function saveOfflineAction(action, data, id = null) {
+            const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
+            queue.push({ action, data, id, timestamp: Date.now() });
+            localStorage.setItem('offline_sync_queue', JSON.stringify(queue));
+            
+            // Lokale Repräsentation direkt aktualisieren, damit es sofort sichtbar ist
+            if (action === 'insert') {
+                const mockId = id || Math.floor(Math.random() * -100000); // Temporäre ID
+                benches.push({ id: mockId, ...data });
+            } else if (action === 'update') {
+                const index = benches.findIndex(b => b.id === id);
+                if (index !== -1) benches[index] = { ...benches[index], ...data };
+            } else if (action === 'delete') {
+                benches = benches.filter(b => b.id !== id);
+            }
+            localStorage.setItem('benches_cache', JSON.stringify(benches));
+            updateApp();
         }
 
         function subscribeToRealtime() {
@@ -274,6 +360,13 @@
             const sidebar = document.getElementById('sidebar');
             sidebar.classList.toggle('open');
             setTimeout(forceMapUpdate, 350);
+        };
+
+        window.toggleWidget = function() {
+            const widget = document.getElementById('live-stats-widget');
+            const icon = document.getElementById('widget-toggle-icon');
+            widget.classList.toggle('minimized');
+            icon.innerText = widget.classList.contains('minimized') ? "➕" : "➖";
         };
 
         window.openTypeOverlay = function() {
@@ -341,12 +434,12 @@
             const benchId = urlParams.get('id');
             
             if (benchId && window.markerDict && window.markerDict[benchId]) {
-                const bench = benches.find(b => b.id == benchId);
                 const marker = window.markerDict[benchId];
-                
-                if (bench && marker && map) {
-                    map.setView([bench.lat, bench.lng], 18);
-                    marker.openPopup();
+                if (marker && map) {
+                    // Da wir Clustern, müssen wir Leaflet sagen, dass es in das Cluster hineinzoomen soll
+                    markersLayer.zoomToShowLayer(marker, () => {
+                        marker.openPopup();
+                    });
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
             }
@@ -376,6 +469,31 @@
                 .catch(console.error);
             } else {
                 prompt("Kopiere diesen Text, um ihn zu teilen:", `${shareText} \n${shareUrl}`);
+            }
+        };
+
+        // Wartungs-Schnellbutton Aktion[span_2](start_span)[span_2](end_span)
+        window.quickMaintenance = async function(id) {
+            const bench = benches.find(b => b.id === id);
+            if (!bench) return;
+
+            const todayStr = new Date().toISOString().split('T')[0];
+            const updatedData = {
+                last_maintenance: todayStr,
+                manual_status: 'Automatisch'
+            };
+
+            if (map) map.closePopup();
+
+            if (supabaseClient && navigator.onLine) {
+                try {
+                    await supabaseClient.from('benches').update(updatedData).eq('id', id);
+                    fetchBenchesFromCloud();
+                } catch (e) {
+                    saveOfflineAction('update', updatedData, id);
+                }
+            } else {
+                saveOfflineAction('update', updatedData, id);
             }
         };
 
@@ -494,7 +612,9 @@
             
             document.getElementById('stats-title').innerText = `Bestand: ${filterDistrict === 'Alle' ? 'Gesamt HN' : filterDistrict}`;
 
-            let stats = {}; types.forEach(t => stats[t] = 0);
+            let sidebarStats = {}; types.forEach(t => sidebarStats[t] = 0);
+            let liveFilteredStats = {}; types.forEach(t => liveFilteredStats[t] = 0);
+            let totalLiveVisible = 0;
             
             if (markersLayer) { markersLayer.clearLayers(); }
             window.markerDict = {}; 
@@ -505,35 +625,63 @@
                 const matchType = filterType === 'Alle' || bench.type === filterType;
                 const matchStatus = filterStatus === 'Alle' || status === filterStatus; 
 
-                if (matchDistrict) { if(stats[bench.type] === undefined) stats[bench.type] = 0; stats[bench.type]++; }
+                if (matchDistrict) { 
+                    if(sidebarStats[bench.type] === undefined) sidebarStats[bench.type] = 0; 
+                    sidebarStats[bench.type]++; 
+                }
 
-                if (matchDistrict && matchType && matchStatus && markersLayer && typeof L !== 'undefined') {
-                    const style = getMarkerStyle(status);
-                    const marker = L.circleMarker([bench.lat, bench.lng], style);
+                if (matchDistrict && matchType && matchStatus) {
+                    // Statistik für das neue schwebende Widget aufbauen
+                    liveFilteredStats[bench.type]++;
+                    totalLiveVisible++;
 
-                    let dimHtml = bench.dimensions ? `<br/>📐 Maße: ${bench.dimensions}` : '';
-                    let noteHtml = bench.note ? `<br/>📝 ${bench.note}` : '';
+                    if (markersLayer && typeof L !== 'undefined') {
+                        const style = getMarkerStyle(status);
+                        const marker = L.circleMarker([bench.lat, bench.lng], style);
 
-                    let popupHtml = `
-                        <div style="font-size:14px; line-height:1.4; min-width:230px; color:#333;">
-                            <strong>${bench.type}</strong><br/>⚠️ Status: ${status}${dimHtml}${noteHtml}
-                            <div style="display: flex; gap: 4px; margin-top: 10px;">
-                                <button onclick="triggerEdit(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1;">Bearbeiten</button>
-                                <button onclick="openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
-                                <button onclick="shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
+                        let dimHtml = bench.dimensions ? `<br/>📐 Maße: ${bench.dimensions}` : '';
+                        let noteHtml = bench.note ? `<br/>📝 ${bench.note}` : '';
+
+                        let popupHtml = `
+                            <div style="font-size:14px; line-height:1.4; min-width:240px; color:#333;">
+                                <strong>${bench.type}</strong><br/>⚠️ Status: ${status}${dimHtml}${noteHtml}
+                                <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
+                                    <button onclick="window.quickMaintenance(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold;">🟢 Wartung heute</button>
+                                    <div style="display: flex; gap: 4px;">
+                                        <button onclick="triggerEdit(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1;">Bearbeiten</button>
+                                        <button onclick="openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
+                                        <button onclick="shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    `;
-                    marker.bindPopup(popupHtml); 
-                    markersLayer.addLayer(marker);
-                    window.markerDict[bench.id] = marker; 
+                        `;
+                        marker.bindPopup(popupHtml); 
+                        markersLayer.addLayer(marker);
+                        window.markerDict[bench.id] = marker; 
+                    }
                 }
             });
 
+            // Sidebar Auswertung befüllen
             const statsList = document.getElementById('stats-list');
             if(statsList) {
                 statsList.innerHTML = '';
-                Object.entries(stats).forEach(([type, count]) => { statsList.innerHTML += `<li>${type}: <strong>${count}</strong></li>`; });
+                Object.entries(sidebarStats).forEach(([type, count]) => { statsList.innerHTML += `<li>${type}: <strong>${count}</strong></li>`; });
+            }
+
+            // Schwebendes Live-Widget befüllen
+            document.getElementById('widget-total').innerText = totalLiveVisible;
+            const widgetDetails = document.getElementById('widget-details');
+            if (widgetDetails) {
+                widgetDetails.innerHTML = '';
+                Object.entries(liveFilteredStats).forEach(([type, count]) => {
+                    if (count > 0) {
+                        widgetDetails.innerHTML += `<li>${type}: <strong>${count}</strong></li>`;
+                    }
+                });
+                if (widgetDetails.innerHTML === '') {
+                    widgetDetails.innerHTML = '<li style="list-style:none; margin-left:-15px; color:#7f8c8d; font-style:italic;">Keine Bänke in dieser Auswahl</li>';
+                }
             }
         }
 
@@ -597,37 +745,54 @@
                 dimensions: document.getElementById('pop-dimensions').value, note: document.getElementById('pop-note').value
             };
 
-            if (supabaseClient) {
-                let savedId = currentEditingBench.id;
-                
-                if (isNewBenchMode) { 
-                    const { data, error } = await supabaseClient.from('benches').insert([rowData]).select(); 
-                    if (data && data.length > 0) savedId = data[0].id;
-                } 
-                else { 
-                    await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id); 
-                }
-
-                if (lastSelectedType === 'Sonstige' && activeCustomFileInput && activeCustomFileInput.files.length > 0 && savedId) {
-                    const file = activeCustomFileInput.files[0];
-                    const compressedFile = await compressImage(file, 800, 0.7);
+            if (supabaseClient && navigator.onLine) {
+                try {
+                    let savedId = currentEditingBench.id;
                     
-                    await supabaseClient.storage
-                        .from('bench-custom-images')
-                        .upload(`${savedId}.jpg`, compressedFile, { upsert: true, contentType: 'image/jpeg' });
+                    if (isNewBenchMode) { 
+                        const { data, error } = await supabaseClient.from('benches').insert([rowData]).select(); 
+                        if (data && data.length > 0) savedId = data[0].id;
+                    } 
+                    else { 
+                        await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id); 
+                    }
+
+                    if (lastSelectedType === 'Sonstige' && activeCustomFileInput && activeCustomFileInput.files.length > 0 && savedId) {
+                        const file = activeCustomFileInput.files[0];
+                        const compressedFile = await compressImage(file, 800, 0.7);
+                        
+                        await supabaseClient.storage
+                            .from('bench-custom-images')
+                            .upload(`${savedId}.jpg`, compressedFile, { upsert: true, contentType: 'image/jpeg' });
+                    }
+                    fetchBenchesFromCloud();
+                } catch (e) {
+                    saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id);
                 }
+            } 
+            else {
+                // Im Offline-Fall lokal zwischenspeichern
+                saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id);
             }
             
             btn.innerText = "Speichern";
             btn.disabled = false;
             document.getElementById('fullscreen-overlay').style.display = 'none'; 
-            fetchBenchesFromCloud();
         };
 
         document.getElementById('pop-delete-btn').onclick = async () => {
-            if (confirm('Möchtest du diese Sitzbank wirklich unwiderruflich löschen?') && supabaseClient) {
-                await supabaseClient.from('benches').delete().eq('id', currentEditingBench.id);
-                document.getElementById('fullscreen-overlay').style.display = 'none'; fetchBenchesFromCloud();
+            if (confirm('Möchtest du diese Sitzbank wirklich unwiderruflich löschen?')) {
+                if (supabaseClient && navigator.onLine) {
+                    try {
+                        await supabaseClient.from('benches').delete().eq('id', currentEditingBench.id);
+                        fetchBenchesFromCloud();
+                    } catch (e) {
+                        saveOfflineAction('delete', null, currentEditingBench.id);
+                    }
+                } else {
+                    saveOfflineAction('delete', null, currentEditingBench.id);
+                }
+                document.getElementById('fullscreen-overlay').style.display = 'none';
             }
         };
 
@@ -642,8 +807,16 @@
                 try {
                     const osmStreets = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
                     const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles © Esri' });
+                    
                     map = L.map('map', { fadeAnimation: false, layers: [osmStreets] }).setView([49.1426, 9.2177], 13);
-                    markersLayer = L.layerGroup().addTo(map);
+                    
+                    // Initialisierung der MarkerClusterGroup statt des normalen LayerGroups
+                    markersLayer = L.markerClusterGroup({
+                        disableClusteringAtZoom: 17, // Ab Zoomstufe 17 alle einzeln anzeigen
+                        spiderfyOnMaxZoom: true,
+                        showCoverageOnHover: false
+                    }).addTo(map);
+
                     const baseMaps = { "Straßenkarte": osmStreets, "Satellitenbild": esriSatellite };
                     L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
@@ -668,7 +841,11 @@
                     });
                     setTimeout(forceMapUpdate, 100); window.addEventListener('resize', forceMapUpdate);
                     
-                    if(hasKeys) { fetchBenchesFromCloud(); subscribeToRealtime(); }
+                    fetchBenchesFromCloud();
+                    if(hasKeys) { subscribeToRealtime(); }
+
+                    // Event-Listener für das Wiederkehren des Internetempfangs
+                    window.addEventListener('online', syncOfflineQueue);
 
                 } catch(e) { console.error("Kartenfehler:", e); }
             }
