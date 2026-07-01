@@ -118,7 +118,7 @@
             
             <div class="legend">
                 <strong>Status:</strong> 🟢 Gut | 🟡 ~3J | 🔴 >5J | 🔴⚪ Defekt | ⚫ Irreparabel<br>
-                💡 <em>Karte antippen = Bank anlegen. Punkt antippen = Bearbeiten.</em>
+                💡 <em>Karte antippen = Button zum Anlegen öffnen. Punkt antippen = Bearbeiten.</em>
             </div>
         </div>
     </div>
@@ -195,7 +195,7 @@
 
         const DISTRICTS = [
             "Heilbronn Zentrum", "Heilbronn Ost", "Heilbronn Süd", "Heilbronn West", "Heilbronn Nord",
-            "Böckingen", "Frankenbach", "Biberach", "Kirchhausen", "Klingenberg", "Neckargartach",
+            "Böckingen", "Sontheim", "Frankenbach", "Biberach", "Kirchhausen", "Klingenberg", "Neckargartach",
             "Horkheim", "Pfühlpark", "Ziegeleipark", "Wertwiesenpark"
         ];
 
@@ -353,7 +353,12 @@
         }
 
         window.openRoute = function(lat, lng) {
-            window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
+            const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
+            if (isApple) {
+                window.open(`maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`, '_blank');
+            } else {
+                window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
+            }
         };
 
         window.shareBench = function(id) {
@@ -537,6 +542,20 @@
             if (bench) { if(map) map.closePopup(); openFullscreenForm(bench, false); }
         };
 
+        window.triggerNewBenchCreation = function(lat, lng) {
+            if (map) map.closePopup();
+            openFullscreenForm({ 
+                lat: lat, 
+                lng: lng, 
+                type: lastSelectedType, 
+                district: lastSelectedDistrict, 
+                last_maintenance: new Date().toISOString().split('T')[0], 
+                manual_status: 'Automatisch', 
+                dimensions: '', 
+                note: '' 
+            }, true);
+        };
+
         function openFullscreenForm(bench, isNew) {
             currentEditingBench = bench; isNewBenchMode = isNew;
             document.getElementById('form-title').innerText = isNew ? 'Neue Sitzbank eintragen' : 'Sitzbank Details';
@@ -633,7 +652,19 @@
                             if(!isTakingPhoto) toggleSidebar(); 
                             return; 
                         }
-                        openFullscreenForm({ lat: e.latlng.lat, lng: e.latlng.lng, type: lastSelectedType, district: lastSelectedDistrict, last_maintenance: new Date().toISOString().split('T')[0], manual_status: 'Automatisch', dimensions: '', note: '' }, true);
+                        
+                        const clickPopupHtml = `
+                            <div style="text-align: center; padding: 5px;">
+                                <button onclick="window.triggerNewBenchCreation(${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="padding: 8px 12px; font-size: 13px; background: #27ae60;">
+                                    ➕ Hier Bank anlegen
+                                </button>
+                            </div>
+                        `;
+                        
+                        L.popup()
+                            .setLatLng(e.latlng)
+                            .setContent(clickPopupHtml)
+                            .openOn(map);
                     });
                     setTimeout(forceMapUpdate, 100); window.addEventListener('resize', forceMapUpdate);
                     
@@ -685,4 +716,9 @@
         window.addEventListener('load', startApp);
     </script>
 </body>
-</html>
+<style>html{
+ color:darkviolet;
+ font-size:25px;
+ font-weight:600;
+}
+</style><script>/*Here write your javascript code*/</script></html>
