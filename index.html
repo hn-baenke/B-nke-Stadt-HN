@@ -48,7 +48,6 @@
         .stats-box { background: #f1f5f9; padding: 12px; border-radius: 8px; font-size: 14px; border-left: 4px solid #2c3e50; }
         .stats-box ul { margin: 6px 0 0 0; padding-left: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; list-style: none; }
         
-        /* --- SCHWEBENDES LIVE-STATISTIK FENSTER (FIXIERT RECHTS) --- */
         #live-stats-widget {
             position: fixed; 
             bottom: 10px; 
@@ -93,7 +92,6 @@
             list-style-type: square; 
         }
 
-        /* Vollbild Overlays */
         .fullscreen-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 3000; overflow-y: auto; padding: 20px; box-sizing: border-box; }
         .fullscreen-overlay h3 { margin-top: 10px; font-size: 20px; color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; }
         .fullscreen-overlay label { display: block; font-weight: bold; margin-top: 15px; font-size: 14px; color: #34495e; }
@@ -116,7 +114,6 @@
             #sidebar.open { right: 0; }
         }
         
-        /* --- MOBILE ANPASSUNG (SMARTPHONES) --- */
         @media (max-width: 767px) {
             #live-stats-widget { 
                 bottom: 15px; 
@@ -124,12 +121,10 @@
                 left: auto; 
                 width: 220px; 
             }
-            /* Blendet den Leaflet-Link unten rechts aus, damit das Widget nicht kollidiert */
             .leaflet-control-attribution { display: none !important; }
         }
         .leaflet-top.leaflet-right .leaflet-control-layers { margin-top: 55px !important; }
         
-        /* Unsichtbarer Brücken-Button für absolut sicheres Teilen */
         #secure-share-bridge { display: none; }
     </style>
 </head>
@@ -283,7 +278,6 @@
         let isTakingPhoto = false; 
         let isFirstLoad = true;
         
-        // Globale Variable, um die zu teilende ID an den Brücken-Button zu übergeben
         let pendingShareId = null;
 
         window.markerDict = {}; 
@@ -343,12 +337,21 @@
                 localStorage.setItem('benches_cache', JSON.stringify(benches)); 
                 updateApp();
                 
+                // FIX 1: Verzögerung eingebaut, damit Leaflet die Cluster vollständig auf der Karte rendern kann
                 if (isFirstLoad) {
-                    handleDeepLink();
+                    setTimeout(() => {
+                        handleDeepLink();
+                    }, 600);
                     isFirstLoad = false;
                 }
             } catch (err) {
                 console.warn("Offline-Modus aktiv: Daten aus dem lokalen Speicher geladen.", err);
+                if (isFirstLoad) {
+                    setTimeout(() => {
+                        handleDeepLink();
+                    }, 600);
+                    isFirstLoad = false;
+                }
             }
         }
 
@@ -479,33 +482,34 @@
 
         function handleDeepLink() {
             const urlParams = new URLSearchParams(window.location.search);
-            const benchId = urlParams.get('id');
+            const rawId = urlParams.get('id');
             
-            if (benchId && window.markerDict && window.markerDict[benchId]) {
+            if (!rawId) return;
+            
+            // FIX 2: String aus der URL explizit in eine Ganzzahl (Integer) konvertieren, um Typsicherheit zu garantieren
+            const benchId = parseInt(rawId, 10);
+            
+            if (window.markerDict && window.markerDict[benchId]) {
                 const marker = window.markerDict[benchId];
                 if (marker && map) {
-                    // Falls die Filter aktiv sind und die Bank verstecken, Filter zurücksetzen
                     document.getElementById('filter-district').value = 'Alle';
                     document.getElementById('filter-type').value = 'Alle';
                     document.getElementById('filter-status').value = 'Alle';
-                    updateApp(); // Karte updaten, damit der Marker sicher existiert
+                    updateApp();
                     
-                    // Re-Evaluierung des korrekten Markers nach dem Update
                     const activeMarker = window.markerDict[benchId];
                     if (!activeMarker) return;
 
-                    // Cluster aufbrechen und Animation abwarten
+                    // Cluster aufbrechen und die Karte ohne Kamera-Verwirrung sauber ausrichten
                     markersLayer.zoomToShowLayer(activeMarker, () => {
-                        // Nach dem Aufbrechen fest auf den Marker zoomen
                         map.setView(activeMarker.getLatLng(), 18, { animate: false });
                         
-                        // Kleiner Timeout, damit Leaflet Zeit zum Rendern hat, bevor das Popup triggert
+                        // Kleiner Puffer-Timeout vor dem Öffnen, damit Leaflet stabil steht
                         setTimeout(() => {
                             activeMarker.openPopup();
                         }, 250);
                     });
                     
-                    // URL aufräumen ohne Neuladen der Seite
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
             }
@@ -516,18 +520,15 @@
             if (isApple) {
                 window.open(`maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`, '_blank');
             } else {
-                window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
+                window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
             }
         };
 
-        // Das Popup ruft jetzt nur noch diese Brückenfunktion auf
         window.shareBench = function(id) {
             pendingShareId = id;
-            // Simuliert einen echten Klick auf einen physisch existierenden Button außerhalb der Leaflet-Karte
             document.getElementById('secure-share-bridge').click();
         };
 
-        // Wird im globalen Kontext ausgeführt -> Volle Browserberechtigung für das Share-API!
         window.executeSecureShare = function() {
             if (!pendingShareId) return;
             const bench = benches.find(b => b.id === pendingShareId);
@@ -554,7 +555,7 @@
             } else {
                 showFallbackPrompt();
             }
-            pendingShareId = null; // Reset
+            pendingShareId = null; 
         };
 
         window.quickMaintenance = async function(id) {
@@ -957,7 +958,7 @@
                         alert("Das Bild konnte nicht hochgeladen werden.");
                     }
                     
-                    btn.innerText = "Typ & Bild保存";
+                    btn.innerText = "Typ & Bild speichern";
                     btn.disabled = false;
                 }
                 
