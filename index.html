@@ -104,8 +104,6 @@
         .file-input-container { margin-top: 5px; background: #eaeded; padding: 12px; border-radius: 8px; font-size: 14px; text-align: center; }
         .file-status-text { display: block; margin-top: 8px; font-weight: bold; color: #e67e22; font-size: 13px; }
 
-        #custom-image-upload-container { display: none; margin-top: 15px; padding: 15px; background: #fdf2e9; border-radius: 8px; border: 1px dashed #e67e22; }
-
         @media (min-width: 768px) {
             #sidebar { bottom: auto; top: 0; right: -400px; left: auto; width: 380px; height: 100%; border-top-left-radius: 0px; border-top-right-radius: 0px; box-shadow: -5px 0 20px rgba(0,0,0,0.2); transition: right 0.3s ease-in-out; }
             #sidebar.open { right: 0; }
@@ -165,6 +163,8 @@
                 <select id="filter-status">
                     <option value="Alle">Alle Status-Typen</option>
                     <option value="Gut">🟢 Gut</option>
+                    <option value="Wartungsfrei">🟢✨ Wartungsfrei (Dauerhaft)</option>
+                    <option value="In Bearbeitung">🟣 In Bearbeitung</option>
                     <option value="Wartung empfohlen">🟡 Wartung empfohlen (~3J)</option>
                     <option value="Wartung nötig">🔴 Wartung nötig (>5J)</option>
                     <option value="Beschädigt">🔴⚪ Beschädigt</option>
@@ -184,7 +184,7 @@
             </div>
             
             <div class="legend">
-                <strong>Status:</strong> 🟢 Gut | 🟡 ~3J | 🔴 >5J | 🔴⚪ Defekt | ⚫ Irreparabel<br>
+                <strong>Status:</strong> 🟢 Gut | 🟢✨ Wartungsfrei | 🟣 In Arbeit | 🟡 ~3J | 🔴 >5J | 🔴⚪ Defekt | ⚫ Irreparabel<br>
                 💡 <em>Karte antippen = Button zum Anlegen öffnen. Punkt antippen = Bearbeiten.</em>
             </div>
         </div>
@@ -197,22 +197,8 @@
         <select id="pop-type" onchange="handleTypeChange()"></select>
         
         <div class="type-preview-box" id="image-preview-container">
-            <span class="no-image-text" id="preview-placeholder">Kein Bild für dieser Typ hinterlegt</span>
+            <span class="no-image-text" id="preview-placeholder">Kein Bild für diesen Typ hinterlegt</span>
             <img id="preview-img" src="" alt="Vorschau Banktyp">
-        </div>
-
-        <div id="custom-image-upload-container">
-            <label style="margin-top:0;">📸 Einzelfoto für Sonderanfertigung:</label>
-            <div class="file-input-container" style="background: transparent; padding: 0; margin-top: 0;">
-                <input type="file" id="custom-bench-image-camera" accept="image/*" capture="environment" style="display: none;" onchange="handleCustomFileSelection(this)">
-                <input type="file" id="custom-bench-image-gallery" accept="image/*" style="display: none;" onchange="handleCustomFileSelection(this)">
-                
-                <button type="button" class="btn btn-camera" onclick="document.getElementById('custom-bench-image-camera').click()">📸 Foto aufnehmen</button>
-                <button type="button" class="btn btn-camera btn-gallery" onclick="document.getElementById('custom-bench-image-gallery').click()">📁 Aus Galerie wählen</button>
-                
-                <span id="custom-file-status-text" class="file-status-text">Kein neues Foto gewählt</span>
-            </div>
-            <p style="font-size: 11px; color: #7f8c8d; margin-top: 5px; margin-bottom: 0;">Das Bild wird beim Speichern komprimiert hochgeladen.</p>
         </div>
 
         <label>Stadtteil / Bereich:</label><select id="pop-district"></select>
@@ -221,6 +207,8 @@
         <select id="pop-manual">
             <option value="Ungeprüft">Ungeprüft (Grau)</option>
             <option value="Automatisch">Nach Datum berechnen</option>
+            <option value="Wartungsfrei">Wartungsfrei (Dauerhaft Grün)</option>
+            <option value="In Bearbeitung">In Bearbeitung (Lila)</option>
             <option value="Wartung empfohlen">Wartung empfohlen (Gelb)</option>
             <option value="Beschädigt">Beschädigt (Rot-Weiß)</option>
             <option value="Irreparabel">Irreparabel (Austausch nötig)</option>
@@ -293,7 +281,6 @@
         window.markerDict = {}; 
 
         let activeTypeFileInput = null; 
-        let activeCustomFileInput = null; 
 
         let lastSelectedType = types[0];
         let lastSelectedDistrict = DISTRICTS[0];
@@ -331,31 +318,6 @@
             } catch (err) {
                 console.warn("Konnte Bautypen nicht aus der Cloud laden, nutze Cache.", err);
             }
-        }
-
-        async function compressImage(file, maxWidth = 800, quality = 0.7) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = (event) => {
-                    const img = new Image();
-                    img.src = event.target.result;
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        let width = img.width; let height = img.height;
-                        if (width > maxWidth) {
-                            height = Math.round(height * maxWidth / width);
-                            width = maxWidth;
-                        }
-                        canvas.width = width; canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-                        canvas.toBlob((blob) => {
-                            resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
-                        }, 'image/jpeg', quality);
-                    };
-                };
-            });
         }
 
         async function fetchBenchesFromCloud() {
@@ -484,15 +446,6 @@
             setTimeout(() => { isTakingPhoto = false; }, 1000);
         };
 
-        window.handleCustomFileSelection = function(inputElement) {
-            const statusText = document.getElementById('custom-file-status-text');
-            if(inputElement.files.length > 0) {
-                activeCustomFileInput = inputElement;
-                statusText.innerText = `✅ Neues Foto markiert (${inputElement.files[0].name.substring(0, 15)}...)`;
-                statusText.style.color = "#27ae60";
-            }
-        };
-
         window.locateUser = function() {
             if (!navigator.geolocation) { alert("Keine Standortermittlung unterstützt."); return; }
             const btn = document.getElementById('locate-btn'); btn.innerText = "⏳";
@@ -599,13 +552,15 @@
 
             if (map) map.closePopup();
 
+            // Optimistisches Update lokal forcieren
+            const idx = benches.findIndex(b => b.id === id);
+            if (idx !== -1) benches[idx] = { ...benches[idx], ...updatedData };
+            updateApp();
+
             if (supabaseClient && navigator.onLine) {
-                try {
-                    await supabaseClient.from('benches').update(updatedData).eq('id', id);
-                    fetchBenchesFromCloud();
-                } catch (e) {
-                    saveOfflineAction('update', updatedData, id);
-                }
+                supabaseClient.from('benches').update(updatedData).eq('id', id).then(({error}) => {
+                    if (error) saveOfflineAction('update', updatedData, id);
+                }).catch(() => saveOfflineAction('update', updatedData, id));
             } else {
                 saveOfflineAction('update', updatedData, id);
             }
@@ -613,6 +568,8 @@
 
         function calculateStatus(bench) {
             if (bench.manual_status === 'Ungeprüft') return 'Ungeprüft';
+            if (bench.manual_status === 'Wartungsfrei') return 'Wartungsfrei';
+            if (bench.manual_status === 'In Bearbeitung') return 'In Bearbeitung';
             if (bench.manual_status === 'Wartung empfohlen') return 'Wartung empfohlen'; 
             if (bench.manual_status === 'Beschädigt') return 'Beschädigt';
             if (bench.manual_status === 'Irreparabel') return 'Irreparabel';
@@ -628,6 +585,8 @@
         function getMarkerStyle(status) {
             switch(status) {
                 case 'Ungeprüft': return { radius: 8, fillColor: '#7f8c8d', color: '#333', weight: 2, fillOpacity: 0.6 };
+                case 'Wartungsfrei': return { radius: 9, fillColor: '#2ecc71', color: '#fff', weight: 2, fillOpacity: 0.95 };
+                case 'In Bearbeitung': return { radius: 9, fillColor: '#9b59b6', color: '#fff', weight: 2, fillOpacity: 0.95 };
                 case 'Gut': return { radius: 9, fillColor: '#27ae60', color: '#fff', weight: 2, fillOpacity: 0.9 };
                 case 'Wartung empfohlen': return { radius: 9, fillColor: '#f1c40f', color: '#fff', weight: 2, fillOpacity: 0.9 };
                 case 'Wartung nötig': return { radius: 9, fillColor: '#c0392b', color: '#fff', weight: 2, fillOpacity: 0.9 };
@@ -654,14 +613,6 @@
         }
 
         window.handleTypeChange = function() {
-            const selectedType = document.getElementById('pop-type').value;
-            const customContainer = document.getElementById('custom-image-upload-container');
-            
-            if(selectedType === 'Sonstige') {
-                customContainer.style.display = 'block';
-            } else {
-                customContainer.style.display = 'none';
-            }
             updatePreviewImage();
         };
 
@@ -671,21 +622,7 @@
             const placeholderText = document.getElementById('preview-placeholder');
             
             if (selectedType === 'Sonstige') {
-                if (currentEditingBench && currentEditingBench.id) {
-                    const cacheBuster = new Date().getTime(); 
-                    const customUrl = `${SUPABASE_URL}/storage/v1/object/public/bench-custom-images/${currentEditingBench.id}.jpg?t=${cacheBuster}`;
-                    
-                    const imgTest = new Image();
-                    imgTest.onload = function() {
-                        imgElement.src = customUrl; imgElement.style.display = "block"; placeholderText.style.display = "none";
-                    };
-                    imgTest.onerror = function() {
-                        imgElement.src = ""; imgElement.style.display = "none"; placeholderText.innerText = "Noch kein Einzelfoto hochgeladen."; placeholderText.style.display = "block";
-                    };
-                    imgTest.src = customUrl;
-                } else {
-                    imgElement.src = ""; imgElement.style.display = "none"; placeholderText.innerText = "Sonderanfertigung (Foto kann beim Speichern hinzugefügt werden)"; placeholderText.style.display = "block";
-                }
+                imgElement.src = ""; imgElement.style.display = "none"; placeholderText.innerText = "Sonstige / Sonderbauweise"; placeholderText.style.display = "block";
                 return;
             }
 
@@ -822,11 +759,6 @@
             document.getElementById('pop-dimensions').value = bench.dimensions || '';
             document.getElementById('pop-note').value = bench.note || '';
             
-            document.getElementById('custom-bench-image-camera').value = '';
-            document.getElementById('custom-bench-image-gallery').value = '';
-            activeCustomFileInput = null;
-            document.getElementById('custom-file-status-text').innerText = "Kein Foto gewählt";
-            
             document.getElementById('pop-delete-btn').style.display = isNew ? 'none' : 'block';
             document.getElementById('fullscreen-overlay').style.display = 'block';
             
@@ -837,62 +769,63 @@
             lastSelectedType = document.getElementById('pop-type').value;
             lastSelectedDistrict = document.getElementById('pop-district').value;
             
-            const btn = document.getElementById('pop-save-btn');
-            btn.innerText = "⏳ Speichere...";
-            btn.disabled = true;
-
             const rowData = {
                 lat: currentEditingBench.lat, lng: currentEditingBench.lng, type: lastSelectedType, district: lastSelectedDistrict,
                 last_maintenance: document.getElementById('pop-date').value || null, manual_status: document.getElementById('pop-manual').value,
                 dimensions: document.getElementById('pop-dimensions').value, note: document.getElementById('pop-note').value
             };
 
-            try {
-                let savedId = currentEditingBench.id;
+            // SCHNELLES UI UPDATE: Sofort lokal speichern & Maske schließen
+            if (isNewBenchMode) {
+                const tempId = currentEditingBench.id || Math.floor(Math.random() * -100000);
+                benches.push({ id: tempId, ...rowData });
+            } else {
+                const index = benches.findIndex(b => b.id === currentEditingBench.id);
+                if (index !== -1) benches[index] = { ...benches[index], ...rowData };
+            }
+            localStorage.setItem('benches_cache', JSON.stringify(benches));
+            updateApp();
+            document.getElementById('fullscreen-overlay').style.display = 'none';
 
-                if (isNewBenchMode) { 
-                    const { data, error } = await supabaseClient.from('benches').insert([rowData]).select(); 
-                    if (error) throw error;
-                    if (data && data.length > 0) savedId = data[0].id;
-                } else { 
-                    const { error } = await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id);
-                    if (error) throw error;
+            // Hintergrund-Sync mit Supabase starten
+            if (supabaseClient && navigator.onLine) {
+                try {
+                    if (isNewBenchMode) { 
+                        await supabaseClient.from('benches').insert([rowData]); 
+                    } else { 
+                        await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id);
+                    }
+                    // Aktualisierte Cloud-Daten im Hintergrund holen
+                    const { data } = await supabaseClient.from('benches').select('*');
+                    if (data) {
+                        benches = data;
+                        localStorage.setItem('benches_cache', JSON.stringify(benches));
+                        updateApp();
+                    }
+                } catch (e) {
+                    console.warn("Hintergrund-Speichern fehlgeschlagen, reihe in Offline-Queue ein.", e);
+                    saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id);
                 }
-
-                if (lastSelectedType === 'Sonstige' && activeCustomFileInput && activeCustomFileInput.files.length > 0 && savedId) {
-                    const file = activeCustomFileInput.files[0];
-                    const compressedFile = await compressImage(file, 800, 0.7);
-                    
-                    const { error: uploadError } = await supabaseClient.storage
-                        .from('bench-custom-images')
-                        .upload(`${savedId}.jpg`, compressedFile, { upsert: true, contentType: 'image/jpeg' });
-                    
-                    if (uploadError) throw new Error("Upload-Fehler: " + uploadError.message);
-                }
-
-                fetchBenchesFromCloud();
-                document.getElementById('fullscreen-overlay').style.display = 'none';
-            } catch (e) {
-                console.error(e);
-                alert("Fehler beim Speichern: " + e.message);
+            } else {
                 saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id);
-            } finally {
-                btn.innerText = "Speichern";
-                btn.disabled = false;
             }
         };
 
         document.getElementById('pop-delete-btn').onclick = async () => {
             if (confirm('Sitzbank unwiderruflich löschen?')) {
+                const targetId = currentEditingBench.id;
+                benches = benches.filter(b => b.id !== targetId);
+                localStorage.setItem('benches_cache', JSON.stringify(benches));
+                updateApp();
+                document.getElementById('fullscreen-overlay').style.display = 'none';
+
                 if (supabaseClient && navigator.onLine) {
                     try {
-                        await supabaseClient.from('benches').delete().eq('id', currentEditingBench.id);
-                        fetchBenchesFromCloud();
-                    } catch (e) { saveOfflineAction('delete', null, currentEditingBench.id); }
+                        await supabaseClient.from('benches').delete().eq('id', targetId);
+                    } catch (e) { saveOfflineAction('delete', null, targetId); }
                 } else {
-                    saveOfflineAction('delete', null, currentEditingBench.id);
+                    saveOfflineAction('delete', null, targetId);
                 }
-                document.getElementById('fullscreen-overlay').style.display = 'none';
             }
         };
 
@@ -972,7 +905,7 @@
                     console.error(e);
                     alert("Fehler beim Speichern des neuen Typs: " + e.message);
                 } finally {
-                    btn.innerText = "Typ & Bild speichern";
+                    btn.innerText = "Typ & Bild保存";
                     btn.disabled = false;
                 }
             };
