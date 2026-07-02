@@ -25,7 +25,7 @@
         #locate-btn:hover { background: #f4f4f4; }
 
         #sidebar { 
-            position: absolute; bottom: -100%; left: 0; width: 100%; height: 65%; background: white; padding: 20px 15px 15px 15px; box-shadow: 0 -5px 20px rgba(0,0,0,0.2); z-index: 1005; overflow-y: auto; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; border-top-left-radius: 20px; border-top-right-radius: 20px; transition: bottom 0.3s ease-in-out; 
+            position: absolute; bottom: -100%; left: 0; width: 100%; height: 82%; background: white; padding: 20px 15px 80px 15px; box-shadow: 0 -5px 20px rgba(0,0,0,0.2); z-index: 1005; overflow-y: auto; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; border-top-left-radius: 20px; border-top-right-radius: 20px; transition: bottom 0.3s ease-in-out; 
         }
         #sidebar.open { bottom: 0; }
 
@@ -49,7 +49,7 @@
             position: fixed; 
             bottom: 10px; 
             right: 10px; 
-            z-index: 2000; 
+            z-index: 1002; 
             background: white; 
             border-radius: 8px; 
             box-shadow: 0 2px 12px rgba(0,0,0,0.3); 
@@ -105,7 +105,7 @@
         .file-status-text { display: block; margin-top: 8px; font-weight: bold; color: #e67e22; font-size: 13px; }
 
         @media (min-width: 768px) {
-            #sidebar { bottom: auto; top: 0; right: -400px; left: auto; width: 380px; height: 100%; border-top-left-radius: 0px; border-top-right-radius: 0px; box-shadow: -5px 0 20px rgba(0,0,0,0.2); transition: right 0.3s ease-in-out; }
+            #sidebar { bottom: auto; top: 0; right: -400px; left: auto; width: 380px; height: 100%; border-top-left-radius: 0px; border-top-right-radius: 0px; box-shadow: -5px 0 20px rgba(0,0,0,0.2); transition: right 0.3s ease-in-out; padding-bottom: 20px; }
             #sidebar.open { right: 0; }
         }
         
@@ -137,10 +137,11 @@
         
         <div id="map"></div>
 
-        <div id="live-stats-widget">
+        <!-- Initial "minimized" Klasse hinzugefügt und Icon auf "+" gesetzt -->
+        <div id="live-stats-widget" class="minimized">
             <div class="widget-header" onclick="toggleWidget()">
                 <span>📊 Filter-Ansicht</span>
-                <span id="widget-toggle-icon">➖</span>
+                <span id="widget-toggle-icon">➕</span>
             </div>
             <div class="widget-content">
                 <div>Angezeigte Bänke: <strong id="widget-total">0</strong></div>
@@ -552,7 +553,6 @@
 
             if (map) map.closePopup();
 
-            // Optimistisches Update lokal forcieren
             const idx = benches.findIndex(b => b.id === id);
             if (idx !== -1) benches[idx] = { ...benches[idx], ...updatedData };
             updateApp();
@@ -775,7 +775,6 @@
                 dimensions: document.getElementById('pop-dimensions').value, note: document.getElementById('pop-note').value
             };
 
-            // SCHNELLES UI UPDATE: Sofort lokal speichern & Maske schließen
             if (isNewBenchMode) {
                 const tempId = currentEditingBench.id || Math.floor(Math.random() * -100000);
                 benches.push({ id: tempId, ...rowData });
@@ -787,7 +786,6 @@
             updateApp();
             document.getElementById('fullscreen-overlay').style.display = 'none';
 
-            // Hintergrund-Sync mit Supabase starten
             if (supabaseClient && navigator.onLine) {
                 try {
                     if (isNewBenchMode) { 
@@ -795,7 +793,6 @@
                     } else { 
                         await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id);
                     }
-                    // Aktualisierte Cloud-Daten im Hintergrund holen
                     const { data } = await supabaseClient.from('benches').select('*');
                     if (data) {
                         benches = data;
@@ -905,7 +902,7 @@
                     console.error(e);
                     alert("Fehler beim Speichern des neuen Typs: " + e.message);
                 } finally {
-                    btn.innerText = "Typ & Bild保存";
+                    btn.innerText = "Typ & Bild speichern";
                     btn.disabled = false;
                 }
             };
