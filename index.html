@@ -197,7 +197,7 @@
         <select id="pop-type" onchange="handleTypeChange()"></select>
         
         <div class="type-preview-box" id="image-preview-container">
-            <span class="no-image-text" id="preview-placeholder">Kein Bild für diesen Typ hinterlegt</span>
+            <span class="no-image-text" id="preview-placeholder">Kein Bild für dieser Typ hinterlegt</span>
             <img id="preview-img" src="" alt="Vorschau Banktyp">
         </div>
 
@@ -347,7 +347,6 @@
                 localStorage.setItem('benches_cache', JSON.stringify(benches)); 
                 updateApp();
                 
-                // Deep Link Handler starten, sobald die Daten frisch geladen sind
                 handleDeepLink();
             } catch (err) {
                 console.warn("Offline-Modus aktiv: Daten aus dem lokalen Speicher geladen.", err);
@@ -486,7 +485,6 @@
             
             if (!benchId) return;
 
-            // Wir prüfen in einer kurzen Schleife, ob der Marker bereit ist
             let attempts = 0;
             const checkMarker = setInterval(() => {
                 attempts++;
@@ -495,18 +493,15 @@
                 if (marker) {
                     clearInterval(checkMarker);
                     
-                    // Filter zurücksetzen, falls die Bank gefiltert war
                     document.getElementById('filter-district').value = 'Alle';
                     document.getElementById('filter-type').value = 'Alle';
                     document.getElementById('filter-status').value = 'Alle';
                     updateApp(); 
                     
-                    // Frischen Marker greifen und direkt zentrieren
                     const activeMarker = window.markerDict[benchId];
                     if (activeMarker) {
                         map.setView(activeMarker.getLatLng(), 18, { animate: false });
                         
-                        // Das Popup sofort triggern
                         setTimeout(() => {
                             activeMarker.openPopup();
                             window.history.replaceState({}, document.title, window.location.pathname);
@@ -514,7 +509,7 @@
                     }
                 }
                 
-                if (attempts > 20) { clearInterval(checkMarker); } // Abbruch nach 10 Sekunden
+                if (attempts > 20) { clearInterval(checkMarker); } 
             }, 500);
         }
 
@@ -523,7 +518,7 @@
             if (isApple) {
                 window.open(`maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`, '_blank');
             } else {
-                window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
+                window.open(`http://maps.google.com/?daddr=${lat},${lng}`, '_blank');
             }
         };
 
@@ -806,7 +801,7 @@
             handleTypeChange(); 
         }
 
-                document.getElementById('pop-save-btn').onclick = async () => {
+        document.getElementById('pop-save-btn').onclick = async () => {
             lastSelectedType = document.getElementById('pop-type').value;
             lastSelectedDistrict = document.getElementById('pop-district').value;
             
@@ -833,7 +828,7 @@
                     if (error) throw error;
                 }
 
-                // 2. Foto-Upload nur, wenn es "Sonstige" ist
+                // 2. Foto-Upload erst DANACH, wenn es "Sonstige" ist und eine gültige ID vorliegt
                 if (lastSelectedType === 'Sonstige' && activeCustomFileInput && activeCustomFileInput.files.length > 0 && savedId) {
                     const file = activeCustomFileInput.files[0];
                     const compressedFile = await compressImage(file, 800, 0.7);
@@ -856,8 +851,6 @@
                 btn.disabled = false;
             }
         };
-        
-
 
         document.getElementById('pop-delete-btn').onclick = async () => {
             if (confirm('Sitzbank unwiderruflich löschen?')) {
@@ -887,7 +880,6 @@
                     
                     map = L.map('map', { fadeAnimation: false, layers: [osmStreets] }).setView([49.1426, 9.2177], 13);
                     
-                    // WICHTIG: Das MarkerClusterGroup wurde hier durch eine einfache FeatureGroup ersetzt!
                     markersLayer = L.featureGroup().addTo(map);
 
                     const baseMaps = { "Straßenkarte": osmStreets, "Satellitenbild": esriSatellite };
@@ -932,7 +924,7 @@
                     btn.disabled = true;
                     
                     await supabaseClient.storage.from('bench-images').upload(filePath, file, { upsert: true });
-                    btn.innerText = "Typ & Bild speichern";
+                    btn.innerText = "Typ & Bild保存";
                     btn.disabled = false;
                 }
                 
