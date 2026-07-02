@@ -257,7 +257,6 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
     <script>
-        // Debug-Konsole für das Handy
         window.onerror = function(message, source, lineno, colno, error) {
             const debugDiv = document.createElement('div');
             debugDiv.style.position = 'fixed';
@@ -281,7 +280,8 @@
             "Horkheim", "Pfühlpark", "Ziegeleipark", "Wertwiesenpark"
         ];
 
-        let types = ["H-Bank", "Wetz Ergo7000", "Bitburg", "Sonstige"];
+        const DEFAULT_TYPES = ["H-Bank", "Wetz Ergo7000", "Bitburg", "Sonstige"];
+        let types = [...DEFAULT_TYPES];
         let benches = [];
         let map, markersLayer, supabaseClient, userLocationMarker;
         let currentEditingBench = null;
@@ -302,6 +302,35 @@
             if(SUPABASE_URL.includes("DEINE_SUPABASE_URL")) { return false; }
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             return true;
+        }
+
+        async function fetchTypesFromCloud() {
+            const cachedTypes = localStorage.getItem('custom_bench_types');
+            if (cachedTypes) {
+                try {
+                    types = Array.from(new Set([...DEFAULT_TYPES, ...JSON.parse(cachedTypes)]));
+                    updateTypeDropdowns();
+                } catch(e) { console.error(e); }
+            }
+
+            if (!supabaseClient) return;
+            try {
+                const { data, error } = await supabaseClient.from('bench_types').select('name');
+                if (error) throw error;
+                
+                if (data && data.length > 0) {
+                    const cloudNames = data.map(t => t.name);
+                    types = Array.from(new Set([...DEFAULT_TYPES, ...cloudNames]));
+                    
+                    const customTypesOnly = types.filter(t => !DEFAULT_TYPES.includes(t));
+                    localStorage.setItem('custom_bench_types', JSON.stringify(customTypesOnly));
+                    
+                    updateTypeDropdowns();
+                    updateApp();
+                }
+            } catch (err) {
+                console.warn("Konnte Bautypen nicht aus der Cloud laden, nutze Cache.", err);
+            }
         }
 
         async function compressImage(file, maxWidth = 800, quality = 0.7) {
@@ -402,6 +431,9 @@
             supabaseClient.channel('custom-all-channel')
             .on('postgres_changes', { event: '*', pattern: 'public', table: 'benches' }, (payload) => {
                 fetchBenchesFromCloud();
+            })
+            .on('postgres_changes', { event: '*', pattern: 'public', table: 'bench_types' }, (payload) => {
+                fetchTypesFromCloud();
             })
             .subscribe();
         }
@@ -818,7 +850,6 @@
             try {
                 let savedId = currentEditingBench.id;
 
-                // 1. Bank-Daten in Datenbank speichern
                 if (isNewBenchMode) { 
                     const { data, error } = await supabaseClient.from('benches').insert([rowData]).select(); 
                     if (error) throw error;
@@ -828,7 +859,6 @@
                     if (error) throw error;
                 }
 
-                // 2. Foto-Upload erst DANACH, wenn es "Sonstige" ist und eine gültige ID vorliegt
                 if (lastSelectedType === 'Sonstige' && activeCustomFileInput && activeCustomFileInput.files.length > 0 && savedId) {
                     const file = activeCustomFileInput.files[0];
                     const compressedFile = await compressImage(file, 800, 0.7);
@@ -895,7 +925,9 @@
                     });
                     setTimeout(forceMapUpdate, 100); window.addEventListener('resize', forceMapUpdate);
                     
+                    fetchTypesFromCloud();
                     fetchBenchesFromCloud();
+                    
                     if(hasKeys) { subscribeToRealtime(); }
 
                     window.addEventListener('online', syncOfflineQueue);
@@ -913,22 +945,36 @@
                 if (!val) { alert("Bitte gib einen Namen für den Bautyp ein."); return; }
                 if (types.includes(val)) { alert("Dieser Typ existiert bereits."); return; }
                 
-                if (activeTypeFileInput && activeTypeFileInput.files.length > 0 && supabaseClient) {
-                    const file = activeTypeFileInput.files[0];
-                    const cleanName = val.replace(/\s+/g, '_');
-                    const extension = file.name.split('.').pop().toLowerCase();
-                    const filePath = `${cleanName}.${extension === 'png' ? 'png' : 'jpg'}`;
-                    
-                    const btn = document.getElementById('add-type-btn');
-                    btn.innerText = "⏳ Bild wird hochgeladen...";
-                    btn.disabled = true;
-                    
-                    await supabaseClient.storage.from('bench-images').upload(filePath, file, { upsert: true });
-                    btn.innerText = "Typ & Bild保存";
+                const btn = document.getElementById('add-type-btn');
+                btn.disabled = true;
+
+                try {
+                    if (supabaseClient) {
+                        btn.innerText = "⏳ Typ wird in Cloud gespeichert...";
+                        const { error: typeError } = await supabaseClient.from('bench_types').insert([{ name: val }]);
+                        if (typeError) throw typeError;
+                    }
+
+                    if (activeTypeFileInput && activeTypeFileInput.files.length > 0 && supabaseClient) {
+                        btn.innerText = "⏳ Bild wird hochgeladen...";
+                        const file = activeTypeFileInput.files[0];
+                        const cleanName = val.replace(/\s+/g, '_');
+                        const extension = file.name.split('.').pop().toLowerCase();
+                        const filePath = `${cleanName}.${extension === 'png' ? 'png' : 'jpg'}`;
+                        
+                        await supabaseClient.storage.from('bench-images').upload(filePath, file, { upsert: true });
+                    }
+
+                    await fetchTypesFromCloud();
+                    closeTypeOverlay();
+
+                } catch (e) {
+                    console.error(e);
+                    alert("Fehler beim Speichern des neuen Typs: " + e.message);
+                } finally {
+                    btn.innerText = "Typ & Bild speichern";
                     btn.disabled = false;
                 }
-                
-                types.push(val); updateTypeDropdowns(); updateApp(); closeTypeOverlay();
             };
         }
         window.addEventListener('load', startApp);
