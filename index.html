@@ -9,10 +9,14 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; flex-direction: column; background: #f4f6f8; color: #333; overflow: hidden; }
-        header { background: #2c3e50; color: white; padding: 12px; text-align: center; font-size: 14px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1001; position: relative; }
-        .main-container { display: flex; flex: 1; flex-direction: column; overflow: hidden; position: relative; }
+        header { background: #2c3e50; color: white; padding: 12px; text-align: center; font-size: 14px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1001; position: relative; display: flex; justify-content: center; align-items: center; gap: 10px; }
+        .sync-indicator { font-size: 16px; padding: 2px 6px; border-radius: 4px; font-weight: bold; transition: all 0.3s; }
+        .sync-green { color: #2ecc71; }
+        .sync-red { color: #e74c3c; background: rgba(231, 76, 60, 0.1); }
         
-        #map { flex: 1; width: 100%; height: 100%; z-index: 1; background-color: #e5e9f0; }
+        /* Karten-Container repariert: Erzwingt nun die volle verfügbare Höhe */
+        .main-container { display: block; flex: 1; width: 100%; height: calc(100vh - 43px); position: relative; }
+        #map { width: 100%; height: 100%; z-index: 1; background-color: #e5e9f0; }
         
         #menu-toggle-btn {
             position: absolute; top: 10px; right: 10px; z-index: 1000; background: #2c3e50; color: white; border: none; padding: 10px 14px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 6px; transition: background 0.2s;
@@ -34,7 +38,7 @@
         .filter-group label { font-weight: bold; font-size: 12px; color: #7f8c8d; text-transform: uppercase; }
         .filter-group select, .filter-group input { padding: 12px; border-radius: 8px; border: 1px solid #ccd1d9; width: 100%; font-size: 16px; box-sizing: border-box; background: #f8f9fa; }
         
-        .status-checkbox-container { display: flex; flex-direction: column; gap: 6px; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #ccd1d9; max-height: 150px; overflow-y: auto; }
+        .status-checkbox-container { display: flex; flex-direction: column; gap: 6px; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #ccd1d9; max-height: 170px; overflow-y: auto; }
         .status-checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
         .status-checkbox-item input { width: auto; margin: 0; cursor: pointer; }
 
@@ -110,7 +114,7 @@
         .file-status-text { display: block; margin-top: 8px; font-weight: bold; color: #e67e22; font-size: 13px; }
 
         @media (min-width: 768px) {
-            #sidebar { bottom: auto; top: 0; right: -400px; left: auto; width: 380px; height: 100%; border-top-left-radius: 0px; border-top-right-radius: 0px; box-shadow: -5px 0 20px rgba(0,0,0,0.2); transition: right 0.3s ease-in-out; padding-bottom: 20px; }
+            #sidebar { bottom: auto; top: 0; right: -440px; left: auto; width: 420px; height: 100%; border-top-left-radius: 0px; border-top-right-radius: 0px; box-shadow: -5px 0 20px rgba(0,0,0,0.2); transition: right 0.3s ease-in-out; padding-bottom: 20px; }
             #sidebar.open { right: 0; }
         }
         
@@ -131,7 +135,8 @@
 <body>
 
     <header>
-        🌲 HN-Sitzbank-Kataster (<span id="total-count">0</span> Bänke)
+        <span>🌲 HN-Sitzbank-Kataster (<span id="total-count">0</span> Bänke)</span>
+        <span id="sync-cloud-icon" class="sync-indicator sync-green" title="Alle Daten synchronisiert">☁️</span>
     </header>
     
     <div class="main-container">
@@ -164,16 +169,16 @@
                 <select id="filter-type"><option value="Alle">Alle Bautypen</option></select>
             </div>
             <div class="filter-group">
-                <label>🚦 Status filtern (Mehrfachauswahl möglich)</label>
+                <label>🚦 Status filtern (Keine Auswahl = Alle anzeigen)</label>
                 <div class="status-checkbox-container" id="status-checkboxes-container">
-                    <label class="status-checkbox-item"><input type="checkbox" value="Gut" checked> 🟢 Gut</label>
-                    <label class="status-checkbox-item"><input type="checkbox" value="Wartungsfrei" checked> 🟢✨ Wartungsfrei (Dauerhaft)</label>
-                    <label class="status-checkbox-item"><input type="checkbox" value="In Bearbeitung" checked> 🟣 In Bearbeitung</label>
-                    <label class="status-checkbox-item"><input type="checkbox" value="Wartung empfohlen" checked> 🟡 Wartung empfohlen (~3J)</label>
-                    <label class="status-checkbox-item"><input type="checkbox" value="Wartung nötig" checked> 🔴 Wartung nötig (>5J)</label>
-                    <label class="status-checkbox-item"><input type="checkbox" value="Beschädigt" checked> 🔴⚪ Beschädigt</label>
-                    <label class="status-checkbox-item"><input type="checkbox" value="Irreparabel" checked> ⚫ Irreparabel</label>
-                    <label class="status-checkbox-item"><input type="checkbox" value="Ungeprüft" checked> ⚪ Ungeprüft</label>
+                    <label class="status-checkbox-item"><input type="checkbox" value="Wartung empfohlen"> 🟡 Wartung empfohlen (~3J)</label>
+                    <label class="status-checkbox-item"><input type="checkbox" value="Wartung nötig"> 🔴 Wartung nötig (>5J)</label>
+                    <label class="status-checkbox-item"><input type="checkbox" value="Beschädigt"> 🔴⚪ Beschädigt</label>
+                    <label class="status-checkbox-item"><input type="checkbox" value="In Bearbeitung"> 🟣 In Bearbeitung</label>
+                    <label class="status-checkbox-item"><input type="checkbox" value="Irreparabel"> ⚫ Irreparabel</label>
+                    <label class="status-checkbox-item"><input type="checkbox" value="Ungeprüft"> ⚪ Ungeprüft</label>
+                    <label class="status-checkbox-item"><input type="checkbox" value="Wartungsfrei"> 🟢✨ Wartungsfrei (Dauerhaft)</label>
+                    <label class="status-checkbox-item"><input type="checkbox" value="Gut"> 🟢 Gut</label>
                 </div>
             </div>
             <div class="stats-box">
@@ -210,13 +215,13 @@
         
         <label>Sonderstatus:</label>
         <select id="pop-manual">
-            <option value="Ungeprüft">Ungeprüft (Grau)</option>
             <option value="Automatisch">Nach Datum berechnen</option>
-            <option value="Wartungsfrei">Wartungsfrei (Dauerhaft Grün)</option>
-            <option value="In Bearbeitung">In Bearbeitung (Lila)</option>
             <option value="Wartung empfohlen">Wartung empfohlen (Gelb)</option>
             <option value="Beschädigt">Beschädigt (Rot-Weiß)</option>
+            <option value="In Bearbeitung">In Bearbeitung (Lila)</option>
             <option value="Irreparabel">Irreparabel (Austausch nötig)</option>
+            <option value="Ungeprüft">Ungeprüft (Grau)</option>
+            <option value="Wartungsfrei">Wartungsfrei (Dauerhaft Grün)</option>
         </select>
         
         <label>Bank Beschreibung:</label>
@@ -252,7 +257,7 @@
             <span id="type-file-status-text" class="file-status-text">Kein Foto ausgewählt</span>
         </div>
         
-        <button id="add-type-btn" class="btn btn-save" style="margin-top: 30px;">Typ & Bild保存</button>
+        <button id="add-type-btn" class="btn btn-save" style="margin-top: 30px;">Typ & Bild speichern</button>
         <button type="button" class="btn btn-cancel" onclick="closeTypeOverlay()">Abbrechen</button>
     </div>
 
@@ -306,11 +311,28 @@
             return true;
         }
 
+        function updateSyncIndicator() {
+            const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
+            const icon = document.getElementById('sync-cloud-icon');
+            if (!icon) return;
+            
+            if (queue.length === 0) {
+                icon.innerText = "☁️";
+                icon.className = "sync-indicator sync-green";
+                icon.title = "Alle Daten erfolgreich in die Cloud übertragen";
+            } else {
+                icon.innerText = `☁️ (${queue.length})`;
+                icon.className = "sync-indicator sync-red";
+                icon.title = `${queue.length} Änderungen warten auf Synchronisation`;
+            }
+        }
+
         async function fetchTypesFromCloud() {
             const cachedTypes = localStorage.getItem('custom_bench_types');
             if (cachedTypes) {
                 try {
                     types = Array.from(new Set([...DEFAULT_TYPES, ...JSON.parse(cachedTypes)]));
+                    types.sort((a, b) => a.localeCompare(b));
                     updateTypeDropdowns();
                 } catch(e) { console.error(e); }
             }
@@ -323,6 +345,7 @@
                 if (data && data.length > 0) {
                     const cloudNames = data.map(t => t.name);
                     types = Array.from(new Set([...DEFAULT_TYPES, ...cloudNames]));
+                    types.sort((a, b) => a.localeCompare(b));
                     
                     const customTypesOnly = types.filter(t => !DEFAULT_TYPES.includes(t));
                     localStorage.setItem('custom_bench_types', JSON.stringify(customTypesOnly));
@@ -355,17 +378,20 @@
                 
                 handleDeepLink();
             } catch (err) {
-                console.warn("Offline-Modus aktiv: Daten aus dem lokalen Speicher geladen.", err);
+                console.warn("Konnte aktuelle Daten nicht laden. Zeige Cache.", err);
                 handleDeepLink();
             }
         }
 
         async function syncOfflineQueue() {
-            if (!supabaseClient || !navigator.onLine) return;
+            if (!supabaseClient) return;
             const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
-            if (queue.length === 0) return;
+            if (queue.length === 0) {
+                updateSyncIndicator();
+                return;
+            }
 
-            console.log(`Synchronisiere ${queue.length} Offline-Aktionen mit der Cloud...`);
+            console.log(`Versuche ${queue.length} Aktionen zu synchronisieren...`);
             const remainingQueue = [];
 
             for (const item of queue) {
@@ -375,9 +401,7 @@
                         if (error) throw error;
                         if (data && data.length > 0) {
                             const index = benches.findIndex(b => b.id === item.tempId);
-                            if (index !== -1) {
-                                benches[index] = data[0];
-                            }
+                            if (index !== -1) benches[index] = data[0];
                         }
                     } else if (item.action === 'update') {
                         const { error } = await supabaseClient.from('benches').update(item.data).eq('id', item.id);
@@ -387,12 +411,13 @@
                         if (error) throw error;
                     }
                 } catch (e) {
-                    console.error("Fehler beim Sync eines Eintrags:", e);
+                    console.error("Sync fehlgeschlagen, bleibt in der Warteschlange:", e);
                     remainingQueue.push(item);
                 }
             }
             localStorage.setItem('offline_sync_queue', JSON.stringify(remainingQueue));
             localStorage.setItem('benches_cache', JSON.stringify(benches));
+            updateSyncIndicator();
             updateApp();
         }
 
@@ -411,6 +436,7 @@
                 benches = benches.filter(b => b.id !== id);
             }
             localStorage.setItem('benches_cache', JSON.stringify(benches));
+            updateSyncIndicator();
             updateApp();
         }
 
@@ -503,26 +529,23 @@
                 
                 if (marker) {
                     clearInterval(checkMarker);
-                    
                     document.getElementById('filter-district').value = 'Alle';
                     document.getElementById('filter-type').value = 'Alle';
                     
                     const checkboxes = document.querySelectorAll('#status-checkboxes-container input');
-                    checkboxes.forEach(cb => cb.checked = true);
+                    checkboxes.forEach(cb => cb.checked = false);
                     
                     updateApp(); 
                     
                     const activeMarker = window.markerDict[benchId];
                     if (activeMarker) {
                         map.setView(activeMarker.getLatLng(), 18, { animate: false });
-                        
                         setTimeout(() => {
                             activeMarker.openPopup();
                             window.history.replaceState({}, document.title, window.location.pathname);
                         }, 500);
                     }
                 }
-                
                 if (attempts > 20) { clearInterval(checkMarker); } 
             }, 500);
         }
@@ -559,9 +582,7 @@
                 navigator.share({ title: 'Sitzbank-Kataster Details', text: shareText, url: shareUrl })
                 .then(() => console.log('Erfolgreich geteilt'))
                 .catch((err) => {
-                    if(err.name !== "AbortError") {
-                        showFallbackPrompt();
-                    }
+                    if(err.name !== "AbortError") { showFallbackPrompt(); }
                 });
             } else {
                 showFallbackPrompt();
@@ -585,10 +606,14 @@
             if (idx !== -1) benches[idx] = { ...benches[idx], ...updatedData };
             updateApp();
 
-            if (supabaseClient && navigator.onLine) {
-                supabaseClient.from('benches').update(updatedData).eq('id', id).then(({error}) => {
-                    if (error) saveOfflineAction('update', updatedData, id);
-                }).catch(() => saveOfflineAction('update', updatedData, id));
+            if (supabaseClient) {
+                try {
+                    const { error } = await supabaseClient.from('benches').update(updatedData).eq('id', id);
+                    if (error) throw error;
+                    syncOfflineQueue();
+                } catch(e) {
+                    saveOfflineAction('update', updatedData, id);
+                }
             } else {
                 saveOfflineAction('update', updatedData, id);
             }
@@ -640,9 +665,7 @@
             tSelect.value = currentFilter;
         }
 
-        window.handleTypeChange = function() {
-            updatePreviewImage();
-        };
+        window.handleTypeChange = function() { updatePreviewImage(); };
 
         window.updatePreviewImage = function() {
             const selectedType = document.getElementById('pop-type').value;
@@ -695,7 +718,7 @@
                 const status = calculateStatus(bench);
                 const matchDistrict = filterDistrict === 'Alle' || bench.district === filterDistrict;
                 const matchType = filterType === 'Alle' || bench.type === filterType;
-                const matchStatus = selectedStatuses.includes(status); 
+                const matchStatus = (selectedStatuses.length === 0) || selectedStatuses.includes(status); 
 
                 if (matchDistrict) { 
                     if(sidebarStats[bench.type] === undefined) sidebarStats[bench.type] = 0; 
@@ -746,12 +769,10 @@
             if (widgetDetails) {
                 widgetDetails.innerHTML = '';
                 Object.entries(liveFilteredStats).forEach(([type, count]) => {
-                    if (count > 0) {
-                        widgetDetails.innerHTML += `<li>${type}: <strong>${count}</strong></li>`;
-                    }
+                    if (count > 0) { widgetDetails.innerHTML += `<li>${type}: <strong>${count}</strong></li>`; }
                 });
                 if (widgetDetails.innerHTML === '') {
-                    widgetDetails.innerHTML = '<li style="list-style:none; margin-left:-15px; color:#7f8c8d; font-style:italic;">Keine Auswahl</li>';
+                    widgetDetails.innerHTML = '<li style="list-style:none; margin-left:-15px; color:#7f8c8d; font-style:italic;">Alles wird angezeigt</li>';
                 }
             }
         }
@@ -764,16 +785,9 @@
         window.triggerNewBenchCreation = function(lat, lng) {
             if (map) map.closePopup();
             openFullscreenForm({ 
-                lat: lat, 
-                lng: lng, 
-                type: lastSelectedType, 
-                district: lastSelectedDistrict, 
-                last_maintenance: new Date().toISOString().split('T')[0], 
-                manual_status: 'Automatisch', 
-                description: '',
-                damage_description: '',
-                dimensions: '', 
-                note: '' 
+                lat: lat, lng: lng, type: lastSelectedType, district: lastSelectedDistrict, 
+                last_maintenance: new Date().toISOString().split('T')[0], manual_status: 'Automatisch', 
+                description: '', damage_description: '', dimensions: '', note: '' 
             }, true);
         };
 
@@ -823,22 +837,24 @@
             updateApp();
             document.getElementById('fullscreen-overlay').style.display = 'none';
 
-            if (supabaseClient && navigator.onLine) {
+            if (supabaseClient) {
                 try {
                     let response;
                     if (isNewBenchMode) { 
                         response = await supabaseClient.from('benches').insert([rowData]).select(); 
+                        if (response.error) throw response.error;
                         if (response.data && response.data.length > 0) {
                             const index = benches.findIndex(b => b.id === tempId);
                             if (index !== -1) benches[index] = response.data[0];
                         }
                     } else { 
-                        await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id);
+                        const { error } = await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id);
+                        if (error) throw error;
                     }
                     localStorage.setItem('benches_cache', JSON.stringify(benches));
-                    updateApp();
+                    syncOfflineQueue(); 
                 } catch (e) {
-                    console.warn("Hintergrund-Speichern fehlgeschlagen, reihe in Offline-Queue ein.", e);
+                    console.warn("Netzwerk/Serverfehler. Speichere lokal in die Warteschlange.", e);
                     saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id, tempId);
                 }
             } else {
@@ -854,10 +870,14 @@
                 updateApp();
                 document.getElementById('fullscreen-overlay').style.display = 'none';
 
-                if (supabaseClient && navigator.onLine) {
+                if (supabaseClient) {
                     try {
-                        await supabaseClient.from('benches').delete().eq('id', targetId);
-                    } catch (e) { saveOfflineAction('delete', null, targetId); }
+                        const { error } = await supabaseClient.from('benches').delete().eq('id', targetId);
+                        if (error) throw error;
+                        syncOfflineQueue();
+                    } catch (e) { 
+                        saveOfflineAction('delete', null, targetId); 
+                    }
                 } else {
                     saveOfflineAction('delete', null, targetId);
                 }
@@ -868,8 +888,9 @@
         function forceMapUpdate() { if (map) { map.invalidateSize(); } }
 
         function startApp() {
-            const hasKeys = initSupabase(); 
+            initSupabase(); 
             initDropdowns();
+            updateSyncIndicator();
             
             if (typeof L !== 'undefined') {
                 try {
@@ -877,7 +898,6 @@
                     const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles © Esri' });
                     
                     map = L.map('map', { fadeAnimation: false, layers: [osmStreets] }).setView([49.1426, 9.2177], 13);
-                    
                     markersLayer = L.featureGroup().addTo(map);
 
                     const baseMaps = { "Straßenkarte": osmStreets, "Satellitenbild": esriSatellite };
@@ -896,9 +916,8 @@
                     fetchTypesFromCloud();
                     fetchBenchesFromCloud();
                     
-                    if(hasKeys) { subscribeToRealtime(); }
-
-                    window.addEventListener('online', syncOfflineQueue);
+                    if(supabaseClient) { subscribeToRealtime(); }
+                    window.addEventListener('focus', syncOfflineQueue);
 
                 } catch(e) { console.error("Kartenfehler:", e); }
             }
@@ -949,7 +968,11 @@
             };
         }
         window.addEventListener('load', startApp);
-  
     </script>
 </body>
-</html>
+<style>html{
+ color:darkviolet;
+ font-size:25px;
+ font-weight:600;
+}
+</style><script>/*Here write your javascript code*/</script></html>
