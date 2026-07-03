@@ -34,6 +34,10 @@
         .filter-group label { font-weight: bold; font-size: 12px; color: #7f8c8d; text-transform: uppercase; }
         .filter-group select, .filter-group input { padding: 12px; border-radius: 8px; border: 1px solid #ccd1d9; width: 100%; font-size: 16px; box-sizing: border-box; background: #f8f9fa; }
         
+        .status-checkbox-container { display: flex; flex-direction: column; gap: 6px; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #ccd1d9; max-height: 150px; overflow-y: auto; }
+        .status-checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+        .status-checkbox-item input { width: auto; margin: 0; cursor: pointer; }
+
         .btn { background: #3498db; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; text-align: center; box-sizing: border-box; }
         .btn-camera { background: #e67e22; margin-top: 5px; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .btn-gallery { background: #8e44ad; }
@@ -93,6 +97,7 @@
         .fullscreen-overlay h3 { margin-top: 10px; font-size: 20px; color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; }
         .fullscreen-overlay label { display: block; font-weight: bold; margin-top: 15px; font-size: 14px; color: #34495e; }
         .fullscreen-overlay select, .fullscreen-overlay input { width: 100%; padding: 14px; margin-top: 5px; border-radius: 8px; border: 1px solid #bdc3c7; font-size: 16px; box-sizing: border-box; }
+        .field-example { font-size: 12px; color: #7f8c8d; margin-top: 2px; font-style: italic; display: block; }
         .legend { font-size: 11px; color: #7f8c8d; line-height: 1.5; background: #fff; padding: 8px; border-radius: 6px; }
 
         .type-preview-box {
@@ -137,7 +142,6 @@
         
         <div id="map"></div>
 
-        <!-- Initial "minimized" Klasse hinzugefügt und Icon auf "+" gesetzt -->
         <div id="live-stats-widget" class="minimized">
             <div class="widget-header" onclick="toggleWidget()">
                 <span>📊 Filter-Ansicht</span>
@@ -160,18 +164,17 @@
                 <select id="filter-type"><option value="Alle">Alle Bautypen</option></select>
             </div>
             <div class="filter-group">
-                <label>🚦 Status filtern</label>
-                <select id="filter-status">
-                    <option value="Alle">Alle Status-Typen</option>
-                    <option value="Gut">🟢 Gut</option>
-                    <option value="Wartungsfrei">🟢✨ Wartungsfrei (Dauerhaft)</option>
-                    <option value="In Bearbeitung">🟣 In Bearbeitung</option>
-                    <option value="Wartung empfohlen">🟡 Wartung empfohlen (~3J)</option>
-                    <option value="Wartung nötig">🔴 Wartung nötig (>5J)</option>
-                    <option value="Beschädigt">🔴⚪ Beschädigt</option>
-                    <option value="Irreparabel">⚫ Irreparabel</option>
-                    <option value="Ungeprüft">⚪ Ungeprüft</option>
-                </select>
+                <label>🚦 Status filtern (Mehrfachauswahl möglich)</label>
+                <div class="status-checkbox-container" id="status-checkboxes-container">
+                    <label class="status-checkbox-item"><input type="checkbox" value="Gut" checked> 🟢 Gut</label>
+                    <label class="status-checkbox-item"><input type="checkbox" value="Wartungsfrei" checked> 🟢✨ Wartungsfrei (Dauerhaft)</label>
+                    <label class="status-checkbox-item"><input type="checkbox" value="In Bearbeitung" checked> 🟣 In Bearbeitung</label>
+                    <label class="status-checkbox-item"><input type="checkbox" value="Wartung empfohlen" checked> 🟡 Wartung empfohlen (~3J)</label>
+                    <label class="status-checkbox-item"><input type="checkbox" value="Wartung nötig" checked> 🔴 Wartung nötig (>5J)</label>
+                    <label class="status-checkbox-item"><input type="checkbox" value="Beschädigt" checked> 🔴⚪ Beschädigt</label>
+                    <label class="status-checkbox-item"><input type="checkbox" value="Irreparabel" checked> ⚫ Irreparabel</label>
+                    <label class="status-checkbox-item"><input type="checkbox" value="Ungeprüft" checked> ⚪ Ungeprüft</label>
+                </div>
             </div>
             <div class="stats-box">
                 <strong id="stats-title">Auswertung</strong>
@@ -204,6 +207,7 @@
 
         <label>Stadtteil / Bereich:</label><select id="pop-district"></select>
         <label>Letzte Wartung:</label><input type="date" id="pop-date">
+        
         <label>Sonderstatus:</label>
         <select id="pop-manual">
             <option value="Ungeprüft">Ungeprüft (Grau)</option>
@@ -214,8 +218,18 @@
             <option value="Beschädigt">Beschädigt (Rot-Weiß)</option>
             <option value="Irreparabel">Irreparabel (Austausch nötig)</option>
         </select>
+        
+        <label>Bank Beschreibung:</label>
+        <input type="text" id="pop-description" placeholder="Beschreibung eingeben...">
+        <span class="field-example">z.B. Bank auf Betonsockel, Rundbank auf Gestell</span>
+
+        <label>Schadens Beschreibung:</label>
+        <input type="text" id="pop-damage-description" placeholder="Schäden beschreiben...">
+        <span class="field-example">z.B. Lehne Beschmiert Bretter Morsch</span>
+
         <label>Maße (z.B. 180x50x45 cm):</label><input type="text" id="pop-dimensions" placeholder="Länge x Breite x Höhe...">
         <label>Notiz:</label><input type="text" id="pop-note" placeholder="Notiz eingeben...">
+        
         <button id="pop-save-btn" class="btn btn-save">Speichern</button>
         <button id="pop-delete-btn" class="btn btn-delete" style="display: none;">Bank löschen</button>
         <button id="pop-cancel-btn" class="btn btn-cancel">Abbrechen</button>
@@ -238,7 +252,7 @@
             <span id="type-file-status-text" class="file-status-text">Kein Foto ausgewählt</span>
         </div>
         
-        <button id="add-type-btn" class="btn btn-save" style="margin-top: 30px;">Typ & Bild speichern</button>
+        <button id="add-type-btn" class="btn btn-save" style="margin-top: 30px;">Typ & Bild保存</button>
         <button type="button" class="btn btn-cancel" onclick="closeTypeOverlay()">Abbrechen</button>
     </div>
 
@@ -357,11 +371,20 @@
             for (const item of queue) {
                 try {
                     if (item.action === 'insert') {
-                        await supabaseClient.from('benches').insert([item.data]);
+                        const { data, error } = await supabaseClient.from('benches').insert([item.data]).select();
+                        if (error) throw error;
+                        if (data && data.length > 0) {
+                            const index = benches.findIndex(b => b.id === item.tempId);
+                            if (index !== -1) {
+                                benches[index] = data[0];
+                            }
+                        }
                     } else if (item.action === 'update') {
-                        await supabaseClient.from('benches').update(item.data).eq('id', item.id);
+                        const { error } = await supabaseClient.from('benches').update(item.data).eq('id', item.id);
+                        if (error) throw error;
                     } else if (item.action === 'delete') {
-                        await supabaseClient.from('benches').delete().eq('id', item.id);
+                        const { error } = await supabaseClient.from('benches').delete().eq('id', item.id);
+                        if (error) throw error;
                     }
                 } catch (e) {
                     console.error("Fehler beim Sync eines Eintrags:", e);
@@ -369,15 +392,17 @@
                 }
             }
             localStorage.setItem('offline_sync_queue', JSON.stringify(remainingQueue));
+            localStorage.setItem('benches_cache', JSON.stringify(benches));
+            updateApp();
         }
 
-        function saveOfflineAction(action, data, id = null) {
+        function saveOfflineAction(action, data, id = null, tempId = null) {
             const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
-            queue.push({ action, data, id, timestamp: Date.now() });
+            queue.push({ action, data, id, tempId, timestamp: Date.now() });
             localStorage.setItem('offline_sync_queue', JSON.stringify(queue));
             
             if (action === 'insert') {
-                const mockId = id || Math.floor(Math.random() * -100000); 
+                const mockId = tempId || Math.floor(Math.random() * -100000); 
                 benches.push({ id: mockId, ...data });
             } else if (action === 'update') {
                 const index = benches.findIndex(b => b.id === id);
@@ -481,7 +506,10 @@
                     
                     document.getElementById('filter-district').value = 'Alle';
                     document.getElementById('filter-type').value = 'Alle';
-                    document.getElementById('filter-status').value = 'Alle';
+                    
+                    const checkboxes = document.querySelectorAll('#status-checkboxes-container input');
+                    checkboxes.forEach(cb => cb.checked = true);
+                    
                     updateApp(); 
                     
                     const activeMarker = window.markerDict[benchId];
@@ -651,7 +679,8 @@
             document.getElementById('total-count').innerText = benches.length;
             const filterDistrict = document.getElementById('filter-district').value || 'Alle';
             const filterType = document.getElementById('filter-type').value || 'Alle';
-            const filterStatus = document.getElementById('filter-status').value || 'Alle'; 
+            
+            const selectedStatuses = Array.from(document.querySelectorAll('#status-checkboxes-container input:checked')).map(cb => cb.value);
             
             document.getElementById('stats-title').innerText = `Bestand: ${filterDistrict === 'Alle' ? 'Gesamt HN' : filterDistrict}`;
 
@@ -666,7 +695,7 @@
                 const status = calculateStatus(bench);
                 const matchDistrict = filterDistrict === 'Alle' || bench.district === filterDistrict;
                 const matchType = filterType === 'Alle' || bench.type === filterType;
-                const matchStatus = filterStatus === 'Alle' || status === filterStatus; 
+                const matchStatus = selectedStatuses.includes(status); 
 
                 if (matchDistrict) { 
                     if(sidebarStats[bench.type] === undefined) sidebarStats[bench.type] = 0; 
@@ -681,12 +710,14 @@
                         const style = getMarkerStyle(status);
                         const marker = L.circleMarker([bench.lat, bench.lng], style);
 
-                        let dimHtml = bench.dimensions ? `<br/>📐 Maße: ${bench.dimensions}` : '';
+                        let descHtml = bench.description ? `<br/>ℹ️ <b>Beschreibung:</b> ${bench.description}` : '';
+                        let dmgHtml = bench.damage_description ? `<br/>⚠️ <b>Schaden:</b> <span style="color:#c0392b;">${bench.damage_description}</span>` : '';
+                        let dimHtml = bench.dimensions ? `<br/>📐 <b>Maße:</b> ${bench.dimensions}` : '';
                         let noteHtml = bench.note ? `<br/>📝 ${bench.note}` : '';
 
                         let popupHtml = `
                             <div style="font-size:14px; line-height:1.4; min-width:240px; color:#333;">
-                                <strong>${bench.type}</strong><br/>⚠️ Status: ${status}${dimHtml}${noteHtml}
+                                <strong>${bench.type}</strong> (${bench.district})<br/>Status: <b>${status}</b>${descHtml}${dmgHtml}${dimHtml}${noteHtml}
                                 <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
                                     <button onclick="window.quickMaintenance(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold;">🟢 Wartung heute</button>
                                     <div style="display: flex; gap: 4px;">
@@ -739,6 +770,8 @@
                 district: lastSelectedDistrict, 
                 last_maintenance: new Date().toISOString().split('T')[0], 
                 manual_status: 'Automatisch', 
+                description: '',
+                damage_description: '',
                 dimensions: '', 
                 note: '' 
             }, true);
@@ -756,6 +789,8 @@
 
             document.getElementById('pop-date').value = bench.last_maintenance || '';
             document.getElementById('pop-manual').value = bench.manual_status || 'Automatisch';
+            document.getElementById('pop-description').value = bench.description || '';
+            document.getElementById('pop-damage-description').value = bench.damage_description || '';
             document.getElementById('pop-dimensions').value = bench.dimensions || '';
             document.getElementById('pop-note').value = bench.note || '';
             
@@ -772,11 +807,13 @@
             const rowData = {
                 lat: currentEditingBench.lat, lng: currentEditingBench.lng, type: lastSelectedType, district: lastSelectedDistrict,
                 last_maintenance: document.getElementById('pop-date').value || null, manual_status: document.getElementById('pop-manual').value,
+                description: document.getElementById('pop-description').value, damage_description: document.getElementById('pop-damage-description').value,
                 dimensions: document.getElementById('pop-dimensions').value, note: document.getElementById('pop-note').value
             };
 
+            const tempId = currentEditingBench.id || Math.floor(Math.random() * -100000);
+
             if (isNewBenchMode) {
-                const tempId = currentEditingBench.id || Math.floor(Math.random() * -100000);
                 benches.push({ id: tempId, ...rowData });
             } else {
                 const index = benches.findIndex(b => b.id === currentEditingBench.id);
@@ -788,23 +825,24 @@
 
             if (supabaseClient && navigator.onLine) {
                 try {
+                    let response;
                     if (isNewBenchMode) { 
-                        await supabaseClient.from('benches').insert([rowData]); 
+                        response = await supabaseClient.from('benches').insert([rowData]).select(); 
+                        if (response.data && response.data.length > 0) {
+                            const index = benches.findIndex(b => b.id === tempId);
+                            if (index !== -1) benches[index] = response.data[0];
+                        }
                     } else { 
                         await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id);
                     }
-                    const { data } = await supabaseClient.from('benches').select('*');
-                    if (data) {
-                        benches = data;
-                        localStorage.setItem('benches_cache', JSON.stringify(benches));
-                        updateApp();
-                    }
+                    localStorage.setItem('benches_cache', JSON.stringify(benches));
+                    updateApp();
                 } catch (e) {
                     console.warn("Hintergrund-Speichern fehlgeschlagen, reihe in Offline-Queue ein.", e);
-                    saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id);
+                    saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id, tempId);
                 }
             } else {
-                saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id);
+                saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id, tempId);
             }
         };
 
@@ -866,7 +904,10 @@
             }
             document.getElementById('filter-district').addEventListener('change', updateApp);
             document.getElementById('filter-type').addEventListener('change', updateApp);
-            document.getElementById('filter-status').addEventListener('change', updateApp);
+            
+            document.querySelectorAll('#status-checkboxes-container input').forEach(cb => {
+                cb.addEventListener('change', updateApp);
+            });
 
             document.getElementById('add-type-btn').onclick = async () => {
                 const input = document.getElementById('new-type-input'); 
