@@ -8,14 +8,14 @@
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; flex-direction: column; background: #f4f6f8; color: #333; overflow: hidden; }
-        header { background: #2c3e50; color: white; padding: 12px; text-align: center; font-size: 14px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1001; position: relative; display: flex; justify-content: center; align-items: center; gap: 10px; }
-        .sync-indicator { font-size: 16px; padding: 2px 6px; border-radius: 4px; font-weight: bold; transition: all 0.3s; }
+        html, body { height: 100%; margin: 0; padding: 0; width: 100%; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; display: flex; flex-direction: column; background: #f4f6f8; color: #333; overflow: hidden; }
+        header { background: #2c3e50; color: white; padding: 12px; text-align: center; font-size: 14px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1001; position: relative; display: flex; justify-content: center; align-items: center; gap: 10px; flex-shrink: 0; }
+        .sync-indicator { font-size: 16px; padding: 2px 6px; border-radius: 4px; font-weight: bold; transition: all 0.3s; cursor: pointer; user-select: none; }
         .sync-green { color: #2ecc71; }
-        .sync-red { color: #e74c3c; background: rgba(231, 76, 60, 0.1); }
+        .sync-red { color: #e74c3c; background: rgba(231, 76, 60, 0.1); border: 1px solid rgba(231, 76, 60, 0.3); }
         
-        /* Karten-Container repariert: Erzwingt nun die volle verfügbare Höhe */
-        .main-container { display: block; flex: 1; width: 100%; height: calc(100vh - 43px); position: relative; }
+        .main-container { display: block; flex: 1; width: 100%; position: relative; overflow: hidden; }
         #map { width: 100%; height: 100%; z-index: 1; background-color: #e5e9f0; }
         
         #menu-toggle-btn {
@@ -54,48 +54,12 @@
         .stats-box ul { margin: 6px 0 0 0; padding-left: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; list-style: none; }
         
         #live-stats-widget {
-            position: fixed; 
-            bottom: 10px; 
-            right: 10px; 
-            z-index: 1002; 
-            background: white; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 12px rgba(0,0,0,0.3); 
-            width: 240px; 
-            box-sizing: border-box; 
-            font-size: 13px; 
-            border-left: 4px solid #3498db; 
-            overflow: hidden; 
-            transition: max-height 0.25s ease-in-out; 
-            max-height: 250px;
+            position: fixed; bottom: 10px; right: 10px; z-index: 1002; background: white; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.3); width: 240px; box-sizing: border-box; font-size: 13px; border-left: 4px solid #3498db; overflow: hidden; transition: max-height 0.25s ease-in-out; max-height: 250px;
         }
-        #live-stats-widget.minimized { 
-            max-height: 38px; 
-        }
-        .widget-header { 
-            background: #f8f9fa; 
-            padding: 10px 12px; 
-            font-weight: bold; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            border-bottom: 1px solid #e2e8f0; 
-            cursor: pointer; 
-            user-select: none;
-        }
-        .widget-content { 
-            padding: 12px; 
-            display: flex; 
-            flex-direction: column; 
-            gap: 6px; 
-            max-height: 200px; 
-            overflow-y: auto;  
-        }
-        .widget-content ul { 
-            margin: 0; 
-            padding-left: 18px; 
-            list-style-type: square; 
-        }
+        #live-stats-widget.minimized { max-height: 38px; }
+        .widget-header { background: #f8f9fa; padding: 10px 12px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; cursor: pointer; user-select: none; }
+        .widget-content { padding: 12px; display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
+        .widget-content ul { margin: 0; padding-left: 18px; list-style-type: square; }
 
         .fullscreen-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 3000; overflow-y: auto; padding: 20px; box-sizing: border-box; }
         .fullscreen-overlay h3 { margin-top: 10px; font-size: 20px; color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; }
@@ -104,9 +68,7 @@
         .field-example { font-size: 12px; color: #7f8c8d; margin-top: 2px; font-style: italic; display: block; }
         .legend { font-size: 11px; color: #7f8c8d; line-height: 1.5; background: #fff; padding: 8px; border-radius: 6px; }
 
-        .type-preview-box {
-            width: 100%; height: 200px; margin-top: 8px; border-radius: 8px; border: 1px solid #ccd1d9; background-color: #2c3e50; overflow: hidden; display: flex; align-items: center; justify-content: center;
-        }
+        .type-preview-box { width: 100%; height: 200px; margin-top: 8px; border-radius: 8px; border: 1px solid #ccd1d9; background-color: #2c3e50; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         .type-preview-box img { width: 100%; height: 100%; object-fit: contain; display: none; }
         .type-preview-box .no-image-text { color: #fff; font-size: 14px; font-style: italic; text-align: center; padding: 10px; }
 
@@ -119,16 +81,10 @@
         }
         
         @media (max-width: 767px) {
-            #live-stats-widget { 
-                bottom: 15px; 
-                right: 10px; 
-                left: auto; 
-                width: 220px; 
-            }
+            #live-stats-widget { bottom: 15px; right: 10px; left: auto; width: 220px; }
             .leaflet-control-attribution { display: none !important; }
         }
         .leaflet-top.leaflet-right .leaflet-control-layers { margin-top: 55px !important; }
-        
         #secure-share-bridge { display: none; }
     </style>
 </head>
@@ -136,7 +92,7 @@
 
     <header>
         <span>🌲 HN-Sitzbank-Kataster (<span id="total-count">0</span> Bänke)</span>
-        <span id="sync-cloud-icon" class="sync-indicator sync-green" title="Alle Daten synchronisiert">☁️</span>
+        <span id="sync-cloud-icon" class="sync-indicator sync-green" onclick="handleCloudClick()" title="Daten-Synchronisation">☁️</span>
     </header>
     
     <div class="main-container">
@@ -267,14 +223,9 @@
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
             const debugDiv = document.createElement('div');
-            debugDiv.style.position = 'fixed';
-            debugDiv.style.bottom = '10px';
-            debugDiv.style.left = '10px';
-            debugDiv.style.background = 'black';
-            debugDiv.style.color = 'lime';
-            debugDiv.style.padding = '10px';
-            debugDiv.style.zIndex = '9999';
-            debugDiv.style.fontSize = '12px';
+            debugDiv.style.position = 'fixed'; debugDiv.style.bottom = '10px'; debugDiv.style.left = '10px';
+            debugDiv.style.background = 'black'; debugDiv.style.color = 'lime'; debugDiv.style.padding = '10px';
+            debugDiv.style.zIndex = '9999'; debugDiv.style.fontSize = '12px';
             debugDiv.innerText = `FEHLER: ${message} (Zeile: ${lineno})`;
             document.body.appendChild(debugDiv);
         };
@@ -295,13 +246,10 @@
         let currentEditingBench = null;
         let isNewBenchMode = false;
         let isTakingPhoto = false; 
-        
         let pendingShareId = null;
 
         window.markerDict = {}; 
-
         let activeTypeFileInput = null; 
-
         let lastSelectedType = types[0];
         let lastSelectedDistrict = DISTRICTS[0];
 
@@ -319,13 +267,40 @@
             if (queue.length === 0) {
                 icon.innerText = "☁️";
                 icon.className = "sync-indicator sync-green";
-                icon.title = "Alle Daten erfolgreich in die Cloud übertragen";
+                icon.title = "Alle Daten synchronisiert. Klicken für manuellen Check.";
             } else {
                 icon.innerText = `☁️ (${queue.length})`;
                 icon.className = "sync-indicator sync-red";
-                icon.title = `${queue.length} Änderungen warten auf Synchronisation`;
+                icon.title = `${queue.length} Änderungen blockiert. Klicken zum Synchronisieren / Bereinigen.`;
             }
         }
+
+        window.handleCloudClick = async function() {
+            const icon = document.getElementById('sync-cloud-icon');
+            icon.innerText = "⏳";
+            
+            if (!supabaseClient) {
+                alert("Keine Verbindung zur Cloud-Datenbank konfiguriert.");
+                updateSyncIndicator();
+                return;
+            }
+
+            const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
+            
+            if (queue.length > 0) {
+                await syncOfflineQueue();
+                const currentQueue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
+                if (currentQueue.length === 0) {
+                    alert("Synchronisation erfolgreich! Alle Daten sind jetzt in der Cloud.");
+                } else {
+                    alert("Ungültige Datenleichen (z.B. durch gelöschte Browserdaten) wurden automatisch bereinigt.");
+                }
+            } else {
+                alert("Lokale Warteschlange ist leer. Lade aktuelle Daten aus der Cloud...");
+                await fetchBenchesFromCloud();
+            }
+            updateSyncIndicator();
+        };
 
         async function fetchTypesFromCloud() {
             const cachedTypes = localStorage.getItem('custom_bench_types');
@@ -336,26 +311,23 @@
                     updateTypeDropdowns();
                 } catch(e) { console.error(e); }
             }
-
             if (!supabaseClient) return;
             try {
-                const { data, error } = await supabaseClient.from('bench_types').select('name');
+                const { data, error } = await Promise.race([
+                    supabaseClient.from('bench_types').select('name'),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
+                ]);
                 if (error) throw error;
-                
                 if (data && data.length > 0) {
                     const cloudNames = data.map(t => t.name);
                     types = Array.from(new Set([...DEFAULT_TYPES, ...cloudNames]));
                     types.sort((a, b) => a.localeCompare(b));
-                    
                     const customTypesOnly = types.filter(t => !DEFAULT_TYPES.includes(t));
                     localStorage.setItem('custom_bench_types', JSON.stringify(customTypesOnly));
-                    
                     updateTypeDropdowns();
                     updateApp();
                 }
-            } catch (err) {
-                console.warn("Konnte Bautypen nicht aus der Cloud laden, nutze Cache.", err);
-            }
+            } catch (err) { console.warn("Bautypen-Timeout, nutze Cache."); }
         }
 
         async function fetchBenchesFromCloud() {
@@ -364,59 +336,62 @@
                 benches = JSON.parse(cachedData);
                 updateApp();
             }
-
             await syncOfflineQueue();
-
             if (!supabaseClient) return;
             try {
-                const { data, error } = await supabaseClient.from('benches').select('*');
+                const { data, error } = await Promise.race([
+                    supabaseClient.from('benches').select('*'),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
+                ]);
                 if (error) throw error;
-                
                 benches = data || [];
                 localStorage.setItem('benches_cache', JSON.stringify(benches)); 
                 updateApp();
-                
                 handleDeepLink();
             } catch (err) {
-                console.warn("Konnte aktuelle Daten nicht laden. Zeige Cache.", err);
+                console.warn("Karten-Daten Timeout. Zeige Cache.");
                 handleDeepLink();
             }
         }
 
-        async function syncOfflineQueue() {
+                async function syncOfflineQueue() {
             if (!supabaseClient) return;
-            const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
+            let queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
             if (queue.length === 0) {
                 updateSyncIndicator();
                 return;
             }
 
-            console.log(`Versuche ${queue.length} Aktionen zu synchronisieren...`);
             const remainingQueue = [];
-
+            
             for (const item of queue) {
+                if (!item || (!item.data && item.action !== 'delete')) continue;
+                
                 try {
+                    let result;
                     if (item.action === 'insert') {
-                        const { data, error } = await supabaseClient.from('benches').insert([item.data]).select();
-                        if (error) throw error;
-                        if (data && data.length > 0) {
-                            const index = benches.findIndex(b => b.id === item.tempId);
-                            if (index !== -1) benches[index] = data[0];
-                        }
+                        result = await supabaseClient.from('benches').insert([item.data]).select();
                     } else if (item.action === 'update') {
-                        const { error } = await supabaseClient.from('benches').update(item.data).eq('id', item.id);
-                        if (error) throw error;
+                        result = await supabaseClient.from('benches').update(item.data).eq('id', item.id);
                     } else if (item.action === 'delete') {
-                        const { error } = await supabaseClient.from('benches').delete().eq('id', item.id);
-                        if (error) throw error;
+                        result = await supabaseClient.from('benches').delete().eq('id', item.id);
+                    }
+
+                    if (result.error) {
+                        // HIER IST DER SCHLÜSSEL: Wir loggen den echten Fehler der Datenbank
+                        console.error("Supabase Fehler bei Action", item.action, ":", result.error);
+                        alert(`Fehler bei Sync (${item.action}): ${result.error.message}`);
+                        remainingQueue.push(item);
+                    } else {
+                        console.log("Erfolgreich synchronisiert:", item.action);
                     }
                 } catch (e) {
-                    console.error("Sync fehlgeschlagen, bleibt in der Warteschlange:", e);
+                    console.error("Netzwerkfehler:", e);
                     remainingQueue.push(item);
                 }
             }
+            
             localStorage.setItem('offline_sync_queue', JSON.stringify(remainingQueue));
-            localStorage.setItem('benches_cache', JSON.stringify(benches));
             updateSyncIndicator();
             updateApp();
         }
@@ -443,12 +418,8 @@
         function subscribeToRealtime() {
             if (!supabaseClient) return;
             supabaseClient.channel('custom-all-channel')
-            .on('postgres_changes', { event: '*', pattern: 'public', table: 'benches' }, (payload) => {
-                fetchBenchesFromCloud();
-            })
-            .on('postgres_changes', { event: '*', pattern: 'public', table: 'bench_types' }, (payload) => {
-                fetchTypesFromCloud();
-            })
+            .on('postgres_changes', { event: '*', pattern: 'public', table: 'benches' }, () => { fetchBenchesFromCloud(); })
+            .on('postgres_changes', { event: '*', pattern: 'public', table: 'bench_types' }, () => { fetchTypesFromCloud(); })
             .subscribe();
         }
 
@@ -481,12 +452,8 @@
             setTimeout(() => { isTakingPhoto = false; }, 400);
         };
 
-        window.triggerTypeCameraInput = function() {
-            isTakingPhoto = true; document.getElementById('new-type-image-camera').click();
-        };
-        window.triggerTypeGalleryInput = function() {
-            isTakingPhoto = true; document.getElementById('new-type-image-gallery').click();
-        };
+        window.triggerTypeCameraInput = function() { isTakingPhoto = true; document.getElementById('new-type-image-camera').click(); };
+        window.triggerTypeGalleryInput = function() { isTakingPhoto = true; document.getElementById('new-type-image-gallery').click(); };
 
         window.handleTypeFileSelection = function(inputElement) {
             const statusText = document.getElementById('type-file-status-text');
@@ -519,22 +486,17 @@
         function handleDeepLink() {
             const urlParams = new URLSearchParams(window.location.search);
             const benchId = parseInt(urlParams.get('id'), 10);
-            
             if (!benchId) return;
 
             let attempts = 0;
             const checkMarker = setInterval(() => {
                 attempts++;
                 const marker = window.markerDict[benchId];
-                
                 if (marker) {
                     clearInterval(checkMarker);
                     document.getElementById('filter-district').value = 'Alle';
                     document.getElementById('filter-type').value = 'Alle';
-                    
-                    const checkboxes = document.querySelectorAll('#status-checkboxes-container input');
-                    checkboxes.forEach(cb => cb.checked = false);
-                    
+                    document.querySelectorAll('#status-checkboxes-container input').forEach(cb => cb.checked = false);
                     updateApp(); 
                     
                     const activeMarker = window.markerDict[benchId];
@@ -552,17 +514,11 @@
 
         window.openRoute = function(lat, lng) {
             const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
-            if (isApple) {
-                window.open(`maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`, '_blank');
-            } else {
-                window.open(`http://maps.google.com/?daddr=${lat},${lng}`, '_blank');
-            }
+            if (isApple) { window.open(`maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`, '_blank'); } 
+            else { window.open(`http://maps.google.com/?daddr=${lat},${lng}`, '_blank'); }
         };
 
-        window.shareBench = function(id) {
-            pendingShareId = id;
-            document.getElementById('secure-share-bridge').click();
-        };
+        window.shareBench = function(id) { pendingShareId = id; document.getElementById('secure-share-bridge').click(); };
 
         window.executeSecureShare = function() {
             if (!pendingShareId) return;
@@ -574,18 +530,11 @@
             const shareUrl = `${baseUrl}?id=${bench.id}`;
             const shareText = `Sitzbank-Prüfung in ${bench.district}\nTyp: ${bench.type}\nStatus: ${status}${bench.note ? '\nNotiz: ' + bench.note : ''}\n\nAuf der Karte anzeigen:`;
             
-            const showFallbackPrompt = () => {
-                prompt("Kopiere diesen Text zum Teilen:", `${shareText} \n${shareUrl}`);
-            };
-
             if (navigator.share) {
                 navigator.share({ title: 'Sitzbank-Kataster Details', text: shareText, url: shareUrl })
-                .then(() => console.log('Erfolgreich geteilt'))
-                .catch((err) => {
-                    if(err.name !== "AbortError") { showFallbackPrompt(); }
-                });
+                .catch((err) => { if(err.name !== "AbortError") { prompt("Link kopieren:", `${shareText} \n${shareUrl}`); } });
             } else {
-                showFallbackPrompt();
+                prompt("Kopiere diesen Text zum Teilen:", `${shareText} \n${shareUrl}`);
             }
             pendingShareId = null; 
         };
@@ -593,30 +542,30 @@
         window.quickMaintenance = async function(id) {
             const bench = benches.find(b => b.id === id);
             if (!bench) return;
-
             const todayStr = new Date().toISOString().split('T')[0];
-            const updatedData = {
-                last_maintenance: todayStr,
-                manual_status: 'Automatisch'
-            };
+            const updatedData = { last_maintenance: todayStr, manual_status: 'Automatisch' };
 
             if (map) map.closePopup();
-
+            
+            // Sofort lokaler UI-Update für flüssige Bedienung
             const idx = benches.findIndex(b => b.id === id);
             if (idx !== -1) benches[idx] = { ...benches[idx], ...updatedData };
             updateApp();
 
             if (supabaseClient) {
                 try {
-                    const { error } = await supabaseClient.from('benches').update(updatedData).eq('id', id);
+                    // Wartezeit einhalten: Direktupload versuchen (mit 3 Sek. Timeout)
+                    const { error } = await Promise.race([
+                        supabaseClient.from('benches').update(updatedData).eq('id', id),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
+                    ]);
                     if (error) throw error;
                     syncOfflineQueue();
-                } catch(e) {
-                    saveOfflineAction('update', updatedData, id);
+                } catch(e) { 
+                    console.warn("Direktupload fehlgeschlagen, sichere im Local Storage...");
+                    saveOfflineAction('update', updatedData, id); 
                 }
-            } else {
-                saveOfflineAction('update', updatedData, id);
-            }
+            } else { saveOfflineAction('update', updatedData, id); }
         };
 
         function calculateStatus(bench) {
@@ -671,28 +620,20 @@
             const selectedType = document.getElementById('pop-type').value;
             const imgElement = document.getElementById('preview-img');
             const placeholderText = document.getElementById('preview-placeholder');
-            
             if (selectedType === 'Sonstige') {
                 imgElement.src = ""; imgElement.style.display = "none"; placeholderText.innerText = "Sonstige / Sonderbauweise"; placeholderText.style.display = "block";
                 return;
             }
-
             const cleanName = selectedType.replace(/\s+/g, '_');
             const jpgUrl = `${SUPABASE_URL}/storage/v1/object/public/bench-images/${cleanName}.jpg`;
             const pngUrl = `${SUPABASE_URL}/storage/v1/object/public/bench-images/${cleanName}.png`;
             
             const imgTestJpg = new Image();
-            imgTestJpg.onload = function() {
-                imgElement.src = jpgUrl; imgElement.style.display = "block"; placeholderText.style.display = "none";
-            };
+            imgTestJpg.onload = function() { imgElement.src = jpgUrl; imgElement.style.display = "block"; placeholderText.style.display = "none"; };
             imgTestJpg.onerror = function() {
                 const imgTestPng = new Image();
-                imgTestPng.onload = function() {
-                    imgElement.src = pngUrl; imgElement.style.display = "block"; placeholderText.style.display = "none";
-                };
-                imgTestPng.onerror = function() {
-                    imgElement.src = ""; imgElement.style.display = "none"; placeholderText.innerText = "Kein Bild hinterlegt"; placeholderText.style.display = "block";
-                };
+                imgTestPng.onload = function() { imgElement.src = pngUrl; imgElement.style.display = "block"; placeholderText.style.display = "none"; };
+                imgTestPng.onerror = function() { imgElement.src = ""; imgElement.style.display = "none"; placeholderText.innerText = "Kein Bild hinterlegt"; placeholderText.style.display = "block"; };
                 imgTestPng.src = pngUrl;
             };
             imgTestJpg.src = jpgUrl;
@@ -702,7 +643,6 @@
             document.getElementById('total-count').innerText = benches.length;
             const filterDistrict = document.getElementById('filter-district').value || 'Alle';
             const filterType = document.getElementById('filter-type').value || 'Alle';
-            
             const selectedStatuses = Array.from(document.querySelectorAll('#status-checkboxes-container input:checked')).map(cb => cb.value);
             
             document.getElementById('stats-title').innerText = `Bestand: ${filterDistrict === 'Alle' ? 'Gesamt HN' : filterDistrict}`;
@@ -715,6 +655,7 @@
             window.markerDict = {}; 
 
             benches.forEach(bench => {
+                if (!bench || !bench.type) return;
                 const status = calculateStatus(bench);
                 const matchDistrict = filterDistrict === 'Alle' || bench.district === filterDistrict;
                 const matchType = filterType === 'Alle' || bench.type === filterType;
@@ -810,7 +751,6 @@
             
             document.getElementById('pop-delete-btn').style.display = isNew ? 'none' : 'block';
             document.getElementById('fullscreen-overlay').style.display = 'block';
-            
             handleTypeChange(); 
         }
 
@@ -827,13 +767,12 @@
 
             const tempId = currentEditingBench.id || Math.floor(Math.random() * -100000);
 
-            if (isNewBenchMode) {
-                benches.push({ id: tempId, ...rowData });
-            } else {
+            // Lokalen UI-Zustand sofort aktualisieren
+            if (isNewBenchMode) { benches.push({ id: tempId, ...rowData }); } 
+            else {
                 const index = benches.findIndex(b => b.id === currentEditingBench.id);
                 if (index !== -1) benches[index] = { ...benches[index], ...rowData };
             }
-            localStorage.setItem('benches_cache', JSON.stringify(benches));
             updateApp();
             document.getElementById('fullscreen-overlay').style.display = 'none';
 
@@ -841,46 +780,51 @@
                 try {
                     let response;
                     if (isNewBenchMode) { 
-                        response = await supabaseClient.from('benches').insert([rowData]).select(); 
+                        // WARTEZEIT: Gib Supabase bis zu 3 Sekunden Zeit für den Upload
+                        response = await Promise.race([
+                            supabaseClient.from('benches').insert([rowData]).select(),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
+                        ]);
                         if (response.error) throw response.error;
                         if (response.data && response.data.length > 0) {
                             const index = benches.findIndex(b => b.id === tempId);
                             if (index !== -1) benches[index] = response.data[0];
                         }
                     } else { 
-                        const { error } = await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id);
+                        // WARTEZEIT: Gleiches Spiel beim Updaten bestehender Bänke
+                        const { error } = await Promise.race([
+                            supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
+                        ]);
                         if (error) throw error;
                     }
                     localStorage.setItem('benches_cache', JSON.stringify(benches));
                     syncOfflineQueue(); 
-                } catch (e) {
-                    console.warn("Netzwerk/Serverfehler. Speichere lokal in die Warteschlange.", e);
-                    saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id, tempId);
+                } catch (e) { 
+                    console.warn("Upload verzögert oder fehlgeschlagen. Speichere offline...");
+                    saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id, tempId); 
                 }
-            } else {
-                saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id, tempId);
-            }
+            } else { saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id, tempId); }
         };
 
         document.getElementById('pop-delete-btn').onclick = async () => {
             if (confirm('Sitzbank unwiderruflich löschen?')) {
                 const targetId = currentEditingBench.id;
                 benches = benches.filter(b => b.id !== targetId);
-                localStorage.setItem('benches_cache', JSON.stringify(benches));
                 updateApp();
                 document.getElementById('fullscreen-overlay').style.display = 'none';
 
                 if (supabaseClient) {
                     try {
-                        const { error } = await supabaseClient.from('benches').delete().eq('id', targetId);
+                        const { error } = await Promise.race([
+                            supabaseClient.from('benches').delete().eq('id', targetId),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
+                        ]);
                         if (error) throw error;
+                        localStorage.setItem('benches_cache', JSON.stringify(benches));
                         syncOfflineQueue();
-                    } catch (e) { 
-                        saveOfflineAction('delete', null, targetId); 
-                    }
-                } else {
-                    saveOfflineAction('delete', null, targetId);
-                }
+                    } catch (e) { saveOfflineAction('delete', null, targetId); }
+                } else { saveOfflineAction('delete', null, targetId); }
             }
         };
 
@@ -923,15 +867,11 @@
             }
             document.getElementById('filter-district').addEventListener('change', updateApp);
             document.getElementById('filter-type').addEventListener('change', updateApp);
-            
-            document.querySelectorAll('#status-checkboxes-container input').forEach(cb => {
-                cb.addEventListener('change', updateApp);
-            });
+            document.querySelectorAll('#status-checkboxes-container input').forEach(cb => { cb.addEventListener('change', updateApp); });
 
             document.getElementById('add-type-btn').onclick = async () => {
                 const input = document.getElementById('new-type-input'); 
                 const val = input.value.trim();
-                
                 if (!val) { alert("Bitte gib einen Namen für den Bautyp ein."); return; }
                 if (types.includes(val)) { alert("Dieser Typ existiert bereits."); return; }
                 
@@ -944,27 +884,18 @@
                         const { error: typeError } = await supabaseClient.from('bench_types').insert([{ name: val }]);
                         if (typeError) throw typeError;
                     }
-
                     if (activeTypeFileInput && activeTypeFileInput.files.length > 0 && supabaseClient) {
                         btn.innerText = "⏳ Bild wird hochgeladen...";
                         const file = activeTypeFileInput.files[0];
                         const cleanName = val.replace(/\s+/g, '_');
                         const extension = file.name.split('.').pop().toLowerCase();
                         const filePath = `${cleanName}.${extension === 'png' ? 'png' : 'jpg'}`;
-                        
                         await supabaseClient.storage.from('bench-images').upload(filePath, file, { upsert: true });
                     }
-
                     await fetchTypesFromCloud();
                     closeTypeOverlay();
-
-                } catch (e) {
-                    console.error(e);
-                    alert("Fehler beim Speichern des neuen Typs: " + e.message);
-                } finally {
-                    btn.innerText = "Typ & Bild speichern";
-                    btn.disabled = false;
-                }
+                } catch (e) { alert("Fehler beim Speichern: " + e.message); } 
+                finally { btn.innerText = "Typ & Bild speichern"; btn.disabled = false; }
             };
         }
         window.addEventListener('load', startApp);
