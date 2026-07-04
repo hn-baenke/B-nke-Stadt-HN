@@ -18,7 +18,7 @@
         .sync-green { color: #2ecc71; }
         .sync-red { color: #e74c3c; background: rgba(231, 76, 60, 0.1); border: 1px solid rgba(231, 76, 60, 0.3); }
         
-        .main-container { display: block; flex: 1; width: 100%; position: relative; overflow: hidden; }
+        .main-container { display: flex; flex: 1; width: 100%; position: relative; overflow: hidden; }
         #map { width: 100%; height: 100%; z-index: 1; background-color: #e5e9f0; }
         
         /* Suchleiste Styles */
@@ -71,6 +71,10 @@
         .btn-add-type-trigger { background: #2c3e50; margin-top: 5px; }
         .btn-delete { background: #e74c3c; margin-top: 8px; }
         .btn-cancel { background: #95a5a6; margin-top: 8px; }
+        .btn-login-trigger { background: #34495e; color: white; margin-bottom: 5px; }
+        .btn-admin-menu { margin-top: 5px; transition: background 0.3s; }
+        .btn-menu-alert { background: #e74c3c; }
+        .btn-menu-ok { background: #27ae60; }
         
         .stats-box { background: #f1f5f9; padding: 12px; border-radius: 8px; font-size: 14px; border-left: 4px solid #2c3e50; }
         .stats-box ul { margin: 6px 0 0 0; padding-left: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; list-style: none; }
@@ -97,6 +101,19 @@
         .file-input-container { margin-top: 5px; background: #eaeded; padding: 12px; border-radius: 8px; font-size: 14px; text-align: center; }
         .file-status-text { display: block; margin-top: 8px; font-weight: bold; color: #e67e22; font-size: 13px; }
 
+        .report-compact-item { padding: 12px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #fff; margin-bottom: 5px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .report-compact-info { font-size: 14px; color: #2c3e50; }
+        .report-separator { border: 0; border-top: 3px dashed #e74c3c; margin: 20px 0; position: relative; }
+        .report-separator::after { content: 'Bereits gesehene / ältere Einträge'; position: absolute; top: -12px; left: 20px; background: white; padding: 0 10px; font-size: 11px; color: #e74c3c; font-weight: bold; }
+
+        .report-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-top: 10px; background: #f8fafc; }
+        .report-card img { max-width: 100%; height: auto; max-height: 200px; object-fit: contain; display: block; margin-top: 10px; border-radius: 6px; }
+        
+        /* KORREKTUR: Farbliche Definition der Rollen-Badges für optimalen Kontrast */
+        .role-badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; display: inline-block; margin-left: 10px; }
+        .role-badge.role-gast { background-color: #8B0000; color: #FFFFFF; }
+        .role-badge.role-user { background-color: #2E7D32; color: #FFFFFF; }
+
         @media (min-width: 768px) {
             #sidebar { bottom: auto; top: 0; right: -440px; left: auto; width: 420px; height: 100%; border-top-left-radius: 0px; border-top-right-radius: 0px; box-shadow: -5px 0 20px rgba(0,0,0,0.2); transition: right 0.3s ease-in-out; padding-bottom: 20px; }
             #sidebar.open { right: 0; }
@@ -114,7 +131,6 @@
 
     <header>
         <div class="header-logo">
-            <!-- Interaktives SVG-Logo direkt aus 1000078194.jpg nachgebaut -->
             <svg viewBox="0 0 100 100" style="width: 30px; height: 30px; border-radius: 7px; background: white; padding: 1px; box-shadow: 0 1px 4px rgba(0,0,0,0.3);">
                 <text x="10" y="54" font-family="Georgia, serif" font-weight="900" font-size="42" fill="#1a1a1a">H</text>
                 <rect x="47" y="22" width="6" height="16" fill="#e74c3c" rx="1"/>
@@ -123,12 +139,12 @@
                 <path d="M22 66 L78 66 M18 75 L82 75 M28 66 L28 86 M72 66 L72 86" stroke="#2c3e50" stroke-width="4.5" stroke-linecap="round"/>
             </svg>
             <span>HN-Sitzbank-Kataster (<span id="total-count">0</span> Bänke)</span>
+            <span id="display-role" class="role-badge role-gast">Gast</span>
         </div>
         <span id="sync-cloud-icon" class="sync-indicator sync-green" onclick="handleCloudClick()" title="Daten-Synchronisation">☁️</span>
     </header>
     
     <div class="main-container">
-        <!-- Integrierte Straßensuche -->
         <div class="search-container">
             <input type="text" id="street-search-input" class="search-input" placeholder="Straße suchen..." autocomplete="off">
             <ul id="search-results-list" class="search-results"></ul>
@@ -154,6 +170,14 @@
         
         <div id="sidebar">
             <button class="close-sidebar-btn" onclick="toggleSidebar()">✕ Menü schließen</button>
+            
+            <!-- Login Button ganz oben im Sidebar-Menü -->
+            <button id="sidebar-login-btn" class="btn btn-login-trigger" onclick="openLoginOverlay()">👤 Login</button>
+            
+            <!-- Admin / Zimmerer Spezialmenüs -->
+            <button id="menu-damage-reports-btn" class="btn btn-admin-menu" onclick="openReportsOverlay('damage')" style="display:none;">⚠️ Schadensmeldungen (0)</button>
+            <button id="menu-new-entries-btn" class="btn btn-admin-menu" onclick="openReportsOverlay('entries')" style="display:none;">🔍 Neue Eintragungen (0)</button>
+
             <div class="filter-group">
                 <label>📍 Stadtteil / Park</label>
                 <select id="filter-district"><option value="Alle">Ganz Heilbronn (Alle)</option></select>
@@ -181,7 +205,7 @@
             </div>
             <hr style="width:100%; border:0; border-top:1px solid #e2e8f0; margin: 5px 0;"/>
             
-            <div class="filter-group">
+            <div class="filter-group" id="admin-add-type-container" style="display:none;">
                 <label>🛠️ System-Verwaltung</label>
                 <button class="btn btn-add-type-trigger" onclick="openTypeOverlay()">➕ Neuen Bautyp anlegen</button>
             </div>
@@ -193,6 +217,63 @@
         </div>
     </div>
 
+    <!-- Login Overlay -->
+    <div id="login-overlay" class="fullscreen-overlay">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <svg viewBox="0 0 100 100" style="width: 80px; height: 80px; border-radius: 15px; background: white; padding: 2px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+                <text x="10" y="54" font-family="Georgia, serif" font-weight="900" font-size="42" fill="#1a1a1a">H</text>
+                <rect x="47" y="22" width="6" height="16" fill="#e74c3c" rx="1"/>
+                <rect x="47" y="42" width="6" height="16" fill="#2980b9" rx="1"/>
+                <text x="56" y="54" font-family="Georgia, serif" font-weight="900" font-size="42" fill="#1a1a1a">N</text>
+                <path d="M22 66 L78 66 M18 75 L82 75 M28 66 L28 86 M72 66 L72 86" stroke="#2c3e50" stroke-width="4.5" stroke-linecap="round"/>
+            </svg>
+            <h2 style="color: #2c3e50; margin-top: 10px;">HN Bank Kataster</h2>
+        </div>
+        
+        <label>Benutzerrolle auswählen:</label>
+        <select id="login-role">
+            <option value="Admin">Admin</option>
+            <option value="Zimmerer">Zimmerer</option>
+            <option value="Maler">Maler</option>
+            <option value="Spielplatzkontrolle">Spielplatzkontrolle</option>
+            <option value="Gala Bau">Gala Bau</option>
+        </select>
+        
+        <label>Passwort:</label>
+        <input type="password" id="login-password" placeholder="Passwort eingeben...">
+        
+        <button class="btn btn-save" style="margin-top: 20px;" onclick="executeLogin()">Login</button>
+        <button class="btn btn-cancel" onclick="closeLoginOverlay()">Abbrechen</button>
+    </div>
+
+    <!-- Schadensmeldung Absenden Overlay (Für Gast) -->
+    <div id="guest-damage-overlay" class="fullscreen-overlay">
+        <h3>Schaden melden</h3>
+        <label>Schadensbeschreibung:</label>
+        <textarea id="guest-damage-text" rows="4" style="width:100%; border-radius:8px; border:1px solid #bdc3c7; padding:10px; font-size:16px; box-sizing:border-box;" placeholder="Bitte beschreibe den Schaden..."></textarea>
+        
+        <label>Foto hinzufügen:</label>
+        <div class="file-input-container">
+            <input type="file" id="guest-damage-camera" accept="image/*" capture="environment" style="display: none;" onchange="handleGuestFileSelection(this)">
+            <input type="file" id="guest-damage-gallery" accept="image/*" style="display: none;" onchange="handleGuestFileSelection(this)">
+            <button type="button" class="btn btn-camera" onclick="document.getElementById('guest-damage-camera').click()">📸 Foto live aufnehmen</button>
+            <button type="button" class="btn btn-camera btn-gallery" onclick="document.getElementById('guest-damage-gallery').click()">📁 Aus Galerie wählen</button>
+            <span id="guest-file-status" class="file-status-text">Kein Foto ausgewählt</span>
+        </div>
+
+        <button class="btn btn-save" style="margin-top:25px;" onclick="submitGuestDamageReport()">Meldung abschicken</button>
+        <button class="btn btn-cancel" onclick="closeGuestDamageOverlay()">Abbrechen</button>
+    </div>
+
+    <!-- Admin / Zimmerer Prüfungs-Listen Overlay -->
+    <div id="reports-overlay" class="fullscreen-overlay">
+        <h3 id="reports-title">Meldungen</h3>
+        <div id="reports-list-container"></div>
+        <div id="report-detail-view-container"></div>
+        <button class="btn btn-cancel" style="margin-top: 20px;" onclick="closeReportsOverlay()">Schließen</button>
+    </div>
+
+    <!-- Hauptformular (Sitzbank eintragen / bearbeiten) -->
     <div id="fullscreen-overlay" class="fullscreen-overlay">
         <h3 id="form-title">Sitzbank eintragen</h3>
         
@@ -283,22 +364,434 @@
         const DEFAULT_TYPES = ["H-Bank", "Wetz Ergo7000", "Bitburg", "Sonstige"];
         let types = [...DEFAULT_TYPES];
         let benches = [];
+        let guestDamageReports = []; // Cache für Schadensmeldungen im Gastmodus zur Doppelprüfungsvermeidung
         let map, markersLayer, supabaseClient, userLocationMarker;
         let currentEditingBench = null;
         let isNewBenchMode = false;
         let isTakingPhoto = false; 
         let pendingShareId = null;
 
+        // Rollen-Verwaltung Variablen
+        let currentRole = "Gast";
+        let activeGuestFile = null;
+        let selectedDamageBenchId = null;
+
         window.markerDict = {}; 
         let activeTypeFileInput = null; 
         let lastSelectedType = types[0];
         let lastSelectedDistrict = DISTRICTS[0];
+
+        // Hilfsfunktion: Versucht das verwaiste Bild einer Bank aus dem Storage zu löschen
+        async function deleteAttachedStorageImage(imageUrl) {
+            if (!imageUrl || !supabaseClient) return;
+            try {
+                // Extrahiert den reinen Dateinamen aus der public URL
+                const parts = imageUrl.split('/bench-images/');
+                if (parts.length > 1) {
+                    const filename = parts[1];
+                    await supabaseClient.storage.from('bench-images').remove([filename]);
+                    console.log("Zugehöriges Bild erfolgreich aus dem Storage entfernt:", filename);
+                }
+            } catch (err) {
+                console.error("Fehler beim Entfernen des Bildes aus dem Storage:", err);
+            }
+        }
+
+        // Funktion zur Bildkompression (HTML5 Canvas)
+        function compressImage(file, maxWidth = 1024, maxHeight = 1024, quality = 0.7) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = event => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > maxWidth) {
+                                height = Math.round((height * maxWidth) / width);
+                                width = maxWidth;
+                            }
+                        } else {
+                            if (height > maxHeight) {
+                                width = Math.round((width * maxHeight) / height);
+                                height = maxHeight;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        canvas.toBlob(blob => {
+                            if (blob) {
+                                const compressedFile = new File([blob], file.name, {
+                                    type: 'image/jpeg',
+                                    lastModified: Date.now()
+                                });
+                                resolve(compressedFile);
+                            } else {
+                                reject(new Error("Kompression fehlgeschlagen"));
+                            }
+                        }, 'image/jpeg', quality);
+                    };
+                    img.onerror = err => reject(err);
+                };
+                reader.onerror = err => reject(err);
+            });
+        }
 
         function initSupabase() {
             if(SUPABASE_URL.includes("DEINE_SUPABASE_URL")) { return false; }
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             return true;
         }
+
+        // KORREKTUR: Dynamischer Rollen-Style Wechsel bei Anpassung
+        function checkPersistentLogin() {
+            const savedRole = localStorage.getItem('hn_bench_user_role');
+            const roleEl = document.getElementById('display-role');
+            if (savedRole && savedRole !== "Gast") {
+                currentRole = savedRole;
+                roleEl.innerText = savedRole;
+                roleEl.className = "role-badge role-user";
+                document.getElementById('sidebar-login-btn').innerText = "🔓 Logout";
+                applyRolePermissions();
+            } else {
+                roleEl.className = "role-badge role-gast";
+            }
+        }
+
+        window.openLoginOverlay = function() {
+            const roleEl = document.getElementById('display-role');
+            if(currentRole !== "Gast") {
+                currentRole = "Gast";
+                localStorage.setItem('hn_bench_user_role', "Gast"); // Reset persistent session
+                roleEl.innerText = "Gast";
+                roleEl.className = "role-badge role-gast";
+                document.getElementById('sidebar-login-btn').innerText = "👤 Login";
+                applyRolePermissions();
+                updateApp();
+                return;
+            }
+            document.getElementById('login-password').value = "";
+            document.getElementById('login-overlay').style.display = "block";
+        };
+
+        window.closeLoginOverlay = function() {
+            document.getElementById('login-overlay').style.display = "none";
+        };
+
+        window.executeLogin = async function() {
+            const role = document.getElementById('login-role').value;
+            const password = document.getElementById('login-password').value;
+            const roleEl = document.getElementById('display-role');
+
+            if(!supabaseClient) { alert("Supabase ist nicht verbunden!"); return; }
+
+            const { data, error } = await supabaseClient.from('app_users').select('*').eq('role', role).eq('password', password).single();
+
+            if(error || !data) {
+                alert("Falsches Passwort für die ausgewählte Rolle!");
+            } else {
+                currentRole = role;
+                localStorage.setItem('hn_bench_user_role', role); // persistent session
+                roleEl.innerText = role;
+                roleEl.className = "role-badge role-user";
+                document.getElementById('sidebar-login-btn').innerText = "🔓 Logout";
+                closeLoginOverlay();
+                applyRolePermissions();
+                updateApp();
+            }
+        };
+
+        async function updateBadgeCounters() {
+            if(!supabaseClient) return;
+
+            // Zähler Schadensmeldungen
+            const { count: dmgCount, data: dmgData } = await supabaseClient.from('damage_reports').select('*', { count: 'exact' });
+            // Cache für den Gastbereich parallel befüllen
+            guestDamageReports = dmgData || [];
+            
+            const dmgBtn = document.getElementById('menu-damage-reports-btn');
+            if(dmgBtn) {
+                dmgBtn.innerText = `⚠️ Schadensmeldungen (${dmgCount || 0})`;
+                if(dmgCount > 0) {
+                    dmgBtn.className = "btn btn-admin-menu btn-menu-alert";
+                } else {
+                    dmgBtn.className = "btn btn-admin-menu btn-menu-ok";
+                }
+            }
+
+            // Zähler Neueintragungen
+            const { count: entryCount } = await supabaseClient.from('benches').select('*', { count: 'exact', head: true }).eq('approved', false);
+            const entryBtn = document.getElementById('menu-new-entries-btn');
+            if(entryBtn) {
+                entryBtn.innerText = `🔍 Neue Eintragungen (${entryCount || 0})`;
+                if(entryCount > 0) {
+                    entryBtn.className = "btn btn-admin-menu btn-menu-alert";
+                } else {
+                    entryBtn.className = "btn btn-admin-menu btn-menu-ok";
+                }
+            }
+        }
+
+        function applyRolePermissions() {
+            document.getElementById('menu-damage-reports-btn').style.display = (currentRole === 'Admin' || currentRole === 'Zimmerer') ? 'block' : 'none';
+            document.getElementById('menu-new-entries-btn').style.display = (currentRole === 'Admin') ? 'block' : 'none';
+            document.getElementById('admin-add-type-container').style.display = (currentRole === 'Admin') ? 'block' : 'none';
+            updateBadgeCounters();
+        }
+
+        // Gast Schadensmeldungen Logik
+        window.openGuestDamageOverlay = function(benchId) {
+            selectedDamageBenchId = benchId;
+            document.getElementById('guest-damage-text').value = "";
+            document.getElementById('guest-file-status').innerText = "Kein Foto ausgewählt";
+            activeGuestFile = null;
+            if(map) map.closePopup();
+            document.getElementById('guest-damage-overlay').style.display = "block";
+        };
+
+        window.closeGuestDamageOverlay = function() {
+            document.getElementById('guest-damage-overlay').style.display = "none";
+        };
+
+        window.handleGuestFileSelection = async function(input) {
+            if(input.files.length > 0) {
+                document.getElementById('guest-file-status').innerText = `⏳ Bild wird komprimiert...`;
+                try {
+                    activeGuestFile = await compressImage(input.files[0]);
+                    document.getElementById('guest-file-status').innerText = `✅ Foto bereit (optimiert)`;
+                } catch (e) {
+                    activeGuestFile = input.files[0];
+                    document.getElementById('guest-file-status').innerText = `✅ Foto bereit (unkomprimiert)`;
+                }
+            }
+        };
+
+        window.submitGuestDamageReport = async function() {
+            const desc = document.getElementById('guest-damage-text').value.trim();
+            if(!desc) { alert("Bitte gib eine Schadensbeschreibung ein."); return; }
+
+            let imageUrl = null;
+            if(activeGuestFile && supabaseClient) {
+                const fileName = `${Date.now()}_damage.jpg`;
+                const { error: uploadError } = await supabaseClient.storage.from('bench-images').upload(fileName, activeGuestFile);
+                if(!uploadError) {
+                    imageUrl = `${SUPABASE_URL}/storage/v1/object/public/bench-images/${fileName}`;
+                }
+            }
+
+            if(supabaseClient) {
+                const { error } = await supabaseClient.from('damage_reports').insert([{
+                    bench_id: selectedDamageBenchId,
+                    description: desc,
+                    image_url: imageUrl
+                }]);
+                if(!error) {
+                    alert("Vielen dank für ihre Meldung!");
+                    closeGuestDamageOverlay();
+                    await updateBadgeCounters();
+                    updateApp(); // KORREKTUR: Map direkt neu rendern, damit rote Farbe & Popups greifen
+                } else {
+                    alert("Fehler beim Absenden der Meldung.");
+                }
+            }
+        };
+
+        // Admin / Zimmerer Freigabelisten einsehen
+        window.openReportsOverlay = async function(mode) {
+            const container = document.getElementById('reports-list-container');
+            const detailContainer = document.getElementById('report-detail-view-container');
+            container.innerHTML = "⏳ Lade Daten...";
+            detailContainer.innerHTML = ""; 
+            document.getElementById('reports-overlay').style.display = "block";
+
+            if(!supabaseClient) return;
+
+            if(mode === 'damage') {
+                document.getElementById('reports-title').innerText = "⚠️ Aktuelle Schadensmeldungen";
+                const { data, error } = await supabaseClient.from('damage_reports').select('*, benches(*)').order('created_at', { ascending: false });
+                
+                if(error || !data || data.length === 0) { container.innerHTML = "Keine Schadensmeldungen vorhanden."; return; }
+                
+                container.innerHTML = data.map(rep => {
+                    const date = new Date(rep.created_at).toLocaleDateString('de-DE');
+                    return `
+                        <div class="report-compact-item">
+                            <div class="report-compact-info">
+                                <strong>${rep.benches ? rep.benches.type : 'Unbekannter Typ'}</strong> - ${date} <br/>
+                                <small>${rep.description.substring(0, 40)}${rep.description.length > 40 ? '...' : ''}</small>
+                            </div>
+                            <button class="btn" style="padding:6px 12px; width:auto; font-size:12px;" onclick="window.showReportDetail('damage', ${rep.id})">Meldung anzeigen</button>
+                        </div>
+                    `;
+                }).join('');
+                
+                window.currentReportData = data;
+
+            } else if(mode === 'entries') {
+                document.getElementById('reports-title').innerText = "🔍 Ausstehende Freigaben";
+                const { data, error } = await supabaseClient.from('benches').select('*');
+                
+                if(error || !data) { container.innerHTML = "Fehler beim Laden."; return; }
+                
+                // Filtere unapproved Bänke heraus
+                let pendingBenches = data.filter(b => b.approved === false);
+                if (pendingBenches.length === 0) { container.innerHTML = "Keine ausstehenden Änderungen."; return; }
+
+                // Sortierung: Neueintragungen (pending_action == 'insert') ganz nach oben
+                pendingBenches.sort((a, b) => {
+                    if (a.pending_action === 'insert' && b.pending_action !== 'insert') return -1;
+                    if (a.pending_action !== 'insert' && b.pending_action === 'insert') return 1;
+                    return 0;
+                });
+
+                let htmlContent = "";
+                let separatorPlaced = false;
+
+                pendingBenches.forEach(b => {
+                    if (b.pending_action !== 'insert' && !separatorPlaced) {
+                        htmlContent += `<div class="report-separator"></div>`;
+                        separatorPlaced = true;
+                    }
+
+                    htmlContent += `
+                        <div class="report-compact-item">
+                            <div class="report-compact-info">
+                                <strong>${b.type}</strong> (${b.district})<br/>
+                                <small>Aktion: <span style="color:red; font-weight:bold;">${b.pending_action.toUpperCase()}</span></small>
+                            </div>
+                            <button class="btn" style="padding:6px 12px; width:auto; font-size:12px;" onclick="window.showReportDetail('entry', ${b.id})">Meldung anzeigen</button>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = htmlContent;
+                window.currentPendingBenches = pendingBenches;
+            }
+        };
+
+        window.showReportDetail = function(type, id) {
+            const detailContainer = document.getElementById('report-detail-view-container');
+            
+            if (type === 'damage') {
+                const rep = window.currentReportData.find(r => r.id === id);
+                if(!rep) return;
+                const date = new Date(rep.created_at).toLocaleString('de-DE');
+                detailContainer.innerHTML = `
+                    <div class="report-card">
+                        <h4>Details zur Schadensmeldung</h4>
+                        <p><strong>Gemeldet am:</strong> ${date}</p>
+                        <p><strong>Beschreibung:</strong> ${rep.description}</p>
+                        ${rep.image_url ? `<img src="${rep.image_url}" />` : ''}
+                        <div style="margin-top: 15px; display:flex; gap: 10px;">
+                            <button class="btn" style="padding:10px; font-size:14px;" onclick="showBenchOnMap(${rep.bench_id})">📍 Im Kataster anzeigen</button>
+                            <!-- KORREKTUR: Übergibt das optionale Image zum Löschen aus Storage -->
+                            <button class="btn btn-save" style="padding:10px; font-size:14px;" onclick="resolveDamageReport(${rep.id}, ${rep.bench_id}, '${rep.image_url || ''}')">✔ Erledigt</button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                const b = window.currentPendingBenches.find(item => item.id === id);
+                if(!b) return;
+                detailContainer.innerHTML = `
+                    <div class="report-card">
+                        <h4>Details zur Neueintragung / Änderung</h4>
+                        <p><strong>Typ:</strong> ${b.type} (${b.district})</p>
+                        <p><strong>Aktion:</strong> <span style="color:red; font-weight:bold;">${b.pending_action.toUpperCase()}</span></p>
+                        <p><strong>Beschreibung:</strong> ${b.description || '-'}</p>
+                        <p><strong>Schaden:</strong> ${b.damage_description || '-'}</p>
+                        <p><strong>Notiz:</strong> ${b.note || '-'}</p>
+                        <div style="margin-top: 15px; display:flex; gap: 10px;">
+                            <button class="btn" style="padding:10px; font-size:14px;" onclick="showBenchOnMap(${b.id})">📍 Karte</button>
+                            <button class="btn btn-save" style="padding:10px; font-size:14px;" onclick="approveEntry(${b.id}, true)">👍 Bestätigen</button>
+                            <button class="btn btn-delete" style="padding:10px; font-size:14px; margin-top:0;" onclick="approveEntry(${b.id}, false)">👎 Ablehnen</button>
+                        </div>
+                    </div>
+                `;
+            }
+            detailContainer.scrollIntoView({ behavior: 'smooth' });
+        };
+
+        window.closeReportsOverlay = function() {
+            document.getElementById('reports-overlay').style.display = "none";
+        };
+
+        window.showBenchOnMap = function(benchId) {
+            closeReportsOverlay();
+            if(document.getElementById('sidebar').classList.contains('open')) {
+                toggleSidebar();
+            }
+            const marker = window.markerDict[benchId];
+            if(marker) {
+                map.setView(marker.getLatLng(), 18);
+                marker.openPopup();
+            }
+        };
+
+        window.resolveDamageReport = async function(reportId, benchId, reportImageUrl) {
+            if(confirm("Möchtest du diese Schadensmeldung wirklich als erledigt markieren? Dadurch wird sie gelöscht und das Wartungsdatum der Bank aktualisiert.")) {
+                const todayStr = new Date().toISOString().split('T')[0];
+                if(supabaseClient) {
+                    // KORREKTUR: Verknüpftes Bild der Schadensmeldung aus dem Storage kaskadierend entfernen
+                    if(reportImageUrl) { await deleteAttachedStorageImage(reportImageUrl); }
+                    
+                    await supabaseClient.from('benches').update({ last_maintenance: todayStr, manual_status: 'Automatisch', damage_description: null }).eq('id', benchId);
+                    await supabaseClient.from('damage_reports').delete().eq('id', reportId);
+                    alert("Schadensmeldung erfolgreich erledigt!");
+                    closeReportsOverlay();
+                    await fetchBenchesFromCloud();
+                }
+            }
+        };
+
+        window.approveEntry = async function(benchId, status) {
+            if(!supabaseClient) return;
+            const bench = benches.find(b => b.id === benchId);
+            if(!bench) return;
+
+            if(status) {
+                if(bench.pending_action === 'delete') {
+                    // KORREKTUR: Wenn der Admin das Löschen freigibt, auch Bild kaskadierend löschen
+                    const { data: currentBench } = await supabaseClient.from('benches').select('note').eq('id', benchId).single();
+                    if(currentBench && currentBench.note) { await deleteAttachedStorageImage(currentBench.note); }
+                    
+                    await supabaseClient.from('benches').delete().eq('id', benchId);
+                } else {
+                    await supabaseClient.from('benches').update({ approved: true, pending_action: null }).eq('id', benchId);
+                }
+                alert("Änderung freigegeben!");
+            } else {
+                if(bench.pending_action === 'insert') {
+                    await supabaseClient.from('benches').delete().eq('id', benchId);
+                } else {
+                    await supabaseClient.from('benches').update({ approved: true, pending_action: null }).eq('id', benchId);
+                }
+                alert("Änderung abgelehnt und zurückgesetzt.");
+            }
+            closeReportsOverlay();
+            await fetchBenchesFromCloud();
+        };
+
+        // Maler 1-Klick Wartung
+        window.malerQuickStatus = async function(id) {
+            const bench = benches.find(b => b.id === id);
+            if(!bench) return;
+            
+            const updatedData = { manual_status: 'Automatisch' };
+            if(map) map.closePopup();
+
+            if(supabaseClient) {
+                await supabaseClient.from('benches').update(updatedData).eq('id', id);
+                await fetchBenchesFromCloud();
+            }
+        };
 
         function updateSyncIndicator() {
             const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
@@ -388,6 +881,7 @@
                 benches = data || [];
                 localStorage.setItem('benches_cache', JSON.stringify(benches)); 
                 updateApp();
+                await updateBadgeCounters();
                 handleDeepLink();
             } catch (err) {
                 console.warn("Karten-Daten Timeout. Zeige Cache.");
@@ -495,12 +989,21 @@
         window.triggerTypeCameraInput = function() { isTakingPhoto = true; document.getElementById('new-type-image-camera').click(); };
         window.triggerTypeGalleryInput = function() { isTakingPhoto = true; document.getElementById('new-type-image-gallery').click(); };
 
-        window.handleTypeFileSelection = function(inputElement) {
+        window.handleTypeFileSelection = async function(inputElement) {
             const statusText = document.getElementById('type-file-status-text');
             if(inputElement.files.length > 0) {
-                activeTypeFileInput = inputElement; 
-                statusText.innerText = `✅ Bild bereit (${inputElement.files[0].name.substring(0, 15)}...)`;
-                statusText.style.color = "#27ae60";
+                statusText.innerText = `⏳ Bild wird komprimiert...`;
+                statusText.style.color = "#e67e22";
+                try {
+                    const compressedFile = await compressImage(inputElement.files[0]);
+                    activeTypeFileInput = { files: [compressedFile] };
+                    statusText.innerText = `✅ Bild bereit (optimiert)`;
+                    statusText.style.color = "#27ae60";
+                } catch (e) {
+                    activeTypeFileInput = inputElement; 
+                    statusText.innerText = `✅ Bild bereit (Standard)`;
+                    statusText.style.color = "#27ae60";
+                }
             }
             setTimeout(() => { isTakingPhoto = false; }, 1000);
         };
@@ -583,7 +1086,7 @@
             const bench = benches.find(b => b.id === id);
             if (!bench) return;
             const todayStr = new Date().toISOString().split('T')[0];
-            const updatedData = { last_maintenance: todayStr, manual_status: 'Automatisch' };
+            const updatedData = { last_maintenance: todayStr, manual_status: 'Automatisch', damage_description: null };
 
             if (map) map.closePopup();
             
@@ -624,18 +1127,27 @@
             return 'Gut';
         }
 
-        function getMarkerStyle(status) {
+        function getMarkerStyle(status, approved) {
+            let baseStyle = {};
             switch(status) {
-                case 'Ungeprüft': return { radius: 8, fillColor: '#7f8c8d', color: '#333', weight: 2, fillOpacity: 0.6 };
-                case 'Wartungsfrei': return { radius: 9, fillColor: '#2ecc71', color: '#fff', weight: 2, fillOpacity: 0.95 };
-                case 'In Bearbeitung': return { radius: 9, fillColor: '#9b59b6', color: '#fff', weight: 2, fillOpacity: 0.95 };
-                case 'Gut': return { radius: 9, fillColor: '#27ae60', color: '#fff', weight: 2, fillOpacity: 0.9 };
-                case 'Wartung empfohlen': return { radius: 9, fillColor: '#f1c40f', color: '#fff', weight: 2, fillOpacity: 0.9 };
-                case 'Wartung nötig': return { radius: 9, fillColor: '#c0392b', color: '#fff', weight: 2, fillOpacity: 0.9 };
-                case 'Beschädigt': return { radius: 14, fillColor: '#e74c3c', color: '#ffffff', weight: 4, fillOpacity: 1 };
-                case 'Irreparabel': return { radius: 11, fillColor: '#000000', color: '#ffffff', weight: 3, fillOpacity: 1 };
-                default: return { radius: 9, fillColor: '#7f8c8d', color: '#fff', weight: 2, fillOpacity: 0.9 };
+                case 'Ungeprüft': baseStyle = { radius: 8, fillColor: '#7f8c8d', color: '#333', weight: 2, fillOpacity: 0.6 }; break;
+                case 'Wartungsfrei': baseStyle = { radius: 9, fillColor: '#2ecc71', color: '#fff', weight: 2, fillOpacity: 0.95 }; break;
+                case 'In Bearbeitung': baseStyle = { radius: 9, fillColor: '#9b59b6', color: '#fff', weight: 2, fillOpacity: 0.95 }; break;
+                case 'Gut': baseStyle = { radius: 9, fillColor: '#27ae60', color: '#fff', weight: 2, fillOpacity: 0.9 }; break;
+                case 'Wartung empfohlen': baseStyle = { radius: 9, fillColor: '#f1c40f', color: '#fff', weight: 2, fillOpacity: 0.9 }; break;
+                case 'Wartung nötig': baseStyle = { radius: 9, fillColor: '#c0392b', color: '#fff', weight: 2, fillOpacity: 0.9 }; break;
+                case 'Beschädigt': baseStyle = { radius: 14, fillColor: '#e74c3c', color: '#ffffff', weight: 4, fillOpacity: 1 }; break;
+                case 'Irreparabel': baseStyle = { radius: 11, fillColor: '#000000', color: '#ffffff', weight: 3, fillOpacity: 1 }; break;
+                default: baseStyle = { radius: 9, fillColor: '#7f8c8d', color: '#fff', weight: 2, fillOpacity: 0.9 };
             }
+
+            if (approved === false) {
+                baseStyle.fillColor = '#7f8c8d';
+                baseStyle.fillOpacity = 0.4;
+                baseStyle.dashArray = '5, 5';
+                baseStyle.color = '#7f8c8d';
+            }
+            return baseStyle;
         }
 
         function initDropdowns() {
@@ -696,7 +1208,17 @@
 
             benches.forEach(bench => {
                 if (!bench || !bench.type) return;
-                const status = calculateStatus(bench);
+                
+                let status = calculateStatus(bench);
+                
+                // KORREKTUR: Ermitteln, ob für diese Bank im Cache eine Schadensmeldung vorliegt
+                const hatSchadensmeldung = guestDamageReports.some(r => r.bench_id === bench.id);
+                
+                // KORREKTUR: Wenn Gast aktiv und die Bank beschädigt/gemeldet ist -> Status hart auf Beschädigt setzen
+                if (currentRole === 'Gast' && (status === 'Beschädigt' || hatSchadensmeldung)) {
+                    status = 'Beschädigt';
+                }
+
                 const matchDistrict = filterDistrict === 'Alle' || bench.district === filterDistrict;
                 const matchType = filterType === 'Alle' || bench.type === filterType;
                 const matchStatus = (selectedStatuses.length === 0) || selectedStatuses.includes(status); 
@@ -711,24 +1233,44 @@
                     totalLiveVisible++;
 
                     if (markersLayer && typeof L !== 'undefined') {
-                        const style = getMarkerStyle(status);
+                        const style = getMarkerStyle(status, bench.approved);
                         const marker = L.circleMarker([bench.lat, bench.lng], style);
 
                         let descHtml = bench.description ? `<br/>ℹ️ <b>Beschreibung:</b> ${bench.description}` : '';
-                        let dmgHtml = bench.damage_description ? `<br/>⚠️ <b>Schaden:</b> <span style="color:#c0392b;">${bench.damage_description}</span>` : '';
+                        let dmgHtml = (bench.damage_description || hatSchadensmeldung) ? `<br/>⚠️ <b>Schaden:</b> <span style="color:#c0392b;">${bench.damage_description || 'Schaden gemeldet'}</span>` : '';
                         let dimHtml = bench.dimensions ? `<br/>📐 <b>Maße:</b> ${bench.dimensions}` : '';
                         let noteHtml = bench.note ? `<br/>📝 ${bench.note}` : '';
 
+                        let ActionButtons = '';
+                        if (currentRole === 'Gast') {
+                            // KORREKTUR: Wenn Schaden besteht oder gemeldet ist -> Text statt Button anzeigen
+                            if (status === 'Beschädigt' || hatSchadensmeldung) {
+                                ActionButtons = `<div style="color:#8B0000; font-weight:bold; text-align:center; padding:5px; background:rgba(139,0,0,0.1); border:1px solid #8B0000; border-radius:4px;">⚠️ Schaden bereits gemeldet</div>`;
+                            } else {
+                                ActionButtons = `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background:#e74c3c;">⚠️ Schaden melden</button>`;
+                            }
+                        } else {
+                            if (currentRole === 'Admin' || currentRole === 'Zimmerer') {
+                                ActionButtons += `<button onclick="window.quickMaintenance(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🟢 Wartung heute</button>`;
+                            }
+                            if (currentRole === 'Maler' && status === 'Wartung empfohlen') {
+                                ActionButtons += `<button onclick="window.malerQuickStatus(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🎨 Status berechnen</button>`;
+                            }
+                            
+                            ActionButtons += `
+                                <div style="display: flex; gap: 4px;">
+                                    <button onclick="window.triggerEdit(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1;">Bearbeiten</button>
+                                    <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
+                                    <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
+                                </div>
+                            `;
+                        }
+
                         let popupHtml = `
                             <div style="font-size:14px; line-height:1.4; min-width:240px; color:#333;">
-                                <strong>${bench.type}</strong> (${bench.district})<br/>Status: <b>${status}</b>${descHtml}${dmgHtml}${dimHtml}${noteHtml}
+                                <strong>${bench.type}</strong> (${bench.district}) ${bench.approved === false ? '<span style="color:orange;">(Wartet auf Freigabe)</span>' : ''}<br/>Status: <b>${status}</b>${descHtml}${dmgHtml}${dimHtml}${noteHtml}
                                 <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
-                                    <button onclick="window.quickMaintenance(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold;">🟢 Wartung heute</button>
-                                    <div style="display: flex; gap: 4px;">
-                                        <button onclick="window.triggerEdit(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1;">Bearbeiten</button>
-                                        <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
-                                        <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
-                                    </div>
+                                    ${ActionButtons}
                                 </div>
                             </div>
                         `;
@@ -777,6 +1319,8 @@
         };
 
         function openFullscreenForm(bench, isNew) {
+            if(currentRole === 'Gast' || currentRole === 'Maler') { return; }
+
             currentEditingBench = bench; isNewBenchMode = isNew;
             document.getElementById('form-title').innerText = isNew ? 'Neue Sitzbank eintragen' : 'Sitzbank Details';
             
@@ -793,7 +1337,9 @@
             document.getElementById('pop-dimensions').value = bench.dimensions || '';
             document.getElementById('pop-note').value = bench.note || '';
             
-            document.getElementById('pop-delete-btn').style.display = isNew ? 'none' : 'block';
+            const canDelete = (currentRole === 'Admin' || currentRole === 'Zimmerer' || currentRole === 'Gala Bau');
+            document.getElementById('pop-delete-btn').style.display = (isNew || !canDelete) ? 'none' : 'block';
+            
             document.getElementById('fullscreen-overlay').style.display = 'block';
             handleTypeChange(); 
         }
@@ -807,11 +1353,15 @@
                 localStorage.setItem('last_used_maintenance_date', selectedDate);
             }
 
+            const isAdmin = currentRole === 'Admin';
+
             const rowData = {
                 lat: currentEditingBench.lat, lng: currentEditingBench.lng, type: lastSelectedType, district: lastSelectedDistrict,
                 last_maintenance: selectedDate, manual_status: document.getElementById('pop-manual').value,
                 description: document.getElementById('pop-description').value, damage_description: document.getElementById('pop-damage-description').value,
-                dimensions: document.getElementById('pop-dimensions').value, note: document.getElementById('pop-note').value
+                dimensions: document.getElementById('pop-dimensions').value, note: document.getElementById('pop-note').value,
+                approved: isAdmin,
+                pending_action: isAdmin ? null : (isNewBenchMode ? 'insert' : 'update')
             };
 
             const tempId = currentEditingBench.id || Math.floor(Math.random() * -100000);
@@ -845,7 +1395,7 @@
                         if (error) throw error;
                     }
                     localStorage.setItem('benches_cache', JSON.stringify(benches));
-                    syncOfflineQueue(); 
+                    await fetchBenchesFromCloud();
                 } catch (e) { 
                     console.warn("Upload verzögert oder fehlgeschlagen. Speichere offline...");
                     saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id, tempId); 
@@ -854,30 +1404,41 @@
         };
 
         document.getElementById('pop-delete-btn').onclick = async () => {
-            if (confirm('Sitzbank unwiderruflich löschen?')) {
+            if (confirm('Sitzbank wirklich löschen?')) {
                 const targetId = currentEditingBench.id;
-                benches = benches.filter(b => b.id !== targetId);
-                updateApp();
-                document.getElementById('fullscreen-overlay').style.display = 'none';
 
-                if (supabaseClient) {
-                    try {
-                        const { error } = await Promise.race([
-                            supabaseClient.from('benches').delete().eq('id', targetId),
-                            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
-                        ]);
-                        if (error) throw error;
-                        localStorage.setItem('benches_cache', JSON.stringify(benches));
-                        syncOfflineQueue();
-                    } catch (e) { saveOfflineAction('delete', null, targetId); }
-                } else { saveOfflineAction('delete', null, targetId); }
+                if (currentRole === 'Admin') {
+                    // KORREKTUR: Wenn die Bank ein hinterlegtes Bild hat, dieses kaskadierend aus Storage löschen
+                    if (currentEditingBench.note && currentEditingBench.note.startsWith('http')) {
+                        await deleteAttachedStorageImage(currentEditingBench.note);
+                    }
+                    
+                    benches = benches.filter(b => b.id !== targetId);
+                    updateApp();
+                    document.getElementById('fullscreen-overlay').style.display = 'none';
+                    if (supabaseClient) {
+                        await supabaseClient.from('benches').delete().eq('id', targetId);
+                        await fetchBenchesFromCloud();
+                    }
+                } else {
+                    const index = benches.findIndex(b => b.id === targetId);
+                    if (index !== -1) {
+                        benches[index].approved = false;
+                        benches[index].pending_action = 'delete';
+                    }
+                    updateApp();
+                    document.getElementById('fullscreen-overlay').style.display = 'none';
+                    if (supabaseClient) {
+                        await supabaseClient.from('benches').update({ approved: false, pending_action: 'delete' }).eq('id', targetId);
+                        await fetchBenchesFromCloud();
+                    }
+                }
             }
         };
 
         document.getElementById('pop-cancel-btn').onclick = () => { document.getElementById('fullscreen-overlay').style.display = 'none'; };
         function forceMapUpdate() { if (map) { map.invalidateSize(); } }
 
-        /* Logik für die Straßensuche */
         function initStreetSearch() {
             const searchInput = document.getElementById('street-search-input');
             const resultsList = document.getElementById('search-results-list');
@@ -930,6 +1491,7 @@
         function startApp() {
             initSupabase(); 
             initDropdowns();
+            checkPersistentLogin(); // Persistenten Login einlesen
             updateSyncIndicator();
             initStreetSearch();
             
@@ -957,6 +1519,8 @@
                     L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
                     map.on('click', (e) => {
+                        if(currentRole === 'Gast' || currentRole === 'Maler') return;
+
                         if(document.getElementById('sidebar').classList.contains('open') || isTakingPhoto) { 
                             if(!isTakingPhoto) toggleSidebar(); 
                             return; 
@@ -1004,15 +1568,12 @@
                     await fetchTypesFromCloud();
                     closeTypeOverlay();
                 } catch (e) { alert("Fehler beim Speichern: " + e.message); } 
-                finally { btn.innerText = "Typ & Bild speichern"; btn.disabled = false; }
+                finally { btn.innerText = "Typ & Bild保存"; btn.disabled = false; }
             };
         }
-        window.addEventListener('load', startApp);
+        
+        window.addEventListener('DOMContentLoaded', startApp);
+        window.addEventListener('load', () => { setTimeout(forceMapUpdate, 200); });
     </script>
 </body>
-<style>html{
- color:darkviolet;
- font-size:25px;
- font-weight:600;
-}
-</style><script>/*Here write your javascript code*/</script></html>
+</html>
