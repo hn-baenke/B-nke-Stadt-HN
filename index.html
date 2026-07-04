@@ -18,6 +18,25 @@
         .main-container { display: block; flex: 1; width: 100%; position: relative; overflow: hidden; }
         #map { width: 100%; height: 100%; z-index: 1; background-color: #e5e9f0; }
         
+        /* Suchleiste Styles */
+        .search-container {
+            position: absolute; top: 10px; left: 50px; z-index: 1000; width: calc(100% - 210px); max-width: 300px;
+        }
+        .search-input {
+            width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.2);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2); font-size: 14px; box-sizing: border-box; outline: none;
+        }
+        .search-results {
+            position: absolute; top: 42px; left: 0; width: 100%; background: white; border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 200px; overflow-y: auto; display: none;
+            margin: 0; padding: 0; list-style: none; z-index: 1001;
+        }
+        .search-results li {
+            padding: 10px 12px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; line-height: 1.3;
+        }
+        .search-results li:hover { background: #f4f6f8; }
+        .search-results li:last-child { border-bottom: none; }
+
         #menu-toggle-btn {
             position: absolute; top: 10px; right: 10px; z-index: 1000; background: #2c3e50; color: white; border: none; padding: 10px 14px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 6px; transition: background 0.2s;
         }
@@ -51,11 +70,11 @@
         .btn-cancel { background: #95a5a6; margin-top: 8px; }
         
         .stats-box { background: #f1f5f9; padding: 12px; border-radius: 8px; font-size: 14px; border-left: 4px solid #2c3e50; }
-        .stats-box ul { margin: 6px 0 0 0; padding-left: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; list-style: none; }
-        
-        #live-stats-widget {
-            position: fixed; bottom: 10px; right: 10px; z-index: 1002; background: white; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.3); width: 240px; box-sizing: border-box; font-size: 13px; border-left: 4px solid #3498db; overflow: hidden; transition: max-height 0.25s ease-in-out; max-height: 250px;
-        }
+        .stats-box ul { margin: 6px 0 0 0; padding-left: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; list-style: none; }
+        .stats-box ul li { display: flex; justify-content: space-between; align-items: flex-start; font-size: 13px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 2px; }
+        .stats-box ul li strong { margin-left: 6px; white-space: nowrap; }
+
+        #live-stats-widget { position: absolute; bottom: 10px; right: 10px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); z-index: 1000; width: 250px; max-height: 250px; overflow: hidden; display: flex; flex-direction: column; font-size: 13px; border: 1px solid #cbd5e1; transition: max-height 0.2s; }
         #live-stats-widget.minimized { max-height: 38px; }
         .widget-header { background: #f8f9fa; padding: 10px 12px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; cursor: pointer; user-select: none; }
         .widget-content { padding: 12px; display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
@@ -96,6 +115,12 @@
     </header>
     
     <div class="main-container">
+        <!-- Integrierte Straßensuche -->
+        <div class="search-container">
+            <input type="text" id="street-search-input" class="search-input" placeholder="Straße suchen..." autocomplete="off">
+            <ul id="search-results-list" class="search-results"></ul>
+        </div>
+
         <button id="menu-toggle-btn" onclick="toggleSidebar()">☰ Filter & Infos</button>
         <button id="locate-btn" onclick="locateUser()" title="Meinen Standort zeigen">🎯</button>
         
@@ -233,11 +258,14 @@
         const SUPABASE_URL = "https://aqownulwmwdtrgzmsgqn.supabase.co"; 
         const SUPABASE_ANON_KEY = "sb_publishable_a_CXe4OWZN0vdnUPPF_Avg_AY55SFMN";
 
-        const DISTRICTS = [
-            "Heilbronn Zentrum", "Heilbronn Ost", "Heilbronn Süd", "Heilbronn West", "Heilbronn Nord",
-            "Böckingen", "Sontheim", "Frankenbach", "Biberach", "Kirchhausen", "Klingenberg", "Neckargartach",
-            "Horkheim", "Pfühlpark", "Ziegeleipark", "Wertwiesenpark"
+        const RAW_DISTRICTS = [
+            "Heilbronn", "Böckingen", "Böllinger Höfe", "Sontheim", "Frankenbach", 
+            "Biberach", "Kirchhausen", "Klingenberg", "Neckargartach", "Horkheim"
         ];
+        const PARKS = ["Pfühlpark", "Wertwiesenpark", "Ziegeleipark"];
+
+        const sortedSubDistricts = [...RAW_DISTRICTS.filter(d => d !== "Heilbronn")].sort((a, b) => a.localeCompare(b, 'de'));
+        const DISTRICTS = ["Heilbronn", ...sortedSubDistricts, ...PARKS];
 
         const DEFAULT_TYPES = ["H-Bank", "Wetz Ergo7000", "Bitburg", "Sonstige"];
         let types = [...DEFAULT_TYPES];
@@ -354,7 +382,7 @@
             }
         }
 
-                async function syncOfflineQueue() {
+        async function syncOfflineQueue() {
             if (!supabaseClient) return;
             let queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
             if (queue.length === 0) {
@@ -378,7 +406,6 @@
                     }
 
                     if (result.error) {
-                        // HIER IST DER SCHLÜSSEL: Wir loggen den echten Fehler der Datenbank
                         console.error("Supabase Fehler bei Action", item.action, ":", result.error);
                         alert(`Fehler bei Sync (${item.action}): ${result.error.message}`);
                         remainingQueue.push(item);
@@ -547,14 +574,14 @@
 
             if (map) map.closePopup();
             
-            // Sofort lokaler UI-Update für flüssige Bedienung
             const idx = benches.findIndex(b => b.id === id);
             if (idx !== -1) benches[idx] = { ...benches[idx], ...updatedData };
             updateApp();
 
+            localStorage.setItem('last_used_maintenance_date', todayStr);
+
             if (supabaseClient) {
                 try {
-                    // Wartezeit einhalten: Direktupload versuchen (mit 3 Sek. Timeout)
                     const { error } = await Promise.race([
                         supabaseClient.from('benches').update(updatedData).eq('id', id),
                         new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
@@ -725,9 +752,13 @@
 
         window.triggerNewBenchCreation = function(lat, lng) {
             if (map) map.closePopup();
+            
+            const fallbackDate = new Date().toISOString().split('T')[0];
+            const savedDate = localStorage.getItem('last_used_maintenance_date') || fallbackDate;
+
             openFullscreenForm({ 
                 lat: lat, lng: lng, type: lastSelectedType, district: lastSelectedDistrict, 
-                last_maintenance: new Date().toISOString().split('T')[0], manual_status: 'Automatisch', 
+                last_maintenance: savedDate, manual_status: 'Automatisch', 
                 description: '', damage_description: '', dimensions: '', note: '' 
             }, true);
         };
@@ -757,17 +788,21 @@
         document.getElementById('pop-save-btn').onclick = async () => {
             lastSelectedType = document.getElementById('pop-type').value;
             lastSelectedDistrict = document.getElementById('pop-district').value;
+            const selectedDate = document.getElementById('pop-date').value || null;
             
+            if(selectedDate) {
+                localStorage.setItem('last_used_maintenance_date', selectedDate);
+            }
+
             const rowData = {
                 lat: currentEditingBench.lat, lng: currentEditingBench.lng, type: lastSelectedType, district: lastSelectedDistrict,
-                last_maintenance: document.getElementById('pop-date').value || null, manual_status: document.getElementById('pop-manual').value,
+                last_maintenance: selectedDate, manual_status: document.getElementById('pop-manual').value,
                 description: document.getElementById('pop-description').value, damage_description: document.getElementById('pop-damage-description').value,
                 dimensions: document.getElementById('pop-dimensions').value, note: document.getElementById('pop-note').value
             };
 
             const tempId = currentEditingBench.id || Math.floor(Math.random() * -100000);
 
-            // Lokalen UI-Zustand sofort aktualisieren
             if (isNewBenchMode) { benches.push({ id: tempId, ...rowData }); } 
             else {
                 const index = benches.findIndex(b => b.id === currentEditingBench.id);
@@ -780,7 +815,6 @@
                 try {
                     let response;
                     if (isNewBenchMode) { 
-                        // WARTEZEIT: Gib Supabase bis zu 3 Sekunden Zeit für den Upload
                         response = await Promise.race([
                             supabaseClient.from('benches').insert([rowData]).select(),
                             new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
@@ -791,7 +825,6 @@
                             if (index !== -1) benches[index] = response.data[0];
                         }
                     } else { 
-                        // WARTEZEIT: Gleiches Spiel beim Updaten bestehender Bänke
                         const { error } = await Promise.race([
                             supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id),
                             new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
@@ -831,17 +864,83 @@
         document.getElementById('pop-cancel-btn').onclick = () => { document.getElementById('fullscreen-overlay').style.display = 'none'; };
         function forceMapUpdate() { if (map) { map.invalidateSize(); } }
 
+        /* Logik für die Straßensuche */
+        function initStreetSearch() {
+            const searchInput = document.getElementById('street-search-input');
+            const resultsList = document.getElementById('search-results-list');
+            let debounceTimer;
+
+            searchInput.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                const query = searchInput.value.trim();
+                if (query.length < 3) {
+                    resultsList.style.display = 'none';
+                    return;
+                }
+
+                debounceTimer = setTimeout(() => {
+                    // Ortsbezogene Suche, um relevante Straßen der Region bevorzugt zu finden
+                    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ' Heilbronn')}&addressdetails=1&limit=5`;
+                    
+                    fetch(url, { headers: { 'Accept-Language': 'de' } })
+                        .then(res => res.json())
+                        .then(data => {
+                            resultsList.innerHTML = '';
+                            if (data && data.length > 0) {
+                                data.forEach(item => {
+                                    const li = document.createElement('li');
+                                    li.innerText = item.display_name.split(',').slice(0, 3).join(',');
+                                    li.addEventListener('click', () => {
+                                        const lat = parseFloat(item.lat);
+                                        const lon = parseFloat(item.lon);
+                                        map.setView([lat, lon], 17);
+                                        resultsList.style.display = 'none';
+                                        searchInput.value = item.display_name.split(',')[0];
+                                    });
+                                    resultsList.appendChild(li);
+                                });
+                                resultsList.style.display = 'block';
+                            } else {
+                                resultsList.style.display = 'none';
+                            }
+                        })
+                        .catch(err => console.error("Suchfehler:", err));
+                }, 400);
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.search-container')) {
+                    resultsList.style.display = 'none';
+                }
+            });
+        }
+
         function startApp() {
             initSupabase(); 
             initDropdowns();
             updateSyncIndicator();
+            initStreetSearch();
             
             if (typeof L !== 'undefined') {
                 try {
                     const osmStreets = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
                     const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles © Esri' });
                     
-                    map = L.map('map', { fadeAnimation: false, layers: [osmStreets] }).setView([49.1426, 9.2177], 13);
+                    // Geografische Begrenzung (Heilbronn + Obereisesheim, Weinsberg, Nordheim, Talheim, Leingarten, Bonfeld)
+                    const southWest = L.latLng(49.0700, 9.0800);
+                    const northEast = L.latLng(49.2300, 9.3500);
+                    const bounds = L.latLngBounds(southWest, northEast);
+
+                    // Karte initialisieren mit minZoom Limits
+                    map = L.map('map', { 
+                        fadeAnimation: false, 
+                        layers: [osmStreets],
+                        minZoom: 11,
+                        maxZoom: 19,
+                        maxBounds: bounds,
+                        maxBoundsViscosity: 0.8
+                    }).setView([49.1426, 9.2177], 13);
+                    
                     markersLayer = L.featureGroup().addTo(map);
 
                     const baseMaps = { "Straßenkarte": osmStreets, "Satellitenbild": esriSatellite };
