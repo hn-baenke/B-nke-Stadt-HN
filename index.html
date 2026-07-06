@@ -1748,72 +1748,71 @@
                     const baseMaps = { "Straßenkarte": osmStreets, "Satellitenbild": esriSatellite };
                     L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
-                    map.on('click', function(e) {
-                        if(isTakingPhoto) return;
-                        
-                        if (currentRole === 'Gast') {
-                            const popupButtons = `
-                                <div style="text-align:center; min-width:140px;">
-                                    <button onclick="window.openGuestDamageOverlay(null, true, ${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="padding:8px; font-size:13px; background:#e74c3c;">⚠️ Schaden melden</button>
-                                </div>
-                            `;
-                            L.popup().setLatLng(e.latlng).setContent(popupButtons).openOn(map);
+                    map.on('click', (e) => {
+                        if(document.getElementById('sidebar').classList.contains('open') || isTakingPhoto) { 
+                            if(!isTakingPhoto) toggleSidebar(); 
+                            return; 
+                        }
+
+                        if(currentRole === 'Gast') {
+                            const clickPopupHtml = `
+                                <div style="text-align: center; padding: 5px; font-size:13px;">
+                                    <strong>Hier befindet sich eine Bank?</strong><br/>
+                                    <p style="margin:5px 0 10px 0; color:#555;">Du kannst direkt eine Schadensmeldung abschicken.</p>
+                                    <button onclick="window.openGuestDamageOverlay(null, true, ${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="padding: 8px 12px; font-size: 13px; background: #e74c3c;">⚠️ Schaden melden</button>
+                                </div>`;
+                            L.popup().setLatLng(e.latlng).setContent(clickPopupHtml).openOn(map);
                         } else {
-                            const popupButtons = `
-                                <div style="text-align:center; min-width:140px;">
-                                    <button onclick="window.triggerNewBenchCreation(${e.latlng.lat}, ${e.latlng.lng})" class="btn btn-save" style="padding:8px; font-size:13px; margin-top:0;">➕ Neue Bank</button>
-                                </div>
-                            `;
-                            L.popup().setLatLng(e.latlng).setContent(popupButtons).openOn(map);
+                            const clickPopupHtml = `<div style="text-align: center; padding: 5px;"><button onclick="window.triggerNewBenchCreation(${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="padding: 8px 12px; font-size: 13px; background: #27ae60;">➕ Hier Bank anlegen</button></div>`;
+                            L.popup().setLatLng(e.latlng).setContent(clickPopupHtml).openOn(map);
                         }
                     });
+                    setTimeout(forceMapUpdate, 100); window.addEventListener('resize', forceMapUpdate);
+                    
+                    fetchTypesFromCloud();
+                    fetchBenchesFromCloud();
+                    
+                    if(supabaseClient) { subscribeToRealtime(); }
+                    window.addEventListener('focus', syncOfflineQueue);
 
-                    fetchTypesFromCloud().then(() => {
-                        fetchBenchesFromCloud().then(() => {
-                            subscribeToRealtime();
-                        });
-                    });
-
-                } catch (e) {
-                    console.error("Leaflet-Initiierungsfehler: ", e);
-                }
+                } catch(e) { console.error("Kartenfehler:", e); }
             }
-        }
-
-        window.onload = function() {
-            startApp();
-            
             document.getElementById('filter-district').addEventListener('change', updateApp);
             document.getElementById('filter-type').addEventListener('change', updateApp);
-            
-            document.querySelectorAll('#status-checkboxes-container input').forEach(cb => {
-                cb.addEventListener('change', updateApp);
-            });
-            
-            document.getElementById('add-type-btn').onclick = async function() {
-                const typeName = document.getElementById('new-type-input').value.trim();
-                if(!typeName) { alert("Bitte gib einen Namen für den Bautyp ein."); return; }
+            document.querySelectorAll('#status-checkboxes-container input').forEach(cb => { cb.addEventListener('change', updateApp); });
+
+            document.getElementById('add-type-btn').onclick = async () => {
+                const input = document.getElementById('new-type-input'); 
+                const val = input.value.trim();
+                if (!val) { alert("Bitte gib einen Namen für den Bautyp ein."); return; }
+                if (types.includes(val)) { alert("Dieser Typ existiert bereits."); return; }
                 
-                if(supabaseClient) {
-                    const { error: dbError } = await supabaseClient.from('bench_types').insert([{ name: typeName }]);
-                    if(dbError) { alert("Fehler beim Speichern des Typs in der Datenbank."); return; }
-                    
-                    if(activeTypeFileInput && activeTypeFileInput.files.length > 0) {
-                        const file = activeTypeFileInput.files[0];
-                        const cleanName = typeName.replace(/\s+/g, '_');
-                        const extension = file.name.split('.').pop().toLowerCase();
-                        const finalExtension = ['jpg', 'jpeg', 'png'].includes(extension) ? extension : 'jpg';
-                        const storageFileName = `${cleanName}.${finalExtension}`;
-                        
-                        await supabaseClient.storage.from('bench-images').upload(storageFileName, file, { cacheControl: '0', upsert: true });
+                const btn = document.getElementById('add-type-btn');
+                btn.disabled = true;
+
+                try {
+                    if (supabaseClient) {
+                        btn.innerText = "⏳ Typ wird in Cloud gespeichert...";
+                        const { error: typeError } = await supabaseClient.from('bench_types').insert([{ name: val }]);
+                        if (typeError) throw typeError;
                     }
-                    
-                    alert(`Bautyp "${typeName}" erfolgreich angelegt!`);
-                    closeTypeOverlay();
+                    if (activeTypeFileInput && activeTypeFileInput.files.length > 0 && supabaseClient) {
+                        btn.innerText = "⏳ Bild wird hochgeladen...";
+                        const file = activeTypeFileInput.files[0];
+                        const cleanName = val.replace(/\s+/g, '_');
+                        const extension = file.name.split('.').pop().toLowerCase();
+                        const filePath = `${cleanName}.${extension === 'png' ? 'png' : 'jpg'}`;
+                        await supabaseClient.storage.from('bench-images').upload(filePath, file, { upsert: true });
+                    }
                     await fetchTypesFromCloud();
-                }
+                    closeTypeOverlay();
+                } catch (e) { alert("Fehler beim Speichern: " + e.message); } 
+                finally { btn.innerText = "Typ & Bild speichern"; btn.disabled = false; }
             };
-        };
+        }
+        
+        window.addEventListener('DOMContentLoaded', startApp);
+        window.addEventListener('load', () => { setTimeout(forceMapUpdate, 200); });
     </script>
 </body>
 <style>html{
