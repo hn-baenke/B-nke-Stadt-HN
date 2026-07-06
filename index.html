@@ -317,8 +317,10 @@
         
         <label>Foto hinzufügen:</label>
         <div class="file-input-container">
+            <input type="file" id="guest-damage-camera" accept="image/*" style="display: none;" onchange="handleGuestFileSelection(this)">
             <input type="file" id="guest-damage-gallery" accept="image/*" style="display: none;" onchange="handleGuestFileSelection(this)">
-            <button type="button" class="btn btn-camera btn-gallery" onclick="document.getElementById('guest-damage-gallery').click()">📁 Foto auswählen</button>
+            <button type="button" class="btn btn-camera" onclick="document.getElementById('guest-damage-camera').click()">📸 Foto live aufnehmen</button>
+            <button type="button" class="btn btn-camera btn-gallery" onclick="document.getElementById('guest-damage-gallery').click()">📁 Aus Galerie wählen</button>
             <span id="guest-file-status" class="file-status-text">Kein Foto ausgewählt</span>
         </div>
 
@@ -398,8 +400,12 @@
         
         <label>Musterfoto hinterlegen:</label>
         <div class="file-input-container">
+            <input type="file" id="new-type-image-camera" accept="image/*" style="display: none;" onchange="handleTypeFileSelection(this)">
             <input type="file" id="new-type-image-gallery" accept="image/*" style="display: none;" onchange="handleTypeFileSelection(this)">
-            <button type="button" class="btn btn-camera btn-gallery" onclick="triggerTypeGalleryInput()">📁 Foto auswählen</button>
+            
+            <button type="button" class="btn btn-camera" onclick="triggerTypeCameraInput()">📸 Foto live aufnehmen</button>
+            <button type="button" class="btn btn-camera btn-gallery" onclick="triggerTypeGalleryInput()">📁 Bild aus Galerie wählen</button>
+            
             <span id="type-file-status-text" class="file-status-text">Kein Foto ausgewählt</span>
         </div>
         
@@ -452,6 +458,7 @@
         let lastSelectedType = types[0];
         let lastSelectedDistrict = DISTRICTS[0];
         
+        // Cache-Variable für anstehende Aktionen während des Namens-Modals
         let pendingWorkerAction = null;
 
         window.toggleInfoWidget = function(userClicked = false) {
@@ -1145,6 +1152,7 @@
         window.openTypeOverlay = function() {
             toggleSidebar();
             document.getElementById('new-type-input').value = '';
+            document.getElementById('new-type-image-camera').value = '';
             document.getElementById('new-type-image-gallery').value = '';
             activeTypeFileInput = null;
             document.getElementById('type-file-status-text').innerText = "Kein Foto ausgewählt";
@@ -1157,6 +1165,7 @@
             setTimeout(() => { isTakingPhoto = false; }, 400);
         };
 
+        window.triggerTypeCameraInput = function() { isTakingPhoto = true; document.getElementById('new-type-image-camera').click(); };
         window.triggerTypeGalleryInput = function() { isTakingPhoto = true; document.getElementById('new-type-image-gallery').click(); };
 
         window.handleTypeFileSelection = async function(inputElement) {
@@ -1522,8 +1531,10 @@
             handleTypeChange(); 
         }
 
+        // Steuerung des Interzeptor-Fensters zur Namenabfrage (Pflichtfeld)
         function promptWorkerName(actionType) {
             if (currentRole === 'Admin') {
+                // Admins überspringen das Namen-Fenster und speichern sofort direkt ab
                 executeFinalDatabaseAction(actionType);
                 return;
             }
@@ -1566,6 +1577,8 @@
             }
 
             const isAdmin = currentRole === 'Admin';
+            
+            // Wenn ein Name eingegeben wurde, überschreiben wir das Notizfeld damit der Admin es sieht
             const finalNote = workerName ? `Trupp: ${currentRole} (${workerName})` : document.getElementById('pop-note').value;
 
             if (actionType === 'save') {
@@ -1634,6 +1647,7 @@
                         await fetchBenchesFromCloud();
                     }
                 } else {
+                    // Trupps löschen nicht direkt, sondern updaten Status für den Admin zur Verifizierung
                     const index = benches.findIndex(b => b.id === targetId);
                     if (index !== -1) {
                         benches[index].approved = false;
@@ -1734,71 +1748,72 @@
                     const baseMaps = { "Straßenkarte": osmStreets, "Satellitenbild": esriSatellite };
                     L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
-                    map.on('click', (e) => {
-                        if(document.getElementById('sidebar').classList.contains('open') || isTakingPhoto) { 
-                            if(!isTakingPhoto) toggleSidebar(); 
-                            return; 
-                        }
-
-                        if(currentRole === 'Gast') {
-                            const clickPopupHtml = `
-                                <div style="text-align: center; padding: 5px; font-size:13px;">
-                                    <strong>Hier befindet sich eine Bank?</strong><br/>
-                                    <p style="margin:5px 0 10px 0; color:#555;">Du kannst direkt eine Schadensmeldung abschicken.</p>
-                                    <button onclick="window.openGuestDamageOverlay(null, true, ${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="padding: 8px 12px; font-size: 13px; background: #e74c3c;">⚠️ Schaden melden</button>
-                                </div>`;
-                            L.popup().setLatLng(e.latlng).setContent(clickPopupHtml).openOn(map);
+                    map.on('click', function(e) {
+                        if(isTakingPhoto) return;
+                        
+                        if (currentRole === 'Gast') {
+                            const popupButtons = `
+                                <div style="text-align:center; min-width:140px;">
+                                    <button onclick="window.openGuestDamageOverlay(null, true, ${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="padding:8px; font-size:13px; background:#e74c3c;">⚠️ Schaden melden</button>
+                                </div>
+                            `;
+                            L.popup().setLatLng(e.latlng).setContent(popupButtons).openOn(map);
                         } else {
-                            const clickPopupHtml = `<div style="text-align: center; padding: 5px;"><button onclick="window.triggerNewBenchCreation(${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="padding: 8px 12px; font-size: 13px; background: #27ae60;">➕ Hier Bank anlegen</button></div>`;
-                            L.popup().setLatLng(e.latlng).setContent(clickPopupHtml).openOn(map);
+                            const popupButtons = `
+                                <div style="text-align:center; min-width:140px;">
+                                    <button onclick="window.triggerNewBenchCreation(${e.latlng.lat}, ${e.latlng.lng})" class="btn btn-save" style="padding:8px; font-size:13px; margin-top:0;">➕ Neue Bank</button>
+                                </div>
+                            `;
+                            L.popup().setLatLng(e.latlng).setContent(popupButtons).openOn(map);
                         }
                     });
-                    setTimeout(forceMapUpdate, 100); window.addEventListener('resize', forceMapUpdate);
-                    
-                    fetchTypesFromCloud();
-                    fetchBenchesFromCloud();
-                    
-                    if(supabaseClient) { subscribeToRealtime(); }
-                    window.addEventListener('focus', syncOfflineQueue);
 
-                } catch(e) { console.error("Kartenfehler:", e); }
+                    fetchTypesFromCloud().then(() => {
+                        fetchBenchesFromCloud().then(() => {
+                            subscribeToRealtime();
+                        });
+                    });
+
+                } catch (e) {
+                    console.error("Leaflet-Initiierungsfehler: ", e);
+                }
             }
+        }
+
+        window.onload = function() {
+            startApp();
+            
             document.getElementById('filter-district').addEventListener('change', updateApp);
             document.getElementById('filter-type').addEventListener('change', updateApp);
-            document.querySelectorAll('#status-checkboxes-container input').forEach(cb => { cb.addEventListener('change', updateApp); });
-
-            document.getElementById('add-type-btn').onclick = async () => {
-                const input = document.getElementById('new-type-input'); 
-                const val = input.value.trim();
-                if (!val) { alert("Bitte gib einen Namen für den Bautyp ein."); return; }
-                if (types.includes(val)) { alert("Dieser Typ existiert bereits."); return; }
+            
+            document.querySelectorAll('#status-checkboxes-container input').forEach(cb => {
+                cb.addEventListener('change', updateApp);
+            });
+            
+            document.getElementById('add-type-btn').onclick = async function() {
+                const typeName = document.getElementById('new-type-input').value.trim();
+                if(!typeName) { alert("Bitte gib einen Namen für den Bautyp ein."); return; }
                 
-                const btn = document.getElementById('add-type-btn');
-                btn.disabled = true;
-
-                try {
-                    if (supabaseClient) {
-                        btn.innerText = "⏳ Typ wird in Cloud gespeichert...";
-                        const { error: typeError } = await supabaseClient.from('bench_types').insert([{ name: val }]);
-                        if (typeError) throw typeError;
-                    }
-                    if (activeTypeFileInput && activeTypeFileInput.files.length > 0 && supabaseClient) {
-                        btn.innerText = "⏳ Bild wird hochgeladen...";
+                if(supabaseClient) {
+                    const { error: dbError } = await supabaseClient.from('bench_types').insert([{ name: typeName }]);
+                    if(dbError) { alert("Fehler beim Speichern des Typs in der Datenbank."); return; }
+                    
+                    if(activeTypeFileInput && activeTypeFileInput.files.length > 0) {
                         const file = activeTypeFileInput.files[0];
-                        const cleanName = val.replace(/\s+/g, '_');
+                        const cleanName = typeName.replace(/\s+/g, '_');
                         const extension = file.name.split('.').pop().toLowerCase();
-                        const filePath = `${cleanName}.${extension === 'png' ? 'png' : 'jpg'}`;
-                        await supabaseClient.storage.from('bench-images').upload(filePath, file, { upsert: true });
+                        const finalExtension = ['jpg', 'jpeg', 'png'].includes(extension) ? extension : 'jpg';
+                        const storageFileName = `${cleanName}.${finalExtension}`;
+                        
+                        await supabaseClient.storage.from('bench-images').upload(storageFileName, file, { cacheControl: '0', upsert: true });
                     }
-                    await fetchTypesFromCloud();
+                    
+                    alert(`Bautyp "${typeName}" erfolgreich angelegt!`);
                     closeTypeOverlay();
-                } catch (e) { alert("Fehler beim Speichern: " + e.message); } 
-                finally { btn.innerText = "Typ & Bild speichern"; btn.disabled = false; }
+                    await fetchTypesFromCloud();
+                }
             };
-        }
-        
-        window.addEventListener('DOMContentLoaded', startApp);
-        window.addEventListener('load', () => { setTimeout(forceMapUpdate, 200); });
+        };
     </script>
 </body>
 <style>html{
