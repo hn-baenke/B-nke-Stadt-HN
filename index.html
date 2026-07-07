@@ -1342,7 +1342,7 @@
             const tSelect = document.getElementById('filter-type'); if(!tSelect) return;
             const currentFilter = tSelect.value || "Alle";
             tSelect.innerHTML = '<option value="Alle">Alle Bautypen</option>';
-            types.forEach(t => { tSelect.innerHTML += `<option value="${t}">${t}</option>'; });
+            types.forEach(t => { tSelect.innerHTML += `<option value="${t}">${t}</option>`; });
             tSelect.value = currentFilter;
         }
 
