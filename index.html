@@ -231,7 +231,7 @@
                 <label>🚦 Status filtern (Keine Auswahl = Alle anzeigen)</label>
                 <div class="status-checkbox-container" id="status-checkboxes-container">
                     <label class="status-checkbox-item"><input type="checkbox" value="Wartung empfohlen"> 🟡 Wartung empfohlen (~3J)</label>
-                    <label class="status-checkbox-item"><input type="checkbox" value="Wartung nötig"> 🔴 Wartung nötig (>5J)</label>
+                    <label class="status-checkbox-item"><input type="checkbox" value="Wartung nötig"> 🔴 Wartung nötig (&gt;5J)</label>
                     <label class="status-checkbox-item"><input type="checkbox" value="Beschädigt"> 🔴⚪ Beschädigt</label>
                     <label class="status-checkbox-item"><input type="checkbox" value="In Bearbeitung"> 🟣 In Bearbeitung</label>
                     <label class="status-checkbox-item"><input type="checkbox" value="Irreparabel"> ⚫ Irreparabel</label>
@@ -252,7 +252,7 @@
             </div>
             
             <div class="legend">
-                <strong>Status:</strong> 🟢 Gut | 🟢✨ Wartungsfrei | 🟣 In Arbeit | 🟡 ~3J | 🔴 >5J | 🔴⚪ Defekt | ⚫ Irreparabel<br>
+                <strong>Status:</strong> 🟢 Gut | 🟢✨ Wartungsfrei | 🟣 In Arbeit | 🟡 ~3J | 🔴 &gt;5J | 🔴⚪ Defekt | ⚫ Irreparabel<br>
                 💡 <em>Karte antippen = Button zum Anlegen öffnen. Punkt antippen = Bearbeiten.</em>
             </div>
         </div>
@@ -1810,6 +1810,11 @@
             updateSyncIndicator();
             initStreetSearch();
             
+            // NEU: Event-Listener für automatische Live-Filterung hinzufügen
+            document.getElementById('filter-district').addEventListener('change', updateApp);
+            document.getElementById('filter-type').addEventListener('change', updateApp);
+            document.getElementById('status-checkboxes-container').addEventListener('change', updateApp);
+            
             if (typeof L !== 'undefined') {
                 try {
                     const osmStreets = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
@@ -1870,4 +1875,4 @@
         window.onload = startApp;
     </script>
 </body>
-<style>/*Here write your styles*/</style><script>/*Here write your javascript code*/</script><style>/*Here write your styles*/</style><script>/*Here write your javascript code*/</script></html>
+<style>/*Here write your styles*/</style><script>/*Here write your javascript code*/</script></html>
