@@ -105,6 +105,7 @@
         .btn-admin-menu { margin-top: 5px; transition: background 0.3s; }
         .btn-menu-alert { background: #e74c3c; }
         .btn-menu-ok { background: #27ae60; }
+        .btn-help { background: #e67e22; margin-top: 5px; }
         
         .stats-box { background: #f1f5f9; padding: 12px; border-radius: 8px; font-size: 14px; border-left: 4px solid #2c3e50; }
         .stats-box ul { margin: 6px 0 0 0; padding-left: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; list-style: none; }
@@ -147,6 +148,12 @@
         /* Passwort-Neuvergabe Bereich Styles */
         .password-change-toggle { display: inline-block; margin-top: 12px; color: #3498db; font-size: 13px; font-weight: bold; cursor: pointer; text-decoration: underline; }
         .password-change-box { display: none; margin-top: 10px; background: #f8f9fa; border: 1px dashed #cbd5e1; padding: 15px; border-radius: 8px; text-align: left; }
+
+        /* Styles für die detailreiche Anleitung */
+        .help-section { margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #3498db; }
+        .help-section h4 { margin-top: 0; color: #2c3e50; font-size: 16px; margin-bottom: 8px; }
+        .help-section p, .help-section ul { font-size: 14px; line-height: 1.5; color: #4a5568; margin-bottom: 8px; }
+        .help-section ul { padding-left: 20px; }
 
         @media (min-width: 768px) {
             #sidebar { bottom: auto; top: 0; right: -440px; left: auto; width: 420px; height: 100%; border-top-left-radius: 0px; border-top-right-radius: 0px; box-shadow: -5px 0 20px rgba(0,0,0,0.2); transition: right 0.3s ease-in-out; padding-bottom: 20px; }
@@ -244,6 +251,10 @@
                 <strong id="stats-title">Auswertung</strong>
                 <ul id="stats-list"></ul>
             </div>
+            
+            <!-- Der gewünschte Hilfe Button direkt unterhalb der Auswertung -->
+            <button id="menu-help-btn" class="btn btn-help" onclick="openHelpOverlay()">ℹ️ App-Anleitung öffnen</button>
+            
             <hr style="width:100%; border:0; border-top:1px solid #e2e8f0; margin: 5px 0;"/>
             
             <div class="filter-group" id="admin-add-type-container" style="display:none;">
@@ -256,6 +267,62 @@
                 💡 <em>Karte antippen = Button zum Anlegen öffnen. Punkt antippen = Bearbeiten.</em>
             </div>
         </div>
+    </div>
+
+    <!-- Ausführliche App Anleitung / Hilfe Overlay -->
+    <div id="help-overlay" class="fullscreen-overlay">
+        <h3>📖 Handbuch & Dokumentation</h3>
+        
+        <div class="help-section">
+            <h4>1. Allgemeine Bedienung & Navigation</h4>
+            <p>Das Sitzbank-Kataster Heilbronn dient der digitalen Erfassung, Statusprüfung und Schadensmeldung des städtischen Mobiliars.</p>
+            <ul>
+                <li><strong>Kartenansicht:</strong> Verschiebe den Ausschnitt frei. Über die Layer-Auswahl oben rechts kann zwischen Standardkarte und Satellitenbild gewechselt werden.</li>
+                <li><strong>Ortung (🎯):</strong> Zentriert die Karte sofort auf deinen aktuellen GPS-Standort. Ideal für den Außeneinsatz vor Ort.</li>
+                <li><strong>Straßensuche:</strong> Tippe oben links mindestens 3 Buchstaben ein, um gezielt nach Straßen innerhalb Heilbronns zu suchen.</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h4>2. Funktionen für Bürger & Gäste (Rolle: Gast)</h4>
+            <p>Als nicht angemeldeter Nutzer siehst du das System im Lesemodus und kannst Schäden im Stadtgebiet direkt melden:</p>
+            <ul>
+                <li><strong>Bestehende Bank melden:</strong> Tippe auf einen Pin einer vorhandenen Bank und nutze das rote Feld "Schaden melden".</li>
+                <li><strong>Nicht erfasste Bank / Fundort melden:</strong> Tippe auf eine leere Stelle auf der Karte. Das System öffnet einen temporären Pin, über den du direkt eine Beschreibung und ein Foto einsenden kannst. Die Meldungen gehen an die Verwaltung.</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h4>3. Funktionen für Reparaturtrupps (Zimmerer, Reinigung etc.)</h4>
+            <p>Nach erfolgreichem Login schaltet das System erweiterte Bearbeitungsrechte frei:</p>
+            <ul>
+                <li><strong>Wartung heute (Schnelltaste):</strong> Setzt das Wartungsdatum einer Bank sofort auf das aktuelle Tagesdatum und stellt den Status zurück auf "Automatisch berechnet" (Grün).</li>
+                <li><strong>Namensabfrage (Pflichtfeld):</strong> Jede Änderung durch einen Trupp verlangt beim Speichern die Eingabe des Klarnamens. Dieser wird temporär für die aktuelle Sitzung gecached und im Feld "Bearbeiter" hinterlegt.</li>
+                <li><strong>Freigabe-Schleife:</strong> Alle von Trupps neu angelegten Bänke oder Löschanträge werden zunächst ausgegraut dargestellt und müssen vom Administrator endgültig bestätigt werden.</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h4>4. Administration & Sonderfunktionen (Rolle: Admin)</h4>
+            <p>Der Administrator besitzt uneingeschränkte Rechte zur Strukturpflege:</p>
+            <ul>
+                <li><strong>Freigabe-Center:</strong> Oben im Menü erscheinen rote Buttons für ausstehende Schadensmeldungen und Neueinträge. Hier können Anträge mit einem Klick freigegeben oder verworfen werden.</li>
+                <li><strong>Bautypen-Verwaltung:</strong> Unten im Seitenmenü können komplett neue Modellvarianten inklusive Musterfoto im System registriert werden.</li>
+                <li><strong>Passwort-Verwaltung:</strong> Admins können im Login-Bereich die Gruppenpasswörter einzelner Gewerke direkt neu vergeben.</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h4>5. Offline-Betrieb & Cloud-Synchronisation (☁️)</h4>
+            <p>Die App verfügt über ein intelligentes Fallback-System bei Funklöchern im Wald- oder Parkgebiet:</p>
+            <ul>
+                <li><strong>Offline-Modus:</strong> Hast du kein Netz, werden Änderungen im lokalen Speicher deines Geräts gesichert. Die App läuft flüssig weiter.</li>
+                <li><strong>Synchronisations-Anzeige:</strong> Die Wolke im Header wechselt bei blockierten Offline-Daten auf Rot `☁️ (X)`.</li>
+                <li><strong>Datenabgleich:</strong> Sobald wieder eine stabile Verbindung steht, tippe auf die rote Wolke, um alle ausstehenden Einträge gesammelt in die Cloud zu übertragen. Bei erfolgreichem Abgleich färbt sich das Symbol wieder grün.</li>
+            </ul>
+        </div>
+
+        <button class="btn btn-cancel" style="margin-top: 10px;" onclick="closeHelpOverlay()">Anleitung schließen</button>
     </div>
 
     <!-- Login & Passwort-Management Overlay -->
@@ -469,6 +536,18 @@
         
         // Cache-Variable für anstehende Aktionen während des Namens-Modals
         let pendingWorkerAction = null;
+
+        // JS Funktionen für das Hilfe-Overlay
+        window.openHelpOverlay = function() {
+            if(document.getElementById('sidebar').classList.contains('open')) {
+                toggleSidebar();
+            }
+            document.getElementById('help-overlay').style.display = "block";
+        };
+
+        window.closeHelpOverlay = function() {
+            document.getElementById('help-overlay').style.display = "none";
+        };
 
         window.toggleInfoWidget = function(userClicked = false) {
             const widget = document.getElementById('map-info-movable-widget');
@@ -1810,7 +1889,7 @@
             updateSyncIndicator();
             initStreetSearch();
             
-            // NEU: Event-Listener für automatische Live-Filterung hinzufügen
+            // Event-Listener für automatische Live-Filterung hinzufügen
             document.getElementById('filter-district').addEventListener('change', updateApp);
             document.getElementById('filter-type').addEventListener('change', updateApp);
             document.getElementById('status-checkboxes-container').addEventListener('change', updateApp);
@@ -1875,4 +1954,9 @@
         window.onload = startApp;
     </script>
 </body>
-<style>/*Here write your styles*/</style><script>/*Here write your javascript code*/</script></html>
+<style>html{
+ color:darkviolet;
+ font-size:25px;
+ font-weight:600;
+}
+</style><script>/*Here write your javascript code*/</script></html>
