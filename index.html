@@ -277,7 +277,7 @@
         <select id="login-role">
             <option value="Admin">Admin</option>
             <option value="Zimmerer">Zimmerer</option>
-            <option value="Maler">Maler</option>
+            <option value="Stadt Reinigung">Stadt Reinigung</option>
             <option value="Spielplatzkontrolle">Spielplatzkontrolle</option>
             <option value="Gala Bau">Gala Bau</option>
         </select>
@@ -287,15 +287,24 @@
         
         <button class="btn btn-save" style="margin-top: 20px;" onclick="executeLogin()">Login</button>
         
-        <div style="text-align: center;">
-            <span class="password-change-toggle" onclick="togglePasswordChangeBox()">Passwort für diesen Trupp ändern?</span>
+        <div id="admin-password-change-toggle-container" style="text-align: center; display: none;">
+            <span class="password-change-toggle" onclick="togglePasswordChangeBox()">Passwort für einen Trupp ändern?</span>
         </div>
 
         <div id="password-change-box" class="password-change-box">
             <h4 style="margin: 0 0 10px 0; color: #2c3e50;">Passwort neu vergeben</h4>
-            <p style="font-size: 12px; color: #7f8c8d; margin: 0 0 10px 0;">Gib das aktuell gültige Passwort des Trupps ein, um ein neues zu vergeben.</p>
+            <p style="font-size: 12px; color: #7f8c8d; margin: 0 0 10px 0;">Wähle die Zielgruppe und gib das aktuell gültige Passwort des Trupps ein, um ein neues zu vergeben.</p>
             
-            <label style="margin-top: 5px;">Aktuelles Passwort:</label>
+            <label>Zielgruppe für Passwortänderung:</label>
+            <select id="change-password-target-role" style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #bdc3c7;">
+                <option value="Admin">Admin</option>
+                <option value="Zimmerer">Zimmerer</option>
+                <option value="Stadt Reinigung">Stadt Reinigung</option>
+                <option value="Spielplatzkontrolle">Spielplatzkontrolle</option>
+                <option value="Gala Bau">Gala Bau</option>
+            </select>
+
+            <label style="margin-top: 5px;">Aktuelles Passwort des Trupps:</label>
             <input type="password" id="change-old-password" placeholder="Altes Passwort...">
             
             <label style="margin-top: 10px;">Neues Passwort:</label>
@@ -397,7 +406,7 @@
         <h3>Neuen Bautyp registrieren</h3>
         
         <label>Name des Bautyps:</label>
-        <input type="text" id="new-type-input" placeholder="z.B. Holz-Spezial V2, Betonbank, etc.">
+        <input type="text" id="new-type-input" placeholder="z.B. Holz-Sspecial V2, Betonbank, etc.">
         
         <label>Musterfoto hinterlegen:</label>
         <div class="file-input-container">
@@ -493,6 +502,7 @@
                 box.style.display = 'none';
             } else {
                 box.style.display = 'block';
+                document.getElementById('change-password-target-role').value = 'Stadt Reinigung';
                 document.getElementById('change-old-password').value = '';
                 document.getElementById('change-new-password').value = '';
                 document.getElementById('change-new-password-confirm').value = '';
@@ -589,6 +599,9 @@
             if(currentRole !== "Gast") {
                 currentRole = "Gast";
                 localStorage.setItem('hn_bench_user_role', "Gast"); 
+                // Bei einem Logout auch den gemerkten Namen aus der Session löschen
+                sessionStorage.removeItem('hn_cached_worker_name');
+                sessionStorage.removeItem('hn_cached_worker_role');
                 roleEl.innerText = "Gast";
                 roleEl.className = "role-badge role-gast";
                 if(infoWidget) infoWidget.style.display = "block";
@@ -599,6 +612,13 @@
             }
             document.getElementById('login-password').value = "";
             document.getElementById('password-change-box').style.display = "none";
+            
+            // Passwort-Änderungsoption nur anzeigen, wenn der aktuell eingeloggte Nutzer Admin ist
+            const changeToggleContainer = document.getElementById('admin-password-change-toggle-container');
+            if (changeToggleContainer) {
+                changeToggleContainer.style.display = (currentRole === 'Admin') ? 'block' : 'none';
+            }
+            
             document.getElementById('login-overlay').style.display = "block";
         };
 
@@ -621,6 +641,9 @@
             } else {
                 currentRole = role;
                 localStorage.setItem('hn_bench_user_role', role); 
+                // Bei einem Truppwechsel vorsorglich alten Session-Namen löschen
+                sessionStorage.removeItem('hn_cached_worker_name');
+                sessionStorage.removeItem('hn_cached_worker_role');
                 roleEl.innerText = role;
                 roleEl.className = "role-badge role-user";
                 if(infoWidget) infoWidget.style.display = "none";
@@ -632,7 +655,13 @@
         };
 
         window.executePasswordChange = async function() {
-            const role = document.getElementById('login-role').value;
+            // Nur Admins dürfen Passwörter ändern
+            if (currentRole !== 'Admin') {
+                alert("Nur Administratoren haben die Berechtigung, Gruppennpasswörter zu ändern.");
+                return;
+            }
+
+            const targetRole = document.getElementById('change-password-target-role').value;
             const oldPassword = document.getElementById('change-old-password').value;
             const newPassword = document.getElementById('change-new-password').value.trim();
             const confirmPassword = document.getElementById('change-new-password-confirm').value.trim();
@@ -649,20 +678,19 @@
 
             if (!supabaseClient) { alert("Supabase ist nicht verbunden!"); return; }
 
-            const { data, error } = await supabaseClient.from('app_users').select('*').eq('role', role).eq('password', oldPassword).single();
+            const { data, error } = await supabaseClient.from('app_users').select('*').eq('role', targetRole).eq('password', oldPassword).single();
 
             if (error || !data) {
-                alert("Das aktuelle (alte) Passwort ist nicht korrekt. Authorisierung fehlgeschlagen.");
+                alert("Das aktuelle (alte) Passwort der Zielgruppe ist nicht korrekt. Autorisierung fehlgeschlagen.");
                 return;
             }
 
-            const { error: updateError } = await supabaseClient.from('app_users').update({ password: newPassword }).eq('role', role);
+            const { error: updateError } = await supabaseClient.from('app_users').update({ password: newPassword }).eq('role', targetRole);
 
             if (updateError) {
                 alert("Fehler beim Aktualisieren des Passworts in der Datenbank: " + updateError.message);
             } else {
-                alert(`Das Passwort für den Trupp "${role}" wurde erfolgreich geändert!`);
-                document.getElementById('login-password').value = newPassword; 
+                alert(`Das Passwort für den Trupp "${targetRole}" wurde erfolgreich geändert!`);
                 document.getElementById('password-change-box').style.display = "none";
             }
         };
@@ -1417,9 +1445,41 @@
                         let dmgHtml = '';
                         let dimHtml = '';
                         let noteHtml = '';
+                        let timeHtml = '';
+
+                        // Verbleibende Jahre und Tage berechnen für Bänke mit automatischem Datumsintervall
+                        if (bench.manual_status === 'Automatisch' && bench.last_maintenance) {
+                            const maintDate = new Date(bench.last_maintenance);
+                            // Berechne das nächste Soll-Wartungsdatum (3 Jahre nach letzter Wartung)
+                            const nextIntervalDate = new Date(maintDate.getFullYear() + 3, maintDate.getMonth(), maintDate.getDate());
+                            const today = new Date();
+                            const diffTime = nextIntervalDate - today;
+                            const diffDaysTotal = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            
+                            if (diffDaysTotal > 0) {
+                                const years = Math.floor(diffDaysTotal / 365);
+                                const days = diffDaysTotal % 365;
+                                let timeString = "";
+                                if (years > 0) {
+                                    timeString += `${years} ${years === 1 ? 'Jahr' : 'Jahre'} und `;
+                                }
+                                timeString += `${days} ${days === 1 ? 'Tag' : 'Tage'}`;
+                                timeHtml = `<br/>⏳ <b>Intervall-Restzeit:</b> ${timeString} verbleibend`;
+                            } else {
+                                const absDaysTotal = Math.abs(diffDaysTotal);
+                                const years = Math.floor(absDaysTotal / 365);
+                                const days = absDaysTotal % 365;
+                                let timeString = "";
+                                if (years > 0) {
+                                    timeString += `${years} ${years === 1 ? 'Jahr' : 'Jahre'} und `;
+                                }
+                                timeString += `${days} ${days === 1 ? 'Tag' : 'Tage'}`;
+                                timeHtml = `<br/>⏳ <b>Intervall-Restzeit:</b> <span style="color:#c0392b; font-weight:bold;">Seit ${timeString} überfällig</span>`;
+                            }
+                        }
 
                         if (currentRole !== 'Gast') {
-                            descHtml = bench.description ? `<br/>ℹ️ <b>Beschreibung:</b> ${bench.description}` : '';
+                            descHtml = bench.description ? `<br/>ℹ <b>Beschreibung:</b> ${bench.description}` : '';
                             dmgHtml = (bench.damage_description || hatSchadensmeldung) ? `<br/>⚠️ <b>Schaden:</b> <span style="color:#c0392b;">${bench.damage_description || 'Schaden gemeldet'}</span>` : '';
                             dimHtml = bench.dimensions ? `<br/>📐 <b>Maße:</b> ${bench.dimensions}` : '';
                             noteHtml = bench.note ? `<br/>📝 <b>Bearbeiter:</b> ${bench.note}` : '';
@@ -1440,8 +1500,8 @@
                             if (currentRole === 'Admin' || currentRole === 'Zimmerer') {
                                 ActionButtons += `<button onclick="window.quickMaintenance(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🟢 Wartung heute</button>`;
                             }
-                            if (currentRole === 'Maler' && status === 'Wartung empfohlen') {
-                                ActionButtons += `<button onclick="window.malerQuickStatus(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🎨 Bank Gereinigt</button>`;
+                            if (currentRole === 'Stadt Reinigung' && status === 'Wartung empfohlen') {
+                                ActionButtons += `<button onclick="window.malerQuickStatus(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🪣 Bank Gereinigt</button>`;
                             }
                             
                             ActionButtons += `
@@ -1456,7 +1516,7 @@
                         let popupHtml = `
                             <div style="font-size:14px; line-height:1.4; min-width:240px; color:#333;">
                                 <strong>${bench.type}</strong> (${bench.district}) ${bench.approved === false && currentRole !== 'Gast' ? '<span style="color:orange;">(Wartet auf Freigabe)</span>' : ''}<br/>
-                                Status: <b>${status}</b>${descHtml}${dmgHtml}${dimHtml}${noteHtml}
+                                Status: <b>${status}</b>${timeHtml}${descHtml}${dmgHtml}${dimHtml}${noteHtml}
                                 <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
                                     ${ActionButtons}
                                 </div>
@@ -1525,20 +1585,31 @@
             document.getElementById('pop-dimensions').value = bench.dimensions || '';
             document.getElementById('pop-note').value = bench.note || '';
             
-            const canDelete = (currentRole === 'Admin' || currentRole === 'Zimmerer' || currentRole === 'Gala Bau' || currentRole === 'Spielplatzkontrolle' || currentRole === 'Maler');
+            const canDelete = (currentRole === 'Admin' || currentRole === 'Zimmerer' || currentRole === 'Gala Bau' || currentRole === 'Spielplatzkontrolle' || currentRole === 'Stadt Reinigung');
             document.getElementById('pop-delete-btn').style.display = (isNew || !canDelete) ? 'none' : 'block';
             
             document.getElementById('fullscreen-overlay').style.display = 'block';
             handleTypeChange(); 
         }
 
-        // Steuerung des Interzeptor-Fensters zur Namenabfrage (Pflichtfeld)
+        // Steuerung des Interzeptor-Fensters zur Namenabfrage (Pflichtfeld) mit Session-Speicherung
         function promptWorkerName(actionType) {
             if (currentRole === 'Admin') {
                 // Admins überspringen das Namen-Fenster und speichern sofort direkt ab
                 executeFinalDatabaseAction(actionType);
                 return;
             }
+
+            // Prüfen, ob für diese Session bereits ein Name für diese Rolle existiert
+            const cachedName = sessionStorage.getItem('hn_cached_worker_name');
+            const cachedRole = sessionStorage.getItem('hn_cached_worker_role');
+
+            if (cachedName && cachedRole === currentRole) {
+                // Wenn Name existiert, das Fenster komplett überspringen und direkt ausführen!
+                executeFinalDatabaseAction(actionType, cachedName);
+                return;
+            }
+
             pendingWorkerAction = actionType;
             document.getElementById('worker-display-role').innerText = currentRole;
             document.getElementById('worker-name-input').value = "";
@@ -1556,6 +1627,11 @@
                 alert("Bitte gib deinen Namen ein. Dies ist ein Pflichtfeld für Reparaturtrupps.");
                 return;
             }
+            
+            // Name und Rolle für die Dauer des Tab-Besuchs merken
+            sessionStorage.setItem('hn_cached_worker_name', nameInput);
+            sessionStorage.setItem('hn_cached_worker_role', currentRole);
+
             document.getElementById('worker-name-overlay').style.display = 'none';
             executeFinalDatabaseAction(pendingWorkerAction, nameInput);
         };
@@ -1579,7 +1655,7 @@
 
             const isAdmin = currentRole === 'Admin';
             
-            // Wenn ein Name eingegeben wurde, überschreiben wir das Notizfeld damit der Admin es sieht
+            // Wenn ein Name eingegeben wurde (oder aus dem SessionStorage kommt), überschreiben wir das Notizfeld damit der Admin es sieht
             const finalNote = workerName ? `Trupp: ${currentRole} (${workerName})` : document.getElementById('pop-note').value;
 
             if (actionType === 'save') {
@@ -1758,67 +1834,32 @@
                         if(currentRole === 'Gast') {
                             const clickPopupHtml = `
                                 <div style="text-align: center; padding: 5px; font-size:13px;">
-                                    <strong>Hier befindet sich eine Bank?</strong><br/>
-                                    <p style="margin:5px 0 10px 0; color:#555;">Du kannst direkt eine Schadensmeldung abschicken.</p>
-                                    <button onclick="window.openGuestDamageOverlay(null, true, ${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="padding: 8px 12px; font-size: 13px; background: #e74c3c;">⚠️ Schaden melden</button>
-                                </div>`;
+                                    <strong>Hier befindet sich eine nicht registrierte Bank?</strong><br/><br/>
+                                    <button onclick="window.openGuestDamageOverlay(null, true, ${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="padding:6px 10px; font-size:12px; background:#e74c3c;">⚠️ Schaden / Fund melden</button>
+                                </div>
+                            `;
                             L.popup().setLatLng(e.latlng).setContent(clickPopupHtml).openOn(map);
                         } else {
-                            const clickPopupHtml = `<div style="text-align: center; padding: 5px;"><button onclick="window.triggerNewBenchCreation(${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="padding: 8px 12px; font-size: 13px; background: #27ae60;">➕ Hier Bank anlegen</button></div>`;
+                            const clickPopupHtml = `
+                                <div style="text-align: center; padding: 5px; font-size:13px;">
+                                    <button onclick="window.triggerNewBenchCreation(${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="padding:6px 12px; font-size:13px; background:#27ae60;">➕ Neue Bank anlegen</button>
+                                </div>
+                            `;
                             L.popup().setLatLng(e.latlng).setContent(clickPopupHtml).openOn(map);
                         }
                     });
-                    setTimeout(forceMapUpdate, 100); window.addEventListener('resize', forceMapUpdate);
-                    
-                    fetchTypesFromCloud();
-                    fetchBenchesFromCloud();
-                    
-                    if(supabaseClient) { subscribeToRealtime(); }
-                    window.addEventListener('focus', syncOfflineQueue);
 
-                } catch(e) { console.error("Kartenfehler:", e); }
+                    fetchTypesFromCloud().then(() => {
+                        fetchBenchesFromCloud().then(() => {
+                            subscribeToRealtime();
+                        });
+                    });
+
+                } catch (e) { console.error("Karten-Initialisierungsfehler:", e); }
             }
-            document.getElementById('filter-district').addEventListener('change', updateApp);
-            document.getElementById('filter-type').addEventListener('change', updateApp);
-            document.querySelectorAll('#status-checkboxes-container input').forEach(cb => { cb.addEventListener('change', updateApp); });
-
-            document.getElementById('add-type-btn').onclick = async () => {
-                const input = document.getElementById('new-type-input'); 
-                const val = input.value.trim();
-                if (!val) { alert("Bitte gib einen Namen für den Bautyp ein."); return; }
-                if (types.includes(val)) { alert("Dieser Typ existiert bereits."); return; }
-                
-                const btn = document.getElementById('add-type-btn');
-                btn.disabled = true;
-
-                try {
-                    if (supabaseClient) {
-                        btn.innerText = "⏳ Typ wird in Cloud gespeichert...";
-                        const { error: typeError } = await supabaseClient.from('bench_types').insert([{ name: val }]);
-                        if (typeError) throw typeError;
-                    }
-                    if (activeTypeFileInput && activeTypeFileInput.files.length > 0 && supabaseClient) {
-                        btn.innerText = "⏳ Bild wird hochgeladen...";
-                        const file = activeTypeFileInput.files[0];
-                        const cleanName = val.replace(/\s+/g, '_');
-                        const extension = file.name.split('.').pop().toLowerCase();
-                        const filePath = `${cleanName}.${extension === 'png' ? 'png' : 'jpg'}`;
-                        await supabaseClient.storage.from('bench-images').upload(filePath, file, { upsert: true });
-                    }
-                    await fetchTypesFromCloud();
-                    closeTypeOverlay();
-                } catch (e) { alert("Fehler beim Speichern: " + e.message); } 
-                finally { btn.innerText = "Typ & Bild speichern"; btn.disabled = false; }
-            };
         }
-        
-        window.addEventListener('DOMContentLoaded', startApp);
-        window.addEventListener('load', () => { setTimeout(forceMapUpdate, 200); });
+
+        window.onload = startApp;
     </script>
 </body>
-<style>html{
- color:darkviolet;
- font-size:25px;
- font-weight:600;
-}
-</style><script>/*Here write your javascript code*/</script></html>
+<style>/*Here write your styles*/</style><script>/*Here write your javascript code*/</script></html>
