@@ -102,7 +102,6 @@
         .btn-add-type-trigger { background: #2c3e50; margin-top: 5px; }
         .btn-delete { background: #e74c3c; margin-top: 8px; }
         .btn-cancel { background: #95a5a6; margin-top: 8px; }
-        .btn-login-trigger { background: #34495e; color: white; margin-bottom: 5px; }
         .btn-admin-menu { margin-top: 5px; transition: background 0.3s; }
         .btn-menu-alert { background: #e74c3c; }
         .btn-menu-ok { background: #27ae60; }
@@ -140,7 +139,8 @@
         .report-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-top: 10px; background: #f8fafc; }
         .report-card img { max-width: 100%; height: auto; max-height: 200px; object-fit: contain; display: block; margin-top: 10px; border-radius: 6px; }
         
-        .role-badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; display: inline-block; margin-left: 10px; }
+        .role-badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; display: inline-block; margin-left: 10px; cursor: pointer; transition: opacity 0.2s; user-select: none; }
+        .role-badge:hover { opacity: 0.85; }
         .role-badge.role-gast { background-color: #8B0000; color: #FFFFFF; }
         .role-badge.role-user { background-color: #2E7D32; color: #FFFFFF; }
 
@@ -174,7 +174,7 @@
                 <path d="M22 66 L78 66 M18 75 L82 75 M28 66 L28 86 M72 66 L72 86" stroke="#2c3e50" stroke-width="4.5" stroke-linecap="round"/>
             </svg>
             <span>HN-Sitzbank-Kataster (<span id="total-count">0</span> Bänke)</span>
-            <span id="display-role" class="role-badge role-gast">Gast</span>
+            <span id="display-role" class="role-badge role-gast" onclick="openLoginOverlay()">Login</span>
         </div>
         <span id="sync-cloud-icon" class="sync-indicator sync-green" onclick="handleCloudClick()" title="Daten-Synchronisation">☁️</span>
     </header>
@@ -215,8 +215,6 @@
         
         <div id="sidebar">
             <button class="close-sidebar-btn" onclick="toggleSidebar()">✕ Menü schließen</button>
-            
-            <button id="sidebar-login-btn" class="btn btn-login-trigger" onclick="openLoginOverlay()">👤 Login</button>
             
             <button id="menu-damage-reports-btn" class="btn btn-admin-menu" onclick="openReportsOverlay('damage')" style="display:none;">⚠️ Schadensmeldungen (0)</button>
             <button id="menu-new-entries-btn" class="btn btn-admin-menu" onclick="openReportsOverlay('entries')" style="display:none;">🔍 Neue Eintragungen (0)</button>
@@ -584,10 +582,10 @@
                 currentRole = savedRole;
                 roleEl.innerText = savedRole;
                 roleEl.className = "role-badge role-user";
-                document.getElementById('sidebar-login-btn').innerText = "🔓 Logout";
                 if(infoWidget) infoWidget.style.display = "none";
                 applyRolePermissions();
             } else {
+                roleEl.innerText = "Login";
                 roleEl.className = "role-badge role-gast";
                 if(infoWidget) infoWidget.style.display = "block";
             }
@@ -599,13 +597,11 @@
             if(currentRole !== "Gast") {
                 currentRole = "Gast";
                 localStorage.setItem('hn_bench_user_role', "Gast"); 
-                // Bei einem Logout auch den gemerkten Namen aus der Session löschen
                 sessionStorage.removeItem('hn_cached_worker_name');
                 sessionStorage.removeItem('hn_cached_worker_role');
-                roleEl.innerText = "Gast";
+                roleEl.innerText = "Login";
                 roleEl.className = "role-badge role-gast";
                 if(infoWidget) infoWidget.style.display = "block";
-                document.getElementById('sidebar-login-btn').innerText = "👤 Login";
                 applyRolePermissions();
                 updateApp();
                 return;
@@ -613,7 +609,7 @@
             document.getElementById('login-password').value = "";
             document.getElementById('password-change-box').style.display = "none";
             
-            // Passwort-Änderungsoption nur anzeigen, wenn der aktuell eingeloggte Nutzer Admin ist
+            // Passwort-Änderungsoption direkt prüfen und anzeigen, falls der aktuelle Status Admin ist
             const changeToggleContainer = document.getElementById('admin-password-change-toggle-container');
             if (changeToggleContainer) {
                 changeToggleContainer.style.display = (currentRole === 'Admin') ? 'block' : 'none';
@@ -641,13 +637,11 @@
             } else {
                 currentRole = role;
                 localStorage.setItem('hn_bench_user_role', role); 
-                // Bei einem Truppwechsel vorsorglich alten Session-Namen löschen
                 sessionStorage.removeItem('hn_cached_worker_name');
                 sessionStorage.removeItem('hn_cached_worker_role');
                 roleEl.innerText = role;
                 roleEl.className = "role-badge role-user";
                 if(infoWidget) infoWidget.style.display = "none";
-                document.getElementById('sidebar-login-btn').innerText = "🔓 Logout";
                 closeLoginOverlay();
                 applyRolePermissions();
                 updateApp();
@@ -655,7 +649,6 @@
         };
 
         window.executePasswordChange = async function() {
-            // Nur Admins dürfen Passwörter ändern
             if (currentRole !== 'Admin') {
                 alert("Nur Administratoren haben die Berechtigung, Gruppennpasswörter zu ändern.");
                 return;
@@ -1447,10 +1440,8 @@
                         let noteHtml = '';
                         let timeHtml = '';
 
-                        // Verbleibende Jahre und Tage berechnen für Bänke mit automatischem Datumsintervall
                         if (bench.manual_status === 'Automatisch' && bench.last_maintenance) {
                             const maintDate = new Date(bench.last_maintenance);
-                            // Berechne das nächste Soll-Wartungsdatum (3 Jahre nach letzter Wartung)
                             const nextIntervalDate = new Date(maintDate.getFullYear() + 3, maintDate.getMonth(), maintDate.getDate());
                             const today = new Date();
                             const diffTime = nextIntervalDate - today;
@@ -1592,20 +1583,16 @@
             handleTypeChange(); 
         }
 
-        // Steuerung des Interzeptor-Fensters zur Namenabfrage (Pflichtfeld) mit Session-Speicherung
         function promptWorkerName(actionType) {
             if (currentRole === 'Admin') {
-                // Admins überspringen das Namen-Fenster und speichern sofort direkt ab
                 executeFinalDatabaseAction(actionType);
                 return;
             }
 
-            // Prüfen, ob für diese Session bereits ein Name für diese Rolle existiert
             const cachedName = sessionStorage.getItem('hn_cached_worker_name');
             const cachedRole = sessionStorage.getItem('hn_cached_worker_role');
 
             if (cachedName && cachedRole === currentRole) {
-                // Wenn Name existiert, das Fenster komplett überspringen und direkt ausführen!
                 executeFinalDatabaseAction(actionType, cachedName);
                 return;
             }
@@ -1628,7 +1615,6 @@
                 return;
             }
             
-            // Name und Rolle für die Dauer des Tab-Besuchs merken
             sessionStorage.setItem('hn_cached_worker_name', nameInput);
             sessionStorage.setItem('hn_cached_worker_role', currentRole);
 
@@ -1636,13 +1622,8 @@
             executeFinalDatabaseAction(pendingWorkerAction, nameInput);
         };
 
-        document.getElementById('pop-save-btn').onclick = () => {
-            promptWorkerName('save');
-        };
-
-        document.getElementById('pop-delete-btn').onclick = () => {
-            promptWorkerName('delete');
-        };
+        document.getElementById('pop-save-btn').onclick = () => { promptWorkerName('save'); };
+        document.getElementById('pop-delete-btn').onclick = () => { promptWorkerName('delete'); };
 
         async function executeFinalDatabaseAction(actionType, workerName = null) {
             lastSelectedType = document.getElementById('pop-type').value;
@@ -1654,8 +1635,6 @@
             }
 
             const isAdmin = currentRole === 'Admin';
-            
-            // Wenn ein Name eingegeben wurde (oder aus dem SessionStorage kommt), überschreiben wir das Notizfeld damit der Admin es sieht
             const finalNote = workerName ? `Trupp: ${currentRole} (${workerName})` : document.getElementById('pop-note').value;
 
             if (actionType === 'save') {
@@ -1724,7 +1703,6 @@
                         await fetchBenchesFromCloud();
                     }
                 } else {
-                    // Trupps löschen nicht direkt, sondern updaten Status für den Admin zur Verifizierung
                     const index = benches.findIndex(b => b.id === targetId);
                     if (index !== -1) {
                         benches[index].approved = false;
