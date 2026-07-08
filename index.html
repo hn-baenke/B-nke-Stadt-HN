@@ -268,7 +268,7 @@
                 <text x="56" y="54" font-family="Georgia, serif" font-weight="900" font-size="42" fill="#1a1a1a">N</text>
                 <path d="M22 66 L78 66 M18 75 L82 75 M28 66 L28 86 M72 66 L72 86" stroke="#2c3e50" stroke-width="4.5" stroke-linecap="round"/>
             </svg>
-            <h2 style="color: #2c3e50; margin-top: 10px;">HN Bank Kataster</h2>
+            <h2 id="login-overlay-title" style="color: #2c3e50; margin-top: 10px;">HN Bank Kataster</h2>
         </div>
         
         <label>Benutzerrolle auswählen:</label>
@@ -280,10 +280,11 @@
             <option value="Gala Bau">Gala Bau</option>
         </select>
         
-        <label>Passwort:</label>
+        <label id="login-password-label">Passwort:</label>
         <input type="password" id="login-password" placeholder="Passwort eingeben...">
         
-        <button class="btn btn-save" style="margin-top: 20px;" onclick="executeLogin()">Login</button>
+        <button id="login-execute-btn" class="btn btn-save" style="margin-top: 20px;" onclick="executeLogin()">Login</button>
+        <button id="login-logout-btn" class="btn btn-delete" style="margin-top: 10px; display: none;" onclick="executeLogout()">Abmelden</button>
         
         <div id="admin-password-change-toggle-container" style="text-align: center; display: none;">
             <span class="password-change-toggle" onclick="togglePasswordChangeBox()">Passwort für einen Trupp ändern?</span>
@@ -592,30 +593,59 @@
         }
 
         window.openLoginOverlay = function() {
-            const roleEl = document.getElementById('display-role');
-            const infoWidget = document.getElementById('map-info-movable-widget');
-            if(currentRole !== "Gast") {
-                currentRole = "Gast";
-                localStorage.setItem('hn_bench_user_role', "Gast"); 
-                sessionStorage.removeItem('hn_cached_worker_name');
-                sessionStorage.removeItem('hn_cached_worker_role');
-                roleEl.innerText = "Login";
-                roleEl.className = "role-badge role-gast";
-                if(infoWidget) infoWidget.style.display = "block";
-                applyRolePermissions();
-                updateApp();
-                return;
-            }
             document.getElementById('login-password').value = "";
             document.getElementById('password-change-box').style.display = "none";
             
-            // Passwort-Änderungsoption direkt prüfen und anzeigen, falls der aktuelle Status Admin ist
+            const overlayTitle = document.getElementById('login-overlay-title');
+            const roleSelect = document.getElementById('login-role');
+            const passwordLabel = document.getElementById('login-password-label');
+            const passwordInput = document.getElementById('login-password');
+            const executeBtn = document.getElementById('login-execute-btn');
+            const logoutBtn = document.getElementById('login-logout-btn');
             const changeToggleContainer = document.getElementById('admin-password-change-toggle-container');
-            if (changeToggleContainer) {
+
+            if (currentRole !== "Gast") {
+                // Wenn bereits eingeloggt: Zeige Profil-Status-Ansicht mit Abmelden-Button
+                overlayTitle.innerText = "Eingeloggt als " + currentRole;
+                roleSelect.value = currentRole;
+                roleSelect.disabled = true;
+                passwordLabel.style.display = "none";
+                passwordInput.style.display = "none";
+                executeBtn.style.display = "none";
+                logoutBtn.style.display = "block";
+                
+                // Passwortänderungs-Option für Admins im eingeloggten Zustand anzeigen
                 changeToggleContainer.style.display = (currentRole === 'Admin') ? 'block' : 'none';
+            } else {
+                // Standard-Login Ansicht
+                overlayTitle.innerText = "HN Bank Kataster";
+                roleSelect.disabled = false;
+                passwordLabel.style.display = "block";
+                passwordInput.style.display = "block";
+                executeBtn.style.display = "block";
+                logoutBtn.style.display = "none";
+                changeToggleContainer.style.display = "none";
             }
             
             document.getElementById('login-overlay').style.display = "block";
+        };
+
+        window.executeLogout = function() {
+            const roleEl = document.getElementById('display-role');
+            const infoWidget = document.getElementById('map-info-movable-widget');
+            
+            currentRole = "Gast";
+            localStorage.setItem('hn_bench_user_role', "Gast"); 
+            sessionStorage.removeItem('hn_cached_worker_name');
+            sessionStorage.removeItem('hn_cached_worker_role');
+            
+            roleEl.innerText = "Login";
+            roleEl.className = "role-badge role-gast";
+            if(infoWidget) infoWidget.style.display = "block";
+            
+            closeLoginOverlay();
+            applyRolePermissions();
+            updateApp();
         };
 
         window.closeLoginOverlay = function() {
@@ -1840,4 +1870,4 @@
         window.onload = startApp;
     </script>
 </body>
-<style>/*Here write your styles*/</style><script>/*Here write your javascript code*/</script></html>
+<style>/*Here write your styles*/</style><script>/*Here write your javascript code*/</script><style>/*Here write your styles*/</style><script>/*Here write your javascript code*/</script></html>
