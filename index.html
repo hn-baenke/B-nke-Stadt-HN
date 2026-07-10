@@ -393,7 +393,7 @@
         
         <label>Foto hinzufügen:</label>
         <div class="file-input-container">
-            <input type="file" id="guest-damage-camera" accept="image/*" style="display: none;" onchange="handleGuestFileSelection(this)">
+            <input type="file" id="guest-damage-camera" accept="image/*" capture="environment" style="display: none;" onchange="handleGuestFileSelection(this)">
             <input type="file" id="guest-damage-gallery" accept="image/*" style="display: none;" onchange="handleGuestFileSelection(this)">
             <button type="button" class="btn btn-camera" onclick="document.getElementById('guest-damage-camera').click()">📸 Foto live aufnehmen</button>
             <button type="button" class="btn btn-camera btn-gallery" onclick="document.getElementById('guest-damage-gallery').click()">📁 Aus Galerie wählen</button>
@@ -476,7 +476,7 @@
         
         <label>Musterfoto hinterlegen:</label>
         <div class="file-input-container">
-            <input type="file" id="new-type-image-camera" accept="image/*" style="display: none;" onchange="handleTypeFileSelection(this)">
+            <input type="file" id="new-type-image-camera" accept="image/*" capture="environment" style="display: none;" onchange="handleTypeFileSelection(this)">
             <input type="file" id="new-type-image-gallery" accept="image/*" style="display: none;" onchange="handleTypeFileSelection(this)">
             
             <button type="button" class="btn btn-camera" onclick="triggerTypeCameraInput()">📸 Foto live aufnehmen</button>
@@ -904,7 +904,7 @@
                     image_url: imageUrl
                 }]);
                 if(!error) {
-                    alert("Vielen Dank für deine Meldung! Die Stadtverwaltung kümmert sich darum.");
+                    alert("Vielen Dank for deine Meldung! Die Stadtverwaltung kümmert sich darum.");
                     closeGuestDamageOverlay();
                     await updateBadgeCounters();
                     await fetchBenchesFromCloud();
@@ -1006,14 +1006,19 @@
             } else {
                 const b = window.currentPendingBenches.find(item => item.id === id);
                 if(!b) return;
+                
+                // Nutze primär die neue worker_name Spalte für die Anzeige im Admin-Bereich
+                const creatorName = b.worker_name ? b.worker_name : (b.note && b.note.startsWith('Trupp:') ? b.note : 'Unbekannter Bearbeiter');
+                
                 detailContainer.innerHTML = `
                     <div class="report-card">
                         <h4>Details zur Neueintragung / Änderung</h4>
                         <p><strong>Typ:</strong> ${b.type} (${b.district})</p>
                         <p><strong>Aktion:</strong> <span style="color:red; font-weight:bold;">${b.pending_action ? b.pending_action.toUpperCase() : 'UPDATE'}</span></p>
-                        <p><strong>Eintrag geändert von:</strong> <mark style="background: #f1c40f; padding: 2px 6px; border-radius:4px; font-weight:bold;">${b.note || 'Unbekannter Bearbeiter'}</mark></p>
+                        <p><strong>Eintrag geändert von:</strong> <mark style="background: #f1c40f; padding: 2px 6px; border-radius:4px; font-weight:bold;">${creatorName}</mark></p>
                         <p><strong>Beschreibung:</strong> ${b.description || '-'}</p>
                         <p><strong>Schaden:</strong> ${b.damage_description || '-'}</p>
+                        <p><strong>Notiz:</strong> ${b.note || '-'}</p>
                         <div style="margin-top: 15px; display:flex; gap: 10px;">
                             <button class="btn" style="padding:10px; font-size:14px;" onclick="showBenchOnMap(${b.id})">📍 Karte</button>
                             <button class="btn btn-save" style="padding:10px; font-size:14px;" onclick="approveEntry(${b.id}, true)">👍 Bestätigen</button>
@@ -1111,7 +1116,7 @@
             if (queue.length === 0) {
                 icon.innerText = "☁️";
                 icon.className = "sync-indicator sync-green";
-                icon.title = "Alle Daten synchronisiert. Klicken für manuellen Check.";
+                icon.title = "Alle Daten synchronisiert. Klicken for manuellen Check.";
             } else {
                 icon.innerText = `☁️ (${queue.length})`;
                 icon.className = "sync-indicator sync-red";
@@ -1548,6 +1553,7 @@
                         let dimHtml = '';
                         let noteHtml = '';
                         let timeHtml = '';
+                        let workerHtml = '';
 
                         if (bench.manual_status === 'Automatisch' && bench.last_maintenance) {
                             const maintDate = new Date(bench.last_maintenance);
@@ -1582,7 +1588,8 @@
                             descHtml = bench.description ? `<br/>ℹ <b>Beschreibung:</b> ${bench.description}` : '';
                             dmgHtml = (bench.damage_description || hatSchadensmeldung) ? `<br/>⚠️ <b>Schaden:</b> <span style="color:#c0392b;">${bench.damage_description || 'Schaden gemeldet'}</span>` : '';
                             dimHtml = bench.dimensions ? `<br/>📐 <b>Maße:</b> ${bench.dimensions}` : '';
-                            noteHtml = bench.note ? `<br/>📝 <b>Bearbeiter:</b> ${bench.note}` : '';
+                            noteHtml = bench.note ? `<br/>📝 <b>Notiz:</b> ${bench.note}` : '';
+                            workerHtml = bench.worker_name ? `<br/>👷 <b>Bearbeiter:</b> ${bench.worker_name}` : '';
                         } else {
                             if (bench.damage_description || hatSchadensmeldung) {
                                 dmgHtml = `<br/>⚠️ <b>Status:</b> <span style="color:#c0392b; font-weight:bold;">Schaden bereits erfasst</span>`;
@@ -1616,7 +1623,7 @@
                         let popupHtml = `
                             <div style="font-size:14px; line-height:1.4; min-width:240px; color:#333;">
                                 <strong>${bench.type}</strong> (${bench.district}) ${bench.approved === false && currentRole !== 'Gast' ? '<span style="color:orange;">(Wartet auf Freigabe)</span>' : ''}<br/>
-                                Status: <b>${status}</b>${timeHtml}${descHtml}${dmgHtml}${dimHtml}${noteHtml}
+                                Status: <b>${status}</b>${timeHtml}${descHtml}${dmgHtml}${dimHtml}${workerHtml}${noteHtml}
                                 <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
                                     ${ActionButtons}
                                 </div>
@@ -1662,7 +1669,7 @@
             openFullscreenForm({ 
                 lat: lat, lng: lng, type: lastSelectedType, district: lastSelectedDistrict, 
                 last_maintenance: savedDate, manual_status: 'Automatisch', 
-                description: '', damage_description: '', dimensions: '', note: '' 
+                description: '', damage_description: '', dimensions: '', note: '', worker_name: '' 
             }, true);
         };
 
@@ -1720,7 +1727,7 @@
         document.getElementById('worker-confirm-btn').onclick = () => {
             const nameInput = document.getElementById('worker-name-input').value.trim();
             if (!nameInput) {
-                alert("Bitte gib deinen Namen ein. Dies ist ein Pflichtfeld für Reparaturtrupps.");
+                alert("Bitte gib deinen Namen ein. Dies ist ein Pflichtfeld for Reparaturtrupps.");
                 return;
             }
             
@@ -1744,7 +1751,16 @@
             }
 
             const isAdmin = currentRole === 'Admin';
-            const finalNote = workerName ? `Trupp: ${currentRole} (${workerName})` : document.getElementById('pop-note').value;
+            
+            // Ermittle den finalen Bearbeiter-Namen für das separate DB-Feld worker_name
+            let finalWorkerName = currentEditingBench.worker_name || null;
+            if (workerName) {
+                finalWorkerName = `${currentRole} (${workerName})`;
+            } else if (isAdmin && isNewBenchMode) {
+                finalWorkerName = "Admin";
+            }
+
+            let finalNote = document.getElementById('pop-note').value;
 
             if (actionType === 'save') {
                 const rowData = {
@@ -1752,6 +1768,7 @@
                     last_maintenance: selectedDate, manual_status: document.getElementById('pop-manual').value,
                     description: document.getElementById('pop-description').value, damage_description: document.getElementById('pop-damage-description').value,
                     dimensions: document.getElementById('pop-dimensions').value, note: finalNote,
+                    worker_name: finalWorkerName,
                     approved: isAdmin,
                     pending_action: isAdmin ? null : (isNewBenchMode ? 'insert' : 'update')
                 };
@@ -1816,12 +1833,11 @@
                     if (index !== -1) {
                         benches[index].approved = false;
                         benches[index].pending_action = 'delete';
-                        benches[index].note = finalNote;
                     }
                     updateApp();
                     document.getElementById('fullscreen-overlay').style.display = 'none';
                     if (supabaseClient) {
-                        await supabaseClient.from('benches').update({ approved: false, pending_action: 'delete', note: finalNote }).eq('id', targetId);
+                        await supabaseClient.from('benches').update({ approved: false, pending_action: 'delete' }).eq('id', targetId);
                         alert("Löschantrag erfolgreich übermittelt. Wartet auf Freigabe durch den Administrator.");
                         await fetchBenchesFromCloud();
                     }
@@ -1889,7 +1905,7 @@
             updateSyncIndicator();
             initStreetSearch();
             
-            // Event-Listener für automatische Live-Filterung hinzufügen
+            // Event-Listener for automatische Live-Filterung hinzufügen
             document.getElementById('filter-district').addEventListener('change', updateApp);
             document.getElementById('filter-type').addEventListener('change', updateApp);
             document.getElementById('status-checkboxes-container').addEventListener('change', updateApp);
@@ -1954,9 +1970,4 @@
         window.onload = startApp;
     </script>
 </body>
-<style>html{
- color:darkviolet;
- font-size:25px;
- font-weight:600;
-}
-</style><script>/*Here write your javascript code*/</script></html>
+<style>/*Here write your styles*/</style><script>/*Here write your javascript code*/</script></html>
