@@ -306,7 +306,7 @@
             <h4>4. Administration & Sonderfunktionen (Rolle: Admin)</h4>
             <p>Der Administrator besitzt uneingeschränkte Rechte zur Strukturpflege:</p>
             <ul>
-                <li><strong>Freigabe-Center:</strong> Oben im Menü erscheinen rote Buttons für ausstehende Schadensmeldungen und Neueinträge. Hier können Anträge mit einem Klick freigegeben oder verworfen werden.</li>
+                <li><strong>Freigabe-Center:</strong> Oben im Menü erscheinen rote Buttons for ausstehende Schadensmeldungen und Neueinträge. Hier können Anträge mit einem Klick freigegeben oder verworfen werden.</li>
                 <li><strong>Bautypen-Verwaltung:</strong> Unten im Seitenmenü können komplett neue Modellvarianten inklusive Musterfoto im System registriert werden.</li>
                 <li><strong>Passwort-Verwaltung:</strong> Admins können im Login-Bereich die Gruppenpasswörter einzelner Gewerke direkt neu vergeben.</li>
             </ul>
@@ -420,7 +420,7 @@
         <select id="pop-type" onchange="handleTypeChange()"></select>
         
         <div class="type-preview-box" id="image-preview-container">
-            <span class="no-image-text" id="preview-placeholder">Kein Bild für diesen Typ hinterlegt</span>
+            <span class="no-image-text" id="preview-placeholder">Kein Bild für dieser Typ hinterlegt</span>
             <img id="preview-img" src="" alt="Vorschau Banktyp">
         </div>
 
@@ -1034,18 +1034,6 @@
             document.getElementById('reports-overlay').style.display = "none";
         };
 
-        window.showBenchOnMap = function(benchId) {
-            closeReportsOverlay();
-            if(document.getElementById('sidebar').classList.contains('open')) {
-                toggleSidebar();
-            }
-            const marker = window.markerDict[benchId];
-            if(marker) {
-                map.setView(marker.getLatLng(), 18);
-                marker.openPopup();
-            }
-        };
-
         window.resolveDamageReport = async function(reportId, benchId, reportImageUrl) {
             if(confirm("Möchtest du diese Schadensmeldung wirklich als erledigt markieren? Dadurch wird sie gelöscht und das Wartungsdatum der Bank aktualisiert.")) {
                 const todayStr = new Date().toISOString().split('T')[0];
@@ -1116,7 +1104,7 @@
             if (queue.length === 0) {
                 icon.innerText = "☁️";
                 icon.className = "sync-indicator sync-green";
-                icon.title = "Alle Daten synchronisiert. Klicken for manuellen Check.";
+                icon.title = "Alle Daten synchronisiert. Klicken für manuellen Check.";
             } else {
                 icon.innerText = `☁️ (${queue.length})`;
                 icon.className = "sync-indicator sync-red";
@@ -1136,18 +1124,20 @@
 
             const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
             
+            // 1. Wenn lokale Änderungen ausstehen, lade diese zuerst hoch
             if (queue.length > 0) {
                 await syncOfflineQueue();
                 const currentQueue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
-                if (currentQueue.length === 0) {
-                    alert("Synchronisation erfolgreich! Alle Daten sind jetzt in der Cloud.");
-                } else {
-                    alert("Ungültige Datenleichen wurden automatisch bereinigt.");
+                if (currentQueue.length > 0) {
+                    alert("Einige ungültige Datenleichen wurden automatisch aus der Warteschlange entfernt.");
                 }
-            } else {
-                alert("Lokale Warteschlange ist leer. Lade aktuelle Daten aus der Cloud...");
-                await fetchBenchesFromCloud();
             }
+
+            // 2. Rufe JETZT die brandaktuelle Datenbank ab, um Eintragungen anderer Nutzer zu laden
+            await fetchBenchesFromCloud();
+            await fetchTypesFromCloud();
+            
+            alert("Datenbank erfolgreich aktualisiert und synchronisiert!");
             updateSyncIndicator();
         };
 
@@ -1185,7 +1175,6 @@
                 benches = JSON.parse(cachedData);
                 updateApp();
             }
-            await syncOfflineQueue();
             if (!supabaseClient) return;
             try {
                 const { data, error } = await Promise.race([
@@ -1320,7 +1309,50 @@
                     statusText.style.color = "#27ae60";
                 }
             }
-            setTimeout(() => { isTakingPhoto = false; }, 1000);
+            setTimeout(() => { isTakingPhoto = false; }, 1500);
+        };
+
+        // Speicher-Handler für neuen Bautyp registrieren
+        document.getElementById('add-type-btn').onclick = async function() {
+            const typeName = document.getElementById('new-type-input').value.trim();
+            if(!typeName) { alert("Bitte gib einen Namen für den Bautyp ein."); return; }
+            if(!supabaseClient) { alert("Supabase ist nicht verbunden!"); return; }
+
+            const saveBtn = document.getElementById('add-type-btn');
+            saveBtn.innerText = "⏳ Speichere Typ...";
+            saveBtn.disabled = true;
+
+            try {
+                let fileToUpload = null;
+                if(activeTypeFileInput && activeTypeFileInput.files && activeTypeFileInput.files.length > 0) {
+                    fileToUpload = activeTypeFileInput.files[0];
+                }
+
+                if(fileToUpload) {
+                    const cleanName = typeName.replace(/\s+/g, '_');
+                    const fileName = `${cleanName}.jpg`;
+                    
+                    // Vorheriges Bild zur Sicherheit löschen, falls vorhanden
+                    await supabaseClient.storage.from('bench-images').remove([fileName]);
+                    
+                    const { error: uploadError } = await supabaseClient.storage.from('bench-images').upload(fileName, fileToUpload, { upsert: true });
+                    if(uploadError) {
+                        console.error("Storage-Fehler beim Hochladen:", uploadError.message);
+                    }
+                }
+
+                const { error: dbError } = await supabaseClient.from('bench_types').insert([{ name: typeName }]);
+                if(dbError) throw dbError;
+
+                alert(`Bautyp "${typeName}" erfolgreich im System registriert!`);
+                closeTypeOverlay();
+                await fetchTypesFromCloud();
+            } catch(err) {
+                alert("Fehler beim Speichern des Typs: " + err.message);
+            } finally {
+                saveBtn.innerText = "Typ & Bild speichern";
+                saveBtn.disabled = false;
+            }
         };
 
         window.locateUser = function() {
@@ -1418,7 +1450,7 @@
                         new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
                     ]);
                     if (error) throw error;
-                    syncOfflineQueue();
+                    await syncOfflineQueue();
                 } catch(e) { 
                     console.warn("Direktupload fehlgeschlagen, sichere im Local Storage...");
                     saveOfflineAction('update', updatedData, id); 
@@ -1727,7 +1759,7 @@
         document.getElementById('worker-confirm-btn').onclick = () => {
             const nameInput = document.getElementById('worker-name-input').value.trim();
             if (!nameInput) {
-                alert("Bitte gib deinen Namen ein. Dies ist ein Pflichtfeld for Reparaturtrupps.");
+                alert("Bitte gib deinen Namen ein. Dies ist ein Pflichtfeld für Reparaturtrupps.");
                 return;
             }
             
@@ -1905,7 +1937,7 @@
             updateSyncIndicator();
             initStreetSearch();
             
-            // Event-Listener for automatische Live-Filterung hinzufügen
+            // Event-Listener für automatische Live-Filterung hinzufügen
             document.getElementById('filter-district').addEventListener('change', updateApp);
             document.getElementById('filter-type').addEventListener('change', updateApp);
             document.getElementById('status-checkboxes-container').addEventListener('change', updateApp);
@@ -1934,36 +1966,39 @@
                     L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
                     map.on('click', (e) => {
-                        if(document.getElementById('sidebar').classList.contains('open') || isTakingPhoto) { 
-                            if(!isTakingPhoto) toggleSidebar(); 
+                        // Klick auf Karte blockieren, wenn Overlays geöffnet sind, um Schließen durch Phantom-Clicks zu verhindern
+                        if (document.getElementById('type-fullscreen-overlay').style.display === 'block' || 
+                            document.getElementById('fullscreen-overlay').style.display === 'block' || 
+                            isTakingPhoto) {
+                            return; 
+                        }
+
+                        if(document.getElementById('sidebar').classList.contains('open')) { 
+                            toggleSidebar(); 
                             return; 
                         }
 
                         if(currentRole === 'Gast') {
                             const clickPopupHtml = `
                                 <div style="text-align: center; padding: 5px; font-size:13px;">
-                                    <strong>Hier befindet sich eine nicht registrierte Bank?</strong><br/><br/>
-                                    <button onclick="window.openGuestDamageOverlay(null, true, ${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="padding:6px 10px; font-size:12px; background:#e74c3c;">⚠️ Schaden / Fund melden</button>
+                                    <strong>Hier befindet sich eine Bank?</strong><br/>
+                                    Du kannst hier direkt einen Schaden oder Fundort melden.<br/><br/>
+                                    <button class="btn" style="padding:6px 10px; font-size:12px; background:#e74c3c;" onclick="window.openGuestDamageOverlay(null, true, ${e.latlng.lat}, ${e.latlng.lng})">⚠️ Schaden/Fundort melden</button>
                                 </div>
                             `;
                             L.popup().setLatLng(e.latlng).setContent(clickPopupHtml).openOn(map);
                         } else {
                             const clickPopupHtml = `
-                                <div style="text-align: center; padding: 5px; font-size:13px;">
-                                    <button onclick="window.triggerNewBenchCreation(${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="padding:6px 12px; font-size:13px; background:#27ae60;">➕ Neue Bank anlegen</button>
-                                </div>
+                                <button class="btn" style="padding:8px 14px; font-size:14px; background: #2c3e50;" onclick="window.triggerNewBenchCreation(${e.latlng.lat}, ${e.latlng.lng})">➕ Bank hier erfassen</button>
                             `;
                             L.popup().setLatLng(e.latlng).setContent(clickPopupHtml).openOn(map);
                         }
                     });
 
-                    fetchTypesFromCloud().then(() => {
-                        fetchBenchesFromCloud().then(() => {
-                            subscribeToRealtime();
-                        });
-                    });
-
-                } catch (e) { console.error("Karten-Initialisierungsfehler:", e); }
+                    fetchTypesFromCloud();
+                    fetchBenchesFromCloud();
+                    subscribeToRealtime();
+                } catch (e) { console.error("Kartenfehler beim Setup:", e); }
             }
         }
 
