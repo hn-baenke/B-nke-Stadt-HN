@@ -306,7 +306,7 @@
             <h4>4. Administration & Sonderfunktionen (Rolle: Admin)</h4>
             <p>Der Administrator besitzt uneingeschränkte Rechte zur Strukturpflege:</p>
             <ul>
-                <li><strong>Freigabe-Center:</strong> Oben im Menü erscheinen rote Buttons for ausstehende Schadensmeldungen und Neueinträge. Hier können Anträge mit einem Klick freigegeben oder verworfen werden.</li>
+                <li><strong>Freigabe-Center:</strong> Oben im Menü erscheinen rote Buttons for ausstehende Schadensmeldungen und Neueinträge. Here können Anträge mit einem Klick freigegeben oder verworfen werden.</li>
                 <li><strong>Bautypen-Verwaltung:</strong> Unten im Seitenmenü können komplett neue Modellvarianten inklusive Musterfoto im System registriert werden.</li>
                 <li><strong>Passwort-Verwaltung:</strong> Admins können im Login-Bereich die Gruppenpasswörter einzelner Gewerke direkt neu vergeben.</li>
             </ul>
@@ -1988,17 +1988,21 @@
                             `;
                             L.popup().setLatLng(e.latlng).setContent(clickPopupHtml).openOn(map);
                         } else {
+                            // Modifiziertes Pop-up für angemeldete Nutzer (nur noch der grüne Button ohne Text drumherum)
                             const clickPopupHtml = `
-                                <button class="btn" style="padding:8px 14px; font-size:14px; background: #2c3e50;" onclick="window.triggerNewBenchCreation(${e.latlng.lat}, ${e.latlng.lng})">➕ Bank hier erfassen</button>
+                                <button onclick="window.triggerNewBenchCreation(${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="padding: 8px 14px; font-size: 13px; background: #27ae60; font-weight: bold; width: auto; white-space: nowrap; border-radius: 6px;">Neue Bank anlegen</button>
                             `;
                             L.popup().setLatLng(e.latlng).setContent(clickPopupHtml).openOn(map);
                         }
                     });
 
-                    fetchTypesFromCloud();
                     fetchBenchesFromCloud();
+                    fetchTypesFromCloud();
                     subscribeToRealtime();
-                } catch (e) { console.error("Kartenfehler beim Setup:", e); }
+
+                } catch (e) {
+                    console.error("Karten-Initialisierungsfehler: ", e);
+                }
             }
         }
 
