@@ -184,6 +184,29 @@
             z-index: 10;
         }
 
+        /* Styles für die Schadensmeldungs-Optionen */
+        .damage-options-container {
+            background: #fdfefe;
+            border: 1px solid #d5dbdb;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 10px;
+            margin-bottom: 15px;
+        }
+        .damage-opt-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .damage-opt-item input {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+
         @media (min-width: 768px) {
             #sidebar { bottom: auto; top: 0; right: -440px; left: auto; width: 420px; height: 100%; border-top-left-radius: 0px; border-top-right-radius: 0px; box-shadow: -5px 0 20px rgba(0,0,0,0.2); transition: right 0.3s ease-in-out; padding-bottom: 20px; }
             #sidebar.open { right: 0; }
@@ -221,7 +244,7 @@
             <ul id="search-results-list" class="search-results"></ul>
         </div>
 
-        <button id="menu-toggle-btn" onclick="toggleSidebar()">☰ Filter & Infos</button>
+        <button id="menu-toggle-btn" onclick="toggleSidebar()">☰ Menü & Filter</button>
         <button id="locate-btn" onclick="locateUser()" title="Meinen Standort zeigen">🎯</button>
         
         <div id="map-info-movable-widget" class="map-info-widget">
@@ -271,6 +294,8 @@
                     <label class="status-checkbox-item"><input type="checkbox" value="Beschädigt"> 🔴⚪ Beschädigt</label>
                     <label class="status-checkbox-item"><input type="checkbox" value="In Bearbeitung"> 🟣 In Bearbeitung</label>
                     <label class="status-checkbox-item"><input type="checkbox" value="Irreparabel"> ⚫ Irreparabel</label>
+                    <label class="status-checkbox-item"><input type="checkbox" value="Verschmutzt"> 🟠 Verschmutzt</label>
+                    <label class="status-checkbox-item"><input type="checkbox" value="Zugewachsen"> 🔵 Zugewachsen</label>
                     <label class="status-checkbox-item"><input type="checkbox" value="Ungeprüft"> ⚪ Ungeprüft</label>
                     <label class="status-checkbox-item"><input type="checkbox" value="Wartungsfrei"> 🟢✨ Wartungsfrei (Dauerhaft)</label>
                     <label class="status-checkbox-item"><input type="checkbox" value="Gut"> 🟢 Gut</label>
@@ -281,7 +306,6 @@
                 <ul id="stats-list"></ul>
             </div>
             
-            <!-- Der gewünschte Hilfe Button direkt unterhalb der Auswertung -->
             <button id="menu-help-btn" class="btn btn-help" onclick="openHelpOverlay()">ℹ️ App-Anleitung öffnen</button>
             
             <hr style="width:100%; border:0; border-top:1px solid #e2e8f0; margin: 5px 0;"/>
@@ -292,7 +316,7 @@
             </div>
             
             <div class="legend">
-                <strong>Status:</strong> 🟢 Gut | 🟢✨ Wartungsfrei | 🟣 In Arbeit | 🟡 ~3J | 🔴 &gt;5J | 🔴⚪ Defekt | ⚫ Irreparabel<br>
+                <strong>Status:</strong> 🟢 Gut | 🟢✨ Wartungsfrei | 🟣 In Arbeit | 🟡 ~3J | 🔴 &gt;5J | 🔴⚪ Defekt | ⚫ Irreparabel | 🟠 Verschmutzt | 🔵 Zugewachsen<br>
                 💡 <em>Karte antippen = Button zum Anlegen öffnen. Punkt antippen = Bearbeiten.</em>
             </div>
         </div>
@@ -335,7 +359,7 @@
             <h4>4. Administration & Sonderfunktionen (Rolle: Admin)</h4>
             <p>Der Administrator besitzt uneingeschränkte Rechte zur Strukturpflege:</p>
             <ul>
-                <li><strong>Freigabe-Center:</strong> Oben im Menü erscheinen rote Buttons for ausstehende Schadensmeldungen und Neueinträge. Here können Anträge mit einem Klick freigegeben oder verworfen werden.</li>
+                <li><strong>Freigabe-Center:</strong> Oben im Menü erscheinen rote Buttons für ausstehende Schadensmeldungen und Neueinträge. Hier können Anträge mit einem Klick freigegeben oder verworfen werden.</li>
                 <li><strong>Bautypen-Verwaltung:</strong> Unten im Seitenmenü können komplett neue Modellvarianten inklusive Musterfoto im System registriert werden.</li>
                 <li><strong>Passwort-Verwaltung:</strong> Admins können im Login-Bereich die Gruppenpasswörter einzelner Gewerke direkt neu vergeben.</li>
             </ul>
@@ -374,6 +398,7 @@
             <option value="Stadt Reinigung">Stadt Reinigung</option>
             <option value="Spielplatzkontrolle">Spielplatzkontrolle</option>
             <option value="Gala Bau">Gala Bau</option>
+            <option value="Grünpflege">Grünpflege</option>
         </select>
         
         <label id="login-password-label">Passwort:</label>
@@ -397,6 +422,7 @@
                 <option value="Stadt Reinigung">Stadt Reinigung</option>
                 <option value="Spielplatzkontrolle">Spielplatzkontrolle</option>
                 <option value="Gala Bau">Gala Bau</option>
+                <option value="Grünpflege">Grünpflege</option>
             </select>
 
             <label style="margin-top: 5px;">Aktuelles Passwort des Trupps:</label>
@@ -414,11 +440,33 @@
         <button class="btn btn-cancel" style="margin-top: 15px;" onclick="closeLoginOverlay()">Abbrechen</button>
     </div>
 
-    <!-- Schadensmeldung Absenden Overlay (Für Gast) -->
+    <!-- Schadensmeldung Absenden Overlay (Für Gast & Trupps) -->
     <div id="guest-damage-overlay" class="fullscreen-overlay">
         <h3>Schaden melden</h3>
+        
+        <!-- NEU: Auswählbare Schadens-Optionen -->
+        <label>Schadensbild klassifizieren:</label>
+        <div class="damage-options-container">
+            <label class="damage-opt-item">
+                <input type="checkbox" id="dmg-opt-clean" value="Müllproblem / Vogelkot" onchange="handleDamageOptionSelect(this)">
+                <span>🧹 Müllproblem / Vogelkot (Stadtreinigung)</span>
+            </label>
+            <label class="damage-opt-item">
+                <input type="checkbox" id="dmg-opt-green" value="Bank zugewachsen" onchange="handleDamageOptionSelect(this)">
+                <span>🌿 Bank zugewachsen (Grünpflege)</span>
+            </label>
+            <label class="damage-opt-item">
+                <input type="checkbox" id="dmg-opt-wood" value="Bank beschädigt" onchange="handleDamageOptionSelect(this)">
+                <span>🪓 Bank beschädigt (Zimmerer)</span>
+            </label>
+            <label class="damage-opt-item" id="dmg-opt-black-wrapper" style="display:none;">
+                <input type="checkbox" id="dmg-opt-black" value="Bank Irreparabel" onchange="handleDamageOptionSelect(this)">
+                <span>⚫ Bank Irreparabel (Galabau)</span>
+            </label>
+        </div>
+
         <label>Schadensbeschreibung:</label>
-        <textarea id="guest-damage-text" rows="4" style="width:100%; border-radius:8px; border:1px solid #bdc3c7; padding:10px; font-size:16px; box-sizing:border-box;" placeholder="Bitte beschreibe den Schaden..."></textarea>
+        <textarea id="guest-damage-text" rows="4" style="width:100%; border-radius:8px; border:1px solid #bdc3c7; padding:10px; font-size:16px; box-sizing:border-box;" placeholder="Bitte beschreibe den Schaden hier genauer..."></textarea>
         
         <label>Foto hinzufügen:</label>
         <div class="file-input-container">
@@ -449,7 +497,7 @@
         <select id="pop-type" onchange="handleTypeChange()"></select>
         
         <div class="type-preview-box" id="image-preview-container">
-            <span class="no-image-text" id="preview-placeholder">Kein Bild für dieser Typ hinterlegt</span>
+            <span class="no-image-text" id="preview-placeholder">Kein Bild für diesen Typ hinterlegt</span>
             <img id="preview-img" src="" alt="Vorschau Banktyp">
         </div>
 
@@ -463,6 +511,8 @@
             <option value="Beschädigt">Beschädigt (Rot-Weiß)</option>
             <option value="In Bearbeitung">In Bearbeitung (Lila)</option>
             <option value="Irreparabel">Irreparabel (Austausch nötig)</option>
+            <option value="Verschmutzt">Verschmutzt (Orange)</option>
+            <option value="Zugewachsen">Zugewachsen (Blau)</option>
             <option value="Ungeprüft">Ungeprüft (Grau)</option>
             <option value="Wartungsfrei">Wartungsfrei (Dauerhaft Grün)</option>
         </select>
@@ -483,7 +533,7 @@
         <button id="pop-cancel-btn" class="btn btn-cancel">Abbrechen</button>
     </div>
 
-    <!-- NEU: Namen-Abfrage Pflichtfeld Overlay bei Trupp-Aktionen -->
+    <!-- Namen-Abfrage Pflichtfeld Overlay bei Trupp-Aktionen -->
     <div id="worker-name-overlay" class="fullscreen-overlay" style="z-index: 4000; display: none; background: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
         <div style="background: white; padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.3); margin: auto; position: relative; top: 15%;">
             <h3 style="margin-top:0;">Bearbeitung bestätigen</h3>
@@ -497,11 +547,20 @@
         </div>
     </div>
 
+    <!-- Neues Modell Auswahl-Dialog für Galabau -->
+    <div id="gala-model-overlay" class="fullscreen-overlay" style="z-index: 4000;">
+        <h3>Neues Modell auswählen</h3>
+        <label>Modelltyp:</label>
+        <select id="gala-model-select" style="width: 100%; padding: 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 16px;"></select>
+        <button class="btn btn-save" style="margin-top: 25px;" onclick="executeGalaModelChange()">Modelltyp ändern & Speichern</button>
+        <button class="btn btn-cancel" onclick="closeGalaModelOverlay()">Abbrechen</button>
+    </div>
+
     <div id="type-fullscreen-overlay" class="fullscreen-overlay">
         <h3>Neuen Bautyp registrieren</h3>
         
         <label>Name des Bautyps:</label>
-        <input type="text" id="new-type-input" placeholder="z.B. Holz-Sspecial V2, Betonbank, etc.">
+        <input type="text" id="new-type-input" placeholder="z.B. Holz-Special V2, Betonbank, etc.">
         
         <label>Musterfoto hinterlegen:</label>
         <div class="file-input-container">
@@ -563,10 +622,9 @@
         let lastSelectedType = types[0];
         let lastSelectedDistrict = DISTRICTS[0];
         
-        // Cache-Variable für anstehende Aktionen während des Namens-Modals
         let pendingWorkerAction = null;
+        let selectedDamageCategory = ""; // Temporärer Speicher für die Schadens-Checkbox
 
-        // JS Funktionen für das Hilfe-Overlay
         window.openHelpOverlay = function() {
             if(document.getElementById('sidebar').classList.contains('open')) {
                 toggleSidebar();
@@ -623,7 +681,6 @@
                 if (parts.length > 1) {
                     const filename = parts[1];
                     await supabaseClient.storage.from('bench-images').remove([filename]);
-                    console.log("Zugehöriges Bild erfolgreich aus dem Storage entfernt:", filename);
                 }
             } catch (err) {
                 console.error("Fehler beim Entfernen des Bildes aus dem Storage:", err);
@@ -713,7 +770,6 @@
             const changeToggleContainer = document.getElementById('admin-password-change-toggle-container');
 
             if (currentRole !== "Gast") {
-                // Wenn bereits eingeloggt: Zeige Profil-Status-Ansicht mit Abmelden-Button
                 overlayTitle.innerText = "Eingeloggt als " + currentRole;
                 roleSelect.value = currentRole;
                 roleSelect.disabled = true;
@@ -721,11 +777,8 @@
                 passwordInput.style.display = "none";
                 executeBtn.style.display = "none";
                 logoutBtn.style.display = "block";
-                
-                // Passwortänderungs-Option für Admins im eingeloggten Zustand anzeigen
                 changeToggleContainer.style.display = (currentRole === 'Admin') ? 'block' : 'none';
             } else {
-                // Standard-Login Ansicht
                 overlayTitle.innerText = "HN Bank Kataster";
                 roleSelect.disabled = false;
                 passwordLabel.style.display = "block";
@@ -788,7 +841,7 @@
 
         window.executePasswordChange = async function() {
             if (currentRole !== 'Admin') {
-                alert("Nur Administratoren haben die Berechtigung, Gruppennpasswörter zu ändern.");
+                alert("Nur Administratoren haben die Berechtigung, Gruppenpasswörter zu ändern.");
                 return;
             }
 
@@ -798,12 +851,12 @@
             const confirmPassword = document.getElementById('change-new-password-confirm').value.trim();
 
             if (!oldPassword || !newPassword || !confirmPassword) {
-                alert("Bitte fülle alle Passwortfelder aus (Altes Passwort, Neues Passwort und Bestätigung).");
+                alert("Bitte fülle alle Passwortfelder aus.");
                 return;
             }
 
             if (newPassword !== confirmPassword) {
-                alert("Die Passwörter stimmen nicht überein. Bitte überprüfe das Bestätigungsfeld.");
+                alert("Die Passwörter stimmen nicht überein.");
                 return;
             }
 
@@ -812,14 +865,14 @@
             const { data, error } = await supabaseClient.from('app_users').select('*').eq('role', targetRole).eq('password', oldPassword).single();
 
             if (error || !data) {
-                alert("Das aktuelle (alte) Passwort der Zielgruppe ist nicht korrekt. Autorisierung fehlgeschlagen.");
+                alert("Das aktuelle Passwort der Zielgruppe ist nicht korrekt.");
                 return;
             }
 
             const { error: updateError } = await supabaseClient.from('app_users').update({ password: newPassword }).eq('role', targetRole);
 
             if (updateError) {
-                alert("Fehler beim Aktualisieren des Passworts in der Datenbank: " + updateError.message);
+                alert("Fehler beim Aktualisieren: " + updateError.message);
             } else {
                 alert(`Das Passwort für den Trupp "${targetRole}" wurde erfolgreich geändert!`);
                 document.getElementById('password-change-box').style.display = "none";
@@ -829,19 +882,36 @@
         async function updateBadgeCounters() {
             if(!supabaseClient) return;
 
-            const { count: dmgCount, data: dmgData } = await supabaseClient.from('damage_reports').select('*', { count: 'exact' });
+            // 1. Alle Schadensmeldungen aus der Datenbank abrufen
+            const { count: totalDmgCount, data: dmgData } = await supabaseClient.from('damage_reports').select('*', { count: 'exact' });
             guestDamageReports = dmgData || [];
             
+            // 2. Meldungen basierend auf der aktuellen Truppen-Rolle filtern
+            let filteredDmgData = guestDamageReports;
+            if (currentRole === 'Zimmerer') {
+                filteredDmgData = guestDamageReports.filter(r => r.description && r.description.includes('Bank beschädigt'));
+            } else if (currentRole === 'Stadt Reinigung') {
+                filteredDmgData = guestDamageReports.filter(r => r.description && r.description.includes('Müllproblem / Vogelkot'));
+            } else if (currentRole === 'Grünpflege') {
+                filteredDmgData = guestDamageReports.filter(r => r.description && r.description.includes('Bank zugewachsen'));
+            } else if (currentRole === 'Gala Bau') {
+                filteredDmgData = guestDamageReports.filter(r => r.description && r.description.includes('Bank Irreparabel'));
+            } // Admin behält alle Meldungen (kein Filter)
+
+            const finalDmgCount = filteredDmgData.length;
             const dmgBtn = document.getElementById('menu-damage-reports-btn');
+            
             if(dmgBtn) {
-                dmgBtn.innerText = `⚠️ Schadensmeldungen (${dmgCount || 0})`;
-                if(dmgCount > 0) {
+                // Anzeige auf die gefilterte Anzahl des Trupps anpassen
+                dmgBtn.innerText = `⚠️ Schadensmeldungen (${finalDmgCount})`;
+                if(finalDmgCount > 0) {
                     dmgBtn.className = "btn btn-admin-menu btn-menu-alert";
                 } else {
                     dmgBtn.className = "btn btn-admin-menu btn-menu-ok";
                 }
             }
 
+            // Zähler für die ausstehenden Freigaben (bleibt Admin-exklusiv)
             const { count: entryCount } = await supabaseClient.from('benches').select('*', { count: 'exact', head: true }).eq('approved', false);
             const entryBtn = document.getElementById('menu-new-entries-btn');
             if(entryBtn) {
@@ -855,7 +925,8 @@
         }
 
         function applyRolePermissions() {
-            document.getElementById('menu-damage-reports-btn').style.display = (currentRole === 'Admin' || currentRole === 'Zimmerer') ? 'block' : 'none';
+            const hasReportsAccess = (currentRole === 'Admin' || currentRole === 'Zimmerer' || currentRole === 'Gala Bau' || currentRole === 'Stadt Reinigung' || currentRole === 'Grünpflege');
+            document.getElementById('menu-damage-reports-btn').style.display = hasReportsAccess ? 'block' : 'none';
             document.getElementById('menu-new-entries-btn').style.display = (currentRole === 'Admin') ? 'block' : 'none';
             document.getElementById('admin-add-type-container').style.display = (currentRole === 'Admin') ? 'block' : 'none';
             updateBadgeCounters();
@@ -869,15 +940,50 @@
                 selectedDamageBenchId = benchId;
                 selectedDamageCoords = null;
             }
+            
+            // Text & Status zurücksetzen
             document.getElementById('guest-damage-text').value = "";
             document.getElementById('guest-file-status').innerText = "Kein Foto ausgewählt";
             activeGuestFile = null;
+            selectedDamageCategory = "";
+            
+            // Checkboxen entmarkieren
+            document.getElementById('dmg-opt-clean').checked = false;
+            document.getElementById('dmg-opt-green').checked = false;
+            document.getElementById('dmg-opt-wood').checked = false;
+            document.getElementById('dmg-opt-black').checked = false;
+
+            // Sichtbarkeit der Admin/Zimmerer-Option ("Irreparabel") steuern
+            const blackOptWrapper = document.getElementById('dmg-opt-black-wrapper');
+            if (currentRole === 'Admin' || currentRole === 'Zimmerer') {
+                blackOptWrapper.style.display = "flex";
+            } else {
+                blackOptWrapper.style.display = "none";
+            }
+
             if(map) map.closePopup();
             document.getElementById('guest-damage-overlay').style.display = "block";
         };
 
         window.closeGuestDamageOverlay = function() {
             document.getElementById('guest-damage-overlay').style.display = "none";
+        };
+
+        // Steuerung der Radiobutton-ähnlichen Checkbox-Auswahl
+        window.handleDamageOptionSelect = function(selectedCheckbox) {
+            const checkboxes = ["dmg-opt-clean", "dmg-opt-green", "dmg-opt-wood", "dmg-opt-black"];
+            checkboxes.forEach(id => {
+                const cb = document.getElementById(id);
+                if (cb && cb !== selectedCheckbox) {
+                    cb.checked = false;
+                }
+            });
+            
+            if (selectedCheckbox.checked) {
+                selectedDamageCategory = selectedCheckbox.value;
+            } else {
+                selectedDamageCategory = "";
+            }
         };
 
         window.handleGuestFileSelection = async function(input) {
@@ -895,7 +1001,10 @@
 
         window.submitGuestDamageReport = async function() {
             const desc = document.getElementById('guest-damage-text').value.trim();
-            if(!desc) { alert("Bitte gib eine Schadensbeschreibung ein."); return; }
+            if(!desc && !selectedDamageCategory) { 
+                alert("Bitte gib eine Schadensbeschreibung ein oder wähle eine Option aus."); 
+                return; 
+            }
 
             let imageUrl = null;
             if(activeGuestFile && supabaseClient) {
@@ -909,14 +1018,20 @@
             if(supabaseClient) {
                 let targetBenchId = selectedDamageBenchId;
 
+                // Falls freie Fläche geklickt wurde, temporäre Bank anlegen
                 if(selectedDamageCoords) {
+                    let initialStatus = "Beschädigt";
+                    if (selectedDamageCategory === "Müllproblem / Vogelkot") initialStatus = "Verschmutzt";
+                    else if (selectedDamageCategory === "Bank zugewachsen") initialStatus = "Zugewachsen";
+                    else if (selectedDamageCategory === "Bank Irreparabel") initialStatus = "Irreparabel";
+
                     const { data: newBench, error: benchError } = await supabaseClient.from('benches').insert([{
                         lat: selectedDamageCoords.lat,
                         lng: selectedDamageCoords.lng,
                         type: "Sonstige",
                         district: "Heilbronn",
-                        manual_status: "Beschädigt",
-                        damage_description: desc,
+                        manual_status: initialStatus,
+                        damage_description: selectedDamageCategory ? `${selectedDamageCategory}: ${desc}` : desc,
                         approved: false,
                         pending_action: "insert"
                     }]).select().single();
@@ -927,15 +1042,31 @@
                         alert("Fehler beim Erstellen der temporären Bank: " + (benchError ? benchError.message : "Unbekannt"));
                         return;
                     }
+                } else if (selectedDamageBenchId) {
+                    // Status der bestehenden Bank anpassen
+                    let newStatus = null;
+                    if (selectedDamageCategory === "Müllproblem / Vogelkot") newStatus = "Verschmutzt";
+                    else if (selectedDamageCategory === "Bank zugewachsen") newStatus = "Zugewachsen";
+                    else if (selectedDamageCategory === "Bank beschädigt") newStatus = "Beschädigt";
+                    else if (selectedDamageCategory === "Bank Irreparabel") newStatus = "Irreparabel";
+
+                    if (newStatus) {
+                        await supabaseClient.from('benches').update({ 
+                            manual_status: newStatus,
+                            damage_description: selectedDamageCategory ? `${selectedDamageCategory}: ${desc}` : desc
+                        }).eq('id', selectedDamageBenchId);
+                    }
                 }
 
+                // Eigentliche Schadensmeldung absenden
                 const { error } = await supabaseClient.from('damage_reports').insert([{
                     bench_id: targetBenchId,
-                    description: desc,
+                    description: selectedDamageCategory ? `[${selectedDamageCategory}] ${desc}` : desc,
                     image_url: imageUrl
                 }]);
+                
                 if(!error) {
-                    alert("Vielen Dank für deine Meldung! Die Stadtverwaltung kümmert sich darum.");
+                    alert("Vielen Dank für die Meldung! Die Zuständigen kümmern sich darum.");
                     closeGuestDamageOverlay();
                     await updateBadgeCounters();
                     await fetchBenchesFromCloud();
@@ -962,21 +1093,90 @@
                 
                 if(error || !data || data.length === 0) { container.innerHTML = "Keine Schadensmeldungen vorhanden."; return; }
                 
-                container.innerHTML = data.map(rep => {
-                    const date = new Date(rep.created_at).toLocaleDateString('de-DE');
-                    return `
-                        <div class="report-compact-item">
-                            <div class="report-compact-info">
-                                <strong>${rep.benches ? rep.benches.type : 'Nicht registrierte Bank'}</strong> - ${date} <br/>
-                                <small>${rep.description.substring(0, 40)}${rep.description.length > 40 ? '...' : ''}</small>
-                            </div>
-                            <button class="btn" style="padding:6px 12px; width:auto; font-size:12px;" onclick="window.showReportDetail('damage', ${rep.id})">Meldung anzeigen</button>
-                        </div>
-                    `;
-                }).join('');
-                
-                window.currentReportData = data;
+                // Filtern nach Zuständigkeit für den jeweiligen angemeldeten Trupp (Admin sieht alles)
+                let filteredData = data;
+                if (currentRole === 'Zimmerer') {
+                    filteredData = data.filter(r => r.description.includes('Bank beschädigt'));
+                } else if (currentRole === 'Stadt Reinigung') {
+                    filteredData = data.filter(r => r.description.includes('Müllproblem / Vogelkot'));
+                } else if (currentRole === 'Grünpflege') {
+                    filteredData = data.filter(r => r.description.includes('Bank zugewachsen'));
+                } else if (currentRole === 'Gala Bau') {
+                    filteredData = data.filter(r => r.description.includes('Bank Irreparabel'));
+                }
 
+                // Sortierung und Gruppierung beim Admin nach Trupps (Kategorie)
+                if (currentRole === 'Admin') {
+                    const trupps = [
+                        { name: '🪵 Zimmerer', keyword: 'Bank beschädigt' },
+                        { name: '🌿 Grünpflege', keyword: 'Bank zugewachsen' },
+                        { name: '🧹 Stadt Reinigung', keyword: 'Müllproblem / Vogelkot' },
+                        { name: '🏗️ Gala Bau', keyword: 'Bank Irreparabel' }
+                    ];
+
+                    let remainingReports = [...filteredData];
+                    let fullHTML = '';
+
+                    trupps.forEach(trupp => {
+                        const truppReports = remainingReports.filter(r => r.description && r.description.includes(trupp.keyword));
+                        remainingReports = remainingReports.filter(r => !truppReports.includes(r));
+
+                        if (truppReports.length > 0) {
+                            // Überschrift für den jeweiligen Trupp
+                            fullHTML += `<h4 class="trupp-header mt-3 mb-2 pb-1" style="border-bottom: 2px solid #ddd; color: #444; font-weight: bold; font-size: 1.1rem; text-align: left;">${trupp.name} (${truppReports.length})</h4>`;
+
+                            // Meldungen im originalen Kompakt-Design rendern
+                            truppReports.forEach(rep => {
+                                const date = new Date(rep.created_at).toLocaleDateString('de-DE');
+                                fullHTML += `
+                                    <div class="report-compact-item">
+                                        <div class="report-compact-info">
+                                            <strong>${rep.benches ? rep.benches.type : 'Nicht registrierte Bank'}</strong> - ${date} <br/>
+                                            <small>${rep.description.substring(0, 50)}${rep.description.length > 50 ? '...' : ''}</small>
+                                        </div>
+                                        <button class="btn" style="padding:6px 12px; width:auto; font-size:12px;" onclick="window.showReportDetail('damage', ${rep.id})">Meldung anzeigen</button>
+                                    </div>
+                                `;
+                            });
+                        }
+                    });
+
+                    // Fallback für Meldungen, die keinem Trupp zugeordnet werden konnten
+                    if (remainingReports.length > 0) {
+                        fullHTML += `<h4 class="trupp-header mt-3 mb-2 pb-1" style="border-bottom: 2px solid #ff9800; color: #ff9800; font-weight: bold; font-size: 1.1rem; text-align: left;">❓ Nicht zugeordnet (${remainingReports.length})</h4>`;
+
+                        remainingReports.forEach(rep => {
+                            const date = new Date(rep.created_at).toLocaleDateString('de-DE');
+                            fullHTML += `
+                                <div class="report-compact-item">
+                                    <div class="report-compact-info">
+                                        <strong>${rep.benches ? rep.benches.type : 'Nicht registrierte Bank'}</strong> - ${date} <br/>
+                                        <small>${rep.description.substring(0, 50)}${rep.description.length > 50 ? '...' : ''}</small>
+                                    </div>
+                                    <button class="btn" style="padding:6px 12px; width:auto; font-size:12px;" onclick="window.showReportDetail('damage', ${rep.id})">Meldung anzeigen</button>
+                                </div>
+                            `;
+                        });
+                    }
+
+                    container.innerHTML = fullHTML;
+                } else {
+                    // Normales Rendering für die einzelnen Trupps (wenn nicht Admin)
+                    container.innerHTML = filteredData.map(rep => {
+                        const date = new Date(rep.created_at).toLocaleDateString('de-DE');
+                        return `
+                            <div class="report-compact-item">
+                                <div class="report-compact-info">
+                                    <strong>${rep.benches ? rep.benches.type : 'Nicht registrierte Bank'}</strong> - ${date} <br/>
+                                    <small>${rep.description.substring(0, 50)}${rep.description.length > 50 ? '...' : ''}</small>
+                                </div>
+                                <button class="btn" style="padding:6px 12px; width:auto; font-size:12px;" onclick="window.showReportDetail('damage', ${rep.id})">Meldung anzeigen</button>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                window.currentReportData = filteredData;
             } else if(mode === 'entries') {
                 document.getElementById('reports-title').innerText = "🔍 Ausstehende Freigaben";
                 const { data, error } = await supabaseClient.from('benches').select('*');
@@ -1017,12 +1217,10 @@
             }
         };
 
-        // NEU: Globale Funktion, um aus der Liste zur Karte zu springen und das Popup zu öffnen
         window.showBenchOnMap = function(benchId) {
             const marker = window.markerDict[benchId];
             if (marker) {
                 closeReportsOverlay();
-                // Schließe das Filter- und Infomenü (Sidebar) direkt
                 const sidebar = document.getElementById('sidebar');
                 if (sidebar.classList.contains('open')) {
                     toggleSidebar();
@@ -1032,20 +1230,15 @@
                     marker.openPopup();
                 }, 400);
             } else {
-                alert("Bank konnte auf der Karte nicht gefunden werden. Eventuell ist der Ort außerhalb des aktuellen Kartenausschnitts.");
+                alert("Bank konnte auf der Karte nicht gefunden werden.");
             }
         };
 
-        // NEU: Direkt-Link von einer nicht freigegebenen Bank im Pop-up ins Freigabe-Center
         window.showDirectApprovalFromMap = function(benchId) {
             if (currentRole !== 'Admin') return;
-            
-            // Schließe die offene Karte/Pop-ups
             if (map) map.closePopup();
             
-            // Öffne direkt das Freigabe-Center für neue Eintragungen
             window.openReportsOverlay('entries').then(() => {
-                // Suche in den geladenen, ausstehenden Bänken nach dieser ID und zeige die Details
                 if (window.currentPendingBenches && window.currentPendingBenches.length > 0) {
                     const found = window.currentPendingBenches.find(item => item.id === benchId);
                     if (found) {
@@ -1072,10 +1265,8 @@
                         <p><strong>Beschreibung:</strong> ${rep.description}</p>
                         ${rep.image_url ? `<img src="${rep.image_url}" />` : ''}
                         
-                        <!-- NEU: Kleine Übersichtskarte in der Meldung -->
                         <div id="report-minimap-container" class="report-minimap"></div>
                         
-                        <!-- NEU: Gleichgroße Buttons durch Flex-Container -->
                         <div class="equal-btn-container">
                             <button class="btn" style="background:#3498db;" onclick="showBenchOnMap(${rep.bench_id})">📍 Karte</button>
                             <button class="btn btn-save" onclick="resolveDamageReport(${rep.id}, ${rep.bench_id}, '${rep.image_url || ''}')">✔ Erledigt</button>
@@ -1083,7 +1274,6 @@
                     </div>
                 `;
                 
-                // Minimap initialisieren
                 if (rep.benches) {
                     setTimeout(() => {
                         const miniMap = L.map('report-minimap-container', {
@@ -1113,10 +1303,8 @@
                         <p><strong>Schaden:</strong> ${b.damage_description || '-'}</p>
                         <p><strong>Notiz:</strong> ${b.note || '-'}</p>
                         
-                        <!-- NEU: Kleine Übersichtskarte in der Meldung -->
                         <div id="report-minimap-container" class="report-minimap"></div>
                         
-                        <!-- NEU: Gleichgroße Buttons durch Flex-Container -->
                         <div class="equal-btn-container">
                             <button class="btn" style="background:#3498db;" onclick="showBenchOnMap(${b.id})">📍 Karte</button>
                             <button class="btn btn-save" onclick="approveEntry(${b.id}, true)">👍 Freigeben</button>
@@ -1125,7 +1313,6 @@
                     </div>
                 `;
                 
-                // Minimap initialisieren
                 setTimeout(() => {
                     const miniMap = L.map('report-minimap-container', {
                         dragging: false,
@@ -1146,12 +1333,11 @@
         };
 
         window.resolveDamageReport = async function(reportId, benchId, reportImageUrl) {
-            if(confirm("Möchtest du diese Schadensmeldung wirklich als erledigt markieren? Dadurch wird sie gelöscht und das Wartungsdatum der Bank aktualisiert.")) {
-                const todayStr = new Date().toISOString().split('T')[0];
+            if(confirm("Möchtest du diese Schadensmeldung wirklich als erledigt markieren? Dadurch wird sie gelöscht und der Status zurückgesetzt.")) {
                 if(supabaseClient) {
                     if(reportImageUrl) { await deleteAttachedStorageImage(reportImageUrl); }
                     
-                    await supabaseClient.from('benches').update({ last_maintenance: todayStr, manual_status: 'Automatisch', damage_description: null, approved: true, pending_action: null }).eq('id', benchId);
+                    await supabaseClient.from('benches').update({ manual_status: 'Automatisch', damage_description: null, approved: true, pending_action: null }).eq('id', benchId);
                     await supabaseClient.from('damage_reports').delete().eq('id', reportId);
                     alert("Schadensmeldung erfolgreich erledigt!");
                     closeReportsOverlay();
@@ -1184,6 +1370,41 @@
             await fetchBenchesFromCloud();
         };
 
+// =================================================================
+        // NEUE HILFSFUNKTION: Löscht bestehende Schadensmeldungen automatisch
+        // =================================================================
+        async function autoDeleteDamageReport(benchId) {
+            if (!supabaseClient) return;
+            try {
+                // 1. Hole den Report aus der DB, um eventuelle Bilder zu prüfen
+                const { data: reports } = await supabaseClient
+                    .from('damage_reports')
+                    .select('id, image_url')
+                    .eq('bench_id', benchId);
+
+                if (reports && reports.length > 0) {
+                    for (const report of reports) {
+                        // Falls ein Bild existiert, aus dem Storage löschen
+                        if (report.image_url && typeof deleteAttachedStorageImage === 'function') {
+                            try { await deleteAttachedStorageImage(report.image_url); } catch(e) { console.error(e); }
+                        }
+                        // Report aus der DB löschen
+                        await supabaseClient.from('damage_reports').delete().eq('id', report.id);
+                        
+                        // Lokal aus dem Array entfernen, damit das rote Ausrufungszeichen sofort verschwindet
+                        if (window.guestDamageReports) {
+                            window.guestDamageReports = window.guestDamageReports.filter(r => r.id !== report.id);
+                        }
+                    }
+                    // Zähler-Badges auf der Oberfläche aktualisieren, falls vorhanden
+                    if (typeof updateBadgeCounters === 'function') await updateBadgeCounters();
+                }
+            } catch (err) {
+                console.error("Fehler beim automatischen Löschen der Schadensmeldung:", err);
+            }
+        }
+        // =================================================================
+
         window.malerQuickStatus = async function(id) {
             const bench = benches.find(b => b.id === id);
             if(!bench) return;
@@ -1198,6 +1419,7 @@
             if(supabaseClient) {
                 try {
                     await supabaseClient.from('benches').update(updatedData).eq('id', id);
+                    await autoDeleteDamageReport(id); // <-- Schadensmeldung automatisch löschen
                     await fetchBenchesFromCloud();
                 } catch (e) {
                     saveOfflineAction('update', updatedData, id);
@@ -1205,6 +1427,76 @@
             } else {
                 saveOfflineAction('update', updatedData, id);
             }
+        };
+
+        // Neue Schnellaktion für Grünpflege
+        window.cutFreeQuickStatus = async function(id) {
+            const bench = benches.find(b => b.id === id);
+            if(!bench) return;
+            
+            const updatedData = { manual_status: 'Automatisch', damage_description: null };
+            if(map) map.closePopup();
+
+            const idx = benches.findIndex(b => b.id === id);
+            if (idx !== -1) benches[idx] = { ...benches[idx], ...updatedData };
+            updateApp();
+
+            if(supabaseClient) {
+                try {
+                    await supabaseClient.from('benches').update(updatedData).eq('id', id);
+                    await autoDeleteDamageReport(id); // <-- Schadensmeldung automatisch löschen
+                    await fetchBenchesFromCloud();
+                } catch (e) {
+                    saveOfflineAction('update', updatedData, id);
+                }
+            } else {
+                saveOfflineAction('update', updatedData, id);
+            }
+        };
+
+        // Neue Schnellaktionen für Galabau
+        window.openGalaModelOverlay = function(id) {
+            if (map) map.closePopup();
+            selectedDamageBenchId = id;
+            document.getElementById('gala-model-select').innerHTML = types.map(t => `<option value="${t}">${t}</option>`).join('');
+            document.getElementById('gala-model-overlay').style.display = "block";
+        };
+
+        window.closeGalaModelOverlay = function() {
+            document.getElementById('gala-model-overlay').style.display = "none";
+        };
+
+        window.executeGalaModelChange = async function() {
+            const selectedType = document.getElementById('gala-model-select').value;
+            const updatedData = { type: selectedType, manual_status: 'Automatisch', damage_description: null };
+            closeGalaModelOverlay();
+
+            if(supabaseClient) {
+                await supabaseClient.from('benches').update(updatedData).eq('id', selectedDamageBenchId);
+                await autoDeleteDamageReport(selectedDamageBenchId); // <-- Schadensmeldung automatisch löschen
+                await fetchBenchesFromCloud();
+            } else {
+                saveOfflineAction('update', updatedData, selectedDamageBenchId);
+            }
+        };
+
+        window.galaReplaceBench = async function(id) {
+            const updatedData = { manual_status: 'Automatisch', damage_description: null };
+            if(map) map.closePopup();
+
+            if(supabaseClient) {
+                await supabaseClient.from('benches').update(updatedData).eq('id', id);
+                await autoDeleteDamageReport(id); // <-- Schadensmeldung automatisch löschen
+                await fetchBenchesFromCloud();
+            } else {
+                saveOfflineAction('update', updatedData, id);
+            }
+        };
+
+        window.requestGalaDelete = function(id) {
+            if(map) map.closePopup();
+            selectedDamageBenchId = id;
+            promptWorkerName('gala-delete');
         };
 
         function updateSyncIndicator() {
@@ -1215,11 +1507,11 @@
             if (queue.length === 0) {
                 icon.innerText = "☁️";
                 icon.className = "sync-indicator sync-green";
-                icon.title = "Alle Daten synchronisiert. Klicken für manuellen Check.";
+                icon.title = "Alle Daten synchronisiert.";
             } else {
                 icon.innerText = `☁️ (${queue.length})`;
                 icon.className = "sync-indicator sync-red";
-                icon.title = `${queue.length} Änderungen blockiert. Klicken zum Synchronisieren / Bereinigen.`;
+                icon.title = `${queue.length} Änderungen blockiert.`;
             }
         }
 
@@ -1228,27 +1520,20 @@
             icon.innerText = "⏳";
             
             if (!supabaseClient) {
-                alert("Keine Verbindung zur Cloud-Datenbank konfiguriert.");
+                alert("Keine Verbindung zur Cloud-Datenbank.");
                 updateSyncIndicator();
                 return;
             }
 
             const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
-            
-            // 1. Wenn lokale Änderungen ausstehen, lade diese zuerst hoch
             if (queue.length > 0) {
                 await syncOfflineQueue();
-                const currentQueue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
-                if (currentQueue.length > 0) {
-                    alert("Einige ungültige Datenleichen wurden automatisch aus der Warteschlange entfernt.");
-                }
             }
 
-            // 2. Rufe JETZT die brandaktuelle Datenbank ab, um Eintragungen anderer Nutzer zu laden
             await fetchBenchesFromCloud();
             await fetchTypesFromCloud();
             
-            alert("Datenbank erfolgreich aktualisiert und synchronisiert!");
+            alert("Datenbank erfolgreich aktualisiert!");
             updateSyncIndicator();
         };
 
@@ -1277,7 +1562,7 @@
                     updateTypeDropdowns();
                     updateApp();
                 }
-            } catch (err) { console.warn("Bautypen-Timeout, nutze Cache."); }
+            } catch (err) { console.warn("Bautypen-Timeout."); }
         }
 
         async function fetchBenchesFromCloud() {
@@ -1299,7 +1584,7 @@
                 await updateBadgeCounters();
                 handleDeepLink();
             } catch (err) {
-                console.warn("Karten-Daten Timeout. Zeige Cache.");
+                console.warn("Karten-Daten Timeout.");
                 handleDeepLink();
             }
         }
@@ -1328,14 +1613,9 @@
                     }
 
                     if (result.error) {
-                        console.error("Supabase Fehler bei Action", item.action, ":", result.error);
-                        alert(`Fehler bei Sync (${item.action}): ${result.error.message}`);
                         remainingQueue.push(item);
-                    } else {
-                        console.log("Erfolgreich synchronisiert:", item.action);
                     }
                 } catch (e) {
-                    console.error("Netzwerkfehler:", e);
                     remainingQueue.push(item);
                 }
             }
@@ -1423,7 +1703,6 @@
             setTimeout(() => { isTakingPhoto = false; }, 1500);
         };
 
-        // Speicher-Handler für neuen Bautyp registrieren
         document.getElementById('add-type-btn').onclick = async function() {
             const typeName = document.getElementById('new-type-input').value.trim();
             if(!typeName) { alert("Bitte gib einen Namen für den Bautyp ein."); return; }
@@ -1442,14 +1721,8 @@
                 if(fileToUpload) {
                     const cleanName = typeName.replace(/\s+/g, '_');
                     const fileName = `${cleanName}.jpg`;
-                    
-                    // Vorheriges Bild zur Sicherheit löschen, falls vorhanden
                     await supabaseClient.storage.from('bench-images').remove([fileName]);
-                    
-                    const { error: uploadError } = await supabaseClient.storage.from('bench-images').upload(fileName, fileToUpload, { upsert: true });
-                    if(uploadError) {
-                        console.error("Storage-Fehler beim Hochladen:", uploadError.message);
-                    }
+                    await supabaseClient.storage.from('bench-images').upload(fileName, fileToUpload, { upsert: true });
                 }
 
                 const { error: dbError } = await supabaseClient.from('bench_types').insert([{ name: typeName }]);
@@ -1535,38 +1808,36 @@
                 navigator.share({ title: 'Sitzbank-Kataster Details', text: shareText, url: shareUrl })
                 .catch((err) => { if(err.name !== "AbortError") { prompt("Link kopieren:", `${shareText} \n${shareUrl}`); } });
             } else {
-                prompt("Kopiere dieses Text zum Teilen:", `${shareText} \n${shareUrl}`);
+                prompt("Kopiere diesen Text zum Teilen:", `${shareText} \n${shareUrl}`);
             }
             pendingShareId = null; 
         };
 
         window.quickMaintenance = async function(id) {
             const bench = benches.find(b => b.id === id);
-            if (!bench) return;
-            const todayStr = new Date().toISOString().split('T')[0];
-            const updatedData = { last_maintenance: todayStr, manual_status: 'Automatisch', damage_description: null };
-
-            if (map) map.closePopup();
+            if(!bench) return;
             
+            const updatedData = { manual_status: 'Automatisch', damage_description: null };
+            if(map) map.closePopup();
+
             const idx = benches.findIndex(b => b.id === id);
             if (idx !== -1) benches[idx] = { ...benches[idx], ...updatedData };
+            
+            // AUTOMATISCHER CHECK: Schadensmeldung löschen, bevor das UI aktualisiert wird
+            await autoDeleteDamageReport(id); 
+            
             updateApp();
 
-            localStorage.setItem('last_used_maintenance_date', todayStr);
-
-            if (supabaseClient) {
+            if(supabaseClient) {
                 try {
-                    const { error } = await Promise.race([
-                        supabaseClient.from('benches').update(updatedData).eq('id', id),
-                        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
-                    ]);
-                    if (error) throw error;
-                    await syncOfflineQueue();
-                } catch(e) { 
-                    console.warn("Direktupload fehlgeschlagen, sichere im Local Storage...");
-                    saveOfflineAction('update', updatedData, id); 
+                    await supabaseClient.from('benches').update(updatedData).eq('id', id);
+                    await fetchBenchesFromCloud();
+                } catch (e) {
+                    saveOfflineAction('update', updatedData, id);
                 }
-            } else { saveOfflineAction('update', updatedData, id); }
+            } else {
+                saveOfflineAction('update', updatedData, id);
+            }
         };
 
         function calculateStatus(bench) {
@@ -1576,6 +1847,8 @@
             if (bench.manual_status === 'Wartung empfohlen') return 'Wartung empfohlen'; 
             if (bench.manual_status === 'Beschädigt') return 'Beschädigt';
             if (bench.manual_status === 'Irreparabel') return 'Irreparabel';
+            if (bench.manual_status === 'Verschmutzt') return 'Verschmutzt';
+            if (bench.manual_status === 'Zugewachsen') return 'Zugewachsen';
             if (!bench.last_maintenance) return 'Wartung nötig';
             const maintDate = new Date(bench.last_maintenance);
             const today = new Date();
@@ -1596,6 +1869,8 @@
                 case 'Wartung nötig': baseStyle = { radius: 9, fillColor: '#c0392b', color: '#fff', weight: 2, fillOpacity: 0.9 }; break;
                 case 'Beschädigt': baseStyle = { radius: 14, fillColor: '#e74c3c', color: '#ffffff', weight: 4, fillOpacity: 1 }; break;
                 case 'Irreparabel': baseStyle = { radius: 11, fillColor: '#000000', color: '#ffffff', weight: 3, fillOpacity: 1 }; break;
+                case 'Verschmutzt': baseStyle = { radius: 9, fillColor: '#e67e22', color: '#ffffff', weight: 2, fillOpacity: 0.95 }; break; // Statusfarbe Orange
+                case 'Zugewachsen': baseStyle = { radius: 9, fillColor: '#2980b9', color: '#ffffff', weight: 2, fillOpacity: 0.95 }; break; // Statusfarbe Blau
                 default: baseStyle = { radius: 9, fillColor: '#7f8c8d', color: '#fff', weight: 2, fillOpacity: 0.9 };
             }
 
@@ -1747,25 +2022,87 @@
                                 ActionButtons = `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background:#e74c3c;">⚠️ Schaden melden</button>`;
                             }
                         } else {
-                            if (currentRole === 'Admin' || currentRole === 'Zimmerer') {
+                            // Buttons je nach Benutzerrolle anpassen
+
+                            if (currentRole === 'Admin') {
                                 ActionButtons += `<button onclick="window.quickMaintenance(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🟢 Wartung heute</button>`;
+                                ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
+                                ActionButtons += `
+                                    <div style="display: flex; gap: 4px; margin-bottom: 5px;">
+                                        <button onclick="window.triggerEdit(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1;">Bearbeiten</button>
+                                        <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
+                                        <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
+                                    </div>
+                                `;
                             }
-                            if (currentRole === 'Stadt Reinigung' && status === 'Wartung empfohlen') {
-                                ActionButtons += `<button onclick="window.malerQuickStatus(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🪣 Bank Gereinigt</button>`;
+
+                            else if (currentRole === 'Zimmerer') {
+                                ActionButtons += `<button onclick="window.quickMaintenance(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🟢 Wartung heute</button>`;
+                                ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
+                                ActionButtons += `
+                                    <div style="display: flex; gap: 4px; margin-bottom: 5px;">
+                                        <button onclick="window.triggerEdit(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1;">Bearbeiten</button>
+                                        <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
+                                        <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
+                                    </div>
+                                `;
                             }
-                            
-                            ActionButtons += `
-                                <div style="display: flex; gap: 4px;">
-                                    <button onclick="window.triggerEdit(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1;">Bearbeiten</button>
-                                    <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
-                                    <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
-                                </div>
-                            `;
-                            
-                            // NEU: Wenn der Benutzer Admin ist und die Bank NICHT freigegeben wurde, füge einen Freigabe-Plus-Button hinzu
+
+                            else if (currentRole === 'Spielplatzkontrolle') {
+                                ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
+                                ActionButtons += `
+                                    <div style="display: flex; gap: 4px; margin-bottom: 5px;">
+                                        <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
+                                        <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
+                                    </div>
+                                `;
+                            }
+
+                            else if (currentRole === 'Gala Bau') {
+                                ActionButtons += `<button onclick="window.galaReplaceBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">♻️ Bank Ausgetauscht</button>`;
+                                ActionButtons += `<button onclick="window.openGalaModelOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #34495e; font-weight: bold; margin-bottom:5px;">📐 Neues Modell</button>`;
+                                ActionButtons += `<button onclick="window.requestGalaDelete(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #c0392b; font-weight: bold; margin-bottom:5px;">🗑️ Bank abgebaut</button>`;
+                                ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden Melden</button>`;
+                                ActionButtons += `
+                                    <div style="display: flex; gap: 4px; margin-bottom: 5px;">
+                                        <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
+                                        <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
+                                    </div>
+                                `;
+                            }
+
+                            else if (currentRole === 'Stadt Reinigung') {
+    // Der Button "Bank Gereinigt" erscheint NUR, wenn der Status "Verschmutzt" (Orange) ist
+    if (status === 'Verschmutzt') {
+        ActionButtons += `<button onclick="window.malerQuickStatus(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🧹 Bank Gereinigt</button>`;
+    }
+    ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
+    ActionButtons += `
+        <div style="display: flex; gap: 4px; margin-bottom: 5px;">
+            <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
+            <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
+        </div>
+    `;
+}
+
+else if (currentRole === 'Grünpflege') {
+    // Button nur anzeigen, wenn der Status "Zugewachsen" ist
+    if (status === 'Zugewachsen') {
+        ActionButtons += `<button onclick="window.cutFreeQuickStatus(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #2980b9; font-weight: bold; margin-bottom:5px;">🌿 Bank freischneiden</button>`;
+    }
+    
+    // Standard-Buttons für die Grünpflege
+    ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
+    ActionButtons += `
+        <div style="display: flex; gap: 4px; margin-bottom: 5px;">
+            <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
+            <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
+        </div>
+    `;
+}
                             if (currentRole === 'Admin' && bench.approved === false) {
                                 ActionButtons += `
-                                    <button onclick="window.showDirectApprovalFromMap(${bench.id})" class="btn" style="padding: 4px; font-size: 14px; font-weight: bold; margin-top: 5px; background: #e74c3c; color: white; display: flex; align-items: center; justify-content: center;">➕ Freigabe-Meldung öffnen</button>
+                                    <button onclick="window.showDirectApprovalFromMap(${bench.id})" class="btn" style="padding: 4px; font-size: 12px; font-weight: bold; margin-top: 5px; background: 	#1E90FF; color: white; display: flex; align-items: center; justify-content: center;">➕ Freigabe-Meldung öffnen</button>
                                 `;
                             }
                         }
@@ -1842,7 +2179,7 @@
             document.getElementById('pop-dimensions').value = bench.dimensions || '';
             document.getElementById('pop-note').value = bench.note || '';
             
-            const canDelete = (currentRole === 'Admin' || currentRole === 'Zimmerer' || currentRole === 'Gala Bau' || currentRole === 'Spielplatzkontrolle' || currentRole === 'Stadt Reinigung');
+            const canDelete = (currentRole === 'Admin');
             document.getElementById('pop-delete-btn').style.display = (isNew || !canDelete) ? 'none' : 'block';
             
             document.getElementById('fullscreen-overlay').style.display = 'block';
@@ -1891,10 +2228,10 @@
         document.getElementById('pop-save-btn').onclick = () => { promptWorkerName('save'); };
         document.getElementById('pop-delete-btn').onclick = () => { promptWorkerName('delete'); };
 
-        async function executeFinalDatabaseAction(actionType, workerName = null) {
-            lastSelectedType = document.getElementById('pop-type').value;
-            lastSelectedDistrict = document.getElementById('pop-district').value;
-            const selectedDate = document.getElementById('pop-date').value || null;
+async function executeFinalDatabaseAction(actionType, workerName = null) {
+            lastSelectedType = document.getElementById('pop-type') ? document.getElementById('pop-type').value : null;
+            lastSelectedDistrict = document.getElementById('pop-district') ? document.getElementById('pop-district').value : null;
+            const selectedDate = document.getElementById('pop-date') ? document.getElementById('pop-date').value : null;
             
             if(selectedDate) {
                 localStorage.setItem('last_used_maintenance_date', selectedDate);
@@ -1902,15 +2239,94 @@
 
             const isAdmin = currentRole === 'Admin';
             
-            // Ermittle den finalen Bearbeiter-Namen für das separate DB-Feld worker_name
-            let finalWorkerName = currentEditingBench.worker_name || null;
+            // HIER WAR DER FEHLER: Abgesicherte Abfrage, falls currentEditingBench null ist
+            let finalWorkerName = (currentEditingBench && currentEditingBench.worker_name) ? currentEditingBench.worker_name : null;
             if (workerName) {
                 finalWorkerName = `${currentRole} (${workerName})`;
-            } else if (isAdmin && isNewBenchMode) {
+            } else if (isAdmin && typeof isNewBenchMode !== 'undefined' && isNewBenchMode) {
                 finalWorkerName = "Admin";
             }
 
-            let finalNote = document.getElementById('pop-note').value;
+            let finalNote = document.getElementById('pop-note') ? document.getElementById('pop-note').value : "";
+
+            if (actionType === 'gala-delete') {
+                // Löschantrag für Galabau
+                const rowData = {
+                    approved: false,
+                    pending_action: 'delete',
+                    worker_name: `${currentRole} (${workerName})`,
+                    manual_status: 'Gesperrt', // Status visuell auf Gesperrt/Abgebaut setzen
+                    damage_description: null
+                };
+
+                // LOKAL: Status im benches-Array direkt spiegeln, damit das Icon reagiert
+                const idx = benches.findIndex(b => b.id === selectedDamageBenchId);
+                if (idx !== -1) {
+                    benches[idx] = { ...benches[idx], ...rowData };
+                }
+
+                // Schadensmeldung automatisch entfernen (inklusive Speicherplatz-Bereinigung im Supabase Storage)
+                if (supabaseClient) {
+                    try {
+                        // 1. Hole den Report aus der DB, um eventuelle Bilder zu prüfen
+                        const { data: reports } = await supabaseClient
+                            .from('damage_reports')
+                            .select('id, image_url')
+                            .eq('bench_id', selectedDamageBenchId);
+
+                        if (reports && reports.length > 0) {
+                            for (const report of reports) {
+                                // 2. Bild direkt aus dem Supabase Storage löschen
+                                if (report.image_url) {
+                                    try {
+                                        const bucketName = 'bench-images'; 
+                                        const parts = report.image_url.split(`${bucketName}/`);
+                                        if (parts.length > 1) {
+                                            const filePath = parts[1]; // Relativer Pfad innerhalb des Buckets
+                                            await supabaseClient.storage.from(bucketName).remove([filePath]);
+                                            console.log("Bild erfolgreich aus Storage gelöscht:", filePath);
+                                        }
+                                    } catch(e) { 
+                                        console.error("Fehler beim Löschen des Bildpfads:", e); 
+                                    }
+                                }
+                                // 3. Report aus der DB löschen
+                                await supabaseClient.from('damage_reports').delete().eq('id', report.id);
+                                
+                                // Lokal aus dem Array entfernen
+                                if (window.guestDamageReports) {
+                                    window.guestDamageReports = window.guestDamageReports.filter(r => r.id !== report.id);
+                                }
+                            }
+                            if (typeof updateBadgeCounters === 'function') await updateBadgeCounters();
+                        }
+                    } catch (err) {
+                        console.error("Fehler beim automatischen Löschen der Schadensmeldung:", err);
+                    }
+                }
+
+                if (map) map.closePopup(); // Karte schließen
+                
+                // Schließe das Namens-Overlay, damit das Fenster verschwindet
+                const nameOverlay = document.getElementById('worker-name-overlay') || document.getElementById('gala-model-overlay');
+                if (nameOverlay) nameOverlay.style.display = "none";
+                if (typeof closeWorkerNameOverlay === 'function') closeWorkerNameOverlay();
+
+                updateApp(); // Karte neu zeichnen
+
+                if (supabaseClient) {
+                    try {
+                        await supabaseClient.from('benches').update(rowData).eq('id', selectedDamageBenchId);
+                        alert("Löschung beantragt. Der Administrator muss dies bestätigen.");
+                        await fetchBenchesFromCloud();
+                    } catch (e) {
+                        saveOfflineAction('update', rowData, selectedDamageBenchId);
+                    }
+                } else {
+                    saveOfflineAction('update', rowData, selectedDamageBenchId);
+                }
+                return;
+            }
 
             if (actionType === 'save') {
                 const rowData = {
@@ -1953,182 +2369,157 @@
                             ]);
                             if (error) throw error;
                         }
-                        localStorage.setItem('benches_cache', JSON.stringify(benches));
-                        if(!isAdmin) {
-                            alert("Änderung erfolgreich übermittelt. Der Admin muss diese bestätigen, bevor sie auf der Karte aktiv wird.");
-                        }
                         await fetchBenchesFromCloud();
-                    } catch (e) { 
-                        console.warn("Upload verzögert. Speichere offline... ");
-                        saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id, tempId); 
-                    }
-                } else { saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id, tempId); }
-
-            } else if (actionType === 'delete') {
-                const targetId = currentEditingBench.id;
-
-                if (isAdmin) {
-                    if (currentEditingBench.note && currentEditingBench.note.startsWith('http')) {
-                        await deleteAttachedStorageImage(currentEditingBench.note);
-                    }
-                    benches = benches.filter(b => b.id !== targetId);
-                    updateApp();
-                    document.getElementById('fullscreen-overlay').style.display = 'none';
-                    if (supabaseClient) {
-                        await supabaseClient.from('benches').delete().eq('id', targetId);
-                        await fetchBenchesFromCloud();
+                    } catch(e) {
+                        saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id, tempId);
                     }
                 } else {
-                    const index = benches.findIndex(b => b.id !== targetId);
-                    if (index !== -1) {
-                        benches[index].approved = false;
-                        benches[index].pending_action = 'delete';
-                    }
-                    updateApp();
-                    document.getElementById('fullscreen-overlay').style.display = 'none';
-                    if (supabaseClient) {
-                        await supabaseClient.from('benches').update({ approved: false, pending_action: 'delete' }).eq('id', targetId);
-                        alert("Löschantrag erfolgreich übermittelt. Wartet auf Freigabe durch den Administrator.");
+                    saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id, tempId);
+                }
+            } else if (actionType === 'delete') {
+                const targetId = currentEditingBench.id;
+                benches = benches.filter(b => b.id !== targetId);
+                updateApp();
+                document.getElementById('fullscreen-overlay').style.display = 'none';
+
+                if (supabaseClient) {
+                    try {
+                        const { error } = await Promise.race([
+                            supabaseClient.from('benches').delete().eq('id', targetId),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
+                        ]);
+                        if (error) throw error;
                         await fetchBenchesFromCloud();
+                    } catch(e) {
+                        saveOfflineAction('delete', null, targetId);
                     }
+                } else {
+                    saveOfflineAction('delete', null, targetId);
                 }
             }
-            pendingWorkerAction = null;
         }
 
-        document.getElementById('pop-cancel-btn').onclick = () => { document.getElementById('fullscreen-overlay').style.display = 'none'; };
-        function forceMapUpdate() { if (map) { map.invalidateSize(); } }
+        let addressSuggestions = [];
+        const streetInput = document.getElementById('street-search-input');
+        const resultsList = document.getElementById('search-results-list');
 
-        function initStreetSearch() {
-            const searchInput = document.getElementById('street-search-input');
-            const resultsList = document.getElementById('search-results-list');
-            let debounceTimer;
+        streetInput.addEventListener('input', async (e) => {
+            const query = e.target.value.trim();
+            if (query.length < 3) { resultsList.style.display = "none"; return; }
 
-            searchInput.addEventListener('input', () => {
-                clearTimeout(debounceTimer);
-                const query = searchInput.value.trim();
-                if (query.length < 3) {
-                    resultsList.style.display = 'none';
-                    return;
+            const osmUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}+Heilbronn&addressdetails=1&limit=5`;
+            try {
+                const res = await fetch(osmUrl, { headers: { 'Accept-Language': 'de' } });
+                const data = await res.json();
+                addressSuggestions = data;
+                
+                resultsList.innerHTML = '';
+                if(data.length === 0) {
+                    resultsList.innerHTML = `<li><em>Keine Ergebnisse gefunden</em></li>`;
+                } else {
+                    data.forEach((item, index) => {
+                        const street = item.address.road || item.display_name.split(',')[0];
+                        const suburb = item.address.suburb || item.address.city_district || "Heilbronn";
+                        resultsList.innerHTML += `<li onclick="selectSearchResult(${index})">📍 <strong>${street}</strong><br><small style="color:#7f8c8d;">${suburb}</small></li>`;
+                    });
                 }
+                resultsList.style.display = "block";
+            } catch (err) { console.error("Nominatim-Fehler:", err); }
+        });
 
-                debounceTimer = setTimeout(() => {
-                    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ' Heilbronn')}&addressdetails=1&limit=5`;
-                    
-                    fetch(url, { headers: { 'Accept-Language': 'de' } })
-                        .then(res => res.json())
-                        .then(data => {
-                            resultsList.innerHTML = '';
-                            if (data && data.length > 0) {
-                                data.forEach(item => {
-                                    const li = document.createElement('li');
-                                    li.innerText = item.display_name.split(',').slice(0, 3).join(',');
-                                    li.addEventListener('click', () => {
-                                        const lat = parseFloat(item.lat);
-                                        const lon = parseFloat(item.lon);
-                                        map.setView([lat, lon], 17);
-                                        resultsList.style.display = 'none';
-                                        searchInput.value = item.display_name.split(',')[0];
-                                    });
-                                    resultsList.appendChild(li);
-                                });
-                                resultsList.style.display = 'block';
-                            } else {
-                                resultsList.style.display = 'none';
-                            }
-                        })
-                        .catch(err => { console.error("Fehler bei Nominatim:", err); });
-                }, 400);
-            });
-
-            document.addEventListener('click', (e) => {
-                if (!searchInput.contains(e.target) && !resultsList.contains(e.target)) {
-                    resultsList.style.display = 'none';
-                }
-            });
-        }
-
-        window.onload = function() {
-            const defaultCenter = [49.1426, 9.2185];
+        window.selectSearchResult = function(index) {
+            const selected = addressSuggestions[index];
+            if (!selected) return;
+            const lat = parseFloat(selected.lat); const lon = parseFloat(selected.lon);
             
-            // Definiere die strikte geographische Begrenzung für Heilbronn (+ Puffer)
-            const HN_BOUNDS = L.latLngBounds(
-                L.latLng(49.0800, 9.0430), // Südwest-Ecke
-                L.latLng(49.2200, 9.3200)  // Nordost-Ecke
-            );
+            if (map) {
+                map.setView([lat, lon], 18);
+                L.popup().setLatLng([lat, lon]).setContent(`<b>${selected.address.road || "Ausgewählter Ort"}</b>`).openOn(map);
+            }
+            resultsList.style.display = "none";
+            streetInput.value = selected.address.road || selected.display_name.split(',')[0];
+        };
 
-            // Initialisiere die Karte mit strikter Begrenzung
-            map = L.map('map', {
-                maxBounds: HN_BOUNDS,
-                maxBoundsViscosity: 1.0, 
-                minZoom: 12
-            }).setView(defaultCenter, 14);
+        document.addEventListener('click', (e) => {
+            if (streetInput && !streetInput.contains(e.target) && resultsList && !resultsList.contains(e.target)) {
+                resultsList.style.display = "none";
+            }
+        });
 
-            const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; OpenStreetMap'
-            }).addTo(map);
+        function forceMapUpdate() { if(map) { map.invalidateSize(); } }
 
-            const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                maxZoom: 19,
-                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-            });
+        window.onload = async function() {
+            initDropdowns();
+            const supabaseLoaded = initSupabase();
+            // 1. Koordinaten-Grenzen für Heilbronn (Südwest- und Nordost-Ecke) definieren
+const heilbronnBounds = [
+    [49.0600, 9.0400], // Süd-Westen (deckt auch Klingenberg/Horkheim ab)
+    [49.2400, 9.3500]  // Nord-Osten (deckt auch Biberach/Kirchhausen ab)
+];
 
-            const baseMaps = { "Standardkarte": osm, "Luftbild (Satellit)": satellite };
+// 2. Karte mit den Begrenzungen initialisieren
+map = L.map('map', {
+    maxBounds: heilbronnBounds,
+    maxBoundsViscosity: 1.0, // Verhindert das Hinausziehen über die Ränder (1.0 = hartes Limit)
+    minZoom: 12              // Verhindert, dass Nutzer zu weit herauszoomen
+}).setView([49.1427, 9.2000], 12); // Zentrum von Heilbronn
+            
+            const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+            const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles © Esri' });
+            
+            osm.addTo(map);
+            L.control.zoom({ position: 'topright' }).addTo(map);
+
+            const baseMaps = { "Karte": osm, "Satellitenbild": satellite };
             L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
             markersLayer = L.layerGroup().addTo(map);
 
-            let clickTimer = null;
+            // Karten-Klick Event Handler
             map.on('click', function(e) {
-                if (currentRole === 'Gast') {
-                    if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
-                    clickTimer = setTimeout(() => {
-                        const tempMarker = L.circleMarker(e.latlng, { radius: 10, fillColor: '#e74c3c', color: '#fff', weight: 2, fillOpacity: 0.8 }).addTo(map);
-                        const popupContent = `
-                            <div style="font-size:13px; text-align:center;">
-                                <strong>Neue Bank/Schaden melden?</strong><br/>
-                                Hier befindet sich eine nicht erfasste Bank oder ein Schaden?<br/><br/>
-                                <button onclick="window.openGuestDamageOverlay(null, true, ${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="font-size:12px; padding:6px; background:#e74c3c;">⚠️ Schaden/Fund melden</button>
-                            </div>
-                        `;
-                        tempMarker.bindPopup(popupContent).openPopup();
-                        tempMarker.on('popupclose', () => { map.removeLayer(tempMarker); });
-                    }, 250);
-                } else {
-                    if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
-                    clickTimer = setTimeout(() => {
-                        const tempMarker = L.circleMarker(e.latlng, { radius: 10, fillColor: '#2ecc71', color: '#fff', weight: 2, fillOpacity: 0.8 }).addTo(map);
-                        const popupContent = `
-                            <div style="font-size:13px; text-align:center;">
+                const lat = e.latlng.lat;
+                const lng = e.latlng.lng;
 
-                                <button onclick="window.triggerNewBenchCreation(${e.latlng.lat}, ${e.latlng.lng})" class="btn" style="font-size:12px; padding:6px; background:#27ae60;">➕ Neue Bank anlegen</button>
-                            </div>
-                        `;
-                        tempMarker.bindPopup(popupContent).openPopup();
-                        tempMarker.on('popupclose', () => { map.removeLayer(tempMarker); });
-                    }, 250);
+                // Bei freien Bereichen haben Bürger ("Gast"), Galabau, Stadtreinigung und Grünpflege Zugriff auf denselben Button im Popup
+                const allowedRolesForFreeClick = ['Gast', 'Gala Bau', 'Stadt Reinigung', 'Grünpflege'];
+
+                if (allowedRolesForFreeClick.includes(currentRole)) {
+                    L.popup()
+                    .setLatLng(e.latlng)
+                    .setContent(`
+                        <div style="text-align:center; padding: 5px;">
+                            <strong style="display:block; margin-bottom:8px;">Neuer Fundort</strong>
+                            <button onclick="window.openGuestDamageOverlay(null, true, ${lat}, ${lng})" class="btn" style="padding:8px 12px; font-size:12px; background:#e74c3c;">⚠️ Schaden/Fundort melden</button>
+                        </div>
+                    `)
+                    .openOn(map);
+                } else if (currentRole !== 'Gast') {
+                    L.popup()
+                    .setLatLng(e.latlng)
+                    .setContent(`<button onclick="window.triggerNewBenchCreation(${lat}, ${lng})" class="btn" style="padding:8px; font-size:12px; background-color: #27ae60;"">➕ Neue Bank anlegen</button>`)
+                    .openOn(map);
                 }
             });
 
-            document.getElementById('filter-district').addEventListener('change', updateApp);
-            document.getElementById('filter-type').addEventListener('change', updateApp);
-            document.getElementById('status-checkboxes-container').addEventListener('change', updateApp);
-
-            const isConnected = initSupabase();
             checkPersistentLogin();
-            initDropdowns();
-            initStreetSearch();
 
-            if (isConnected) {
-                fetchTypesFromCloud();
-                fetchBenchesFromCloud();
+            if (supabaseLoaded) {
+                await fetchTypesFromCloud();
+                await fetchBenchesFromCloud();
                 subscribeToRealtime();
             } else {
-                updateSyncIndicator();
-                fetchTypesFromCloud();
-                fetchBenchesFromCloud();
+                updateApp();
             }
+
+            document.getElementById('filter-district').onchange = () => { updateApp(); };
+            document.getElementById('filter-type').onchange = () => { updateApp(); };
+            document.getElementById('status-checkboxes-container').querySelectorAll('input').forEach(cb => {
+                cb.onchange = () => { updateApp(); };
+            });
+
+            const savedWidgetMin = localStorage.getItem('hn_widget_minimized');
+            if (savedWidgetMin === 'false') { toggleWidget(); }
+            updateSyncIndicator();
         };
     </script>
 </body>
