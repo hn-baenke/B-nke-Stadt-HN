@@ -29,6 +29,10 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.2); box-sizing: border-box;
             transition: all 0.2s ease-in-out; display: none; width: 260px;
         }
+        /* Blendet nur die Zoom-Buttons in der oberen rechten Ecke aus */
+.leaflet-right .leaflet-control-zoom {
+    display: none !important;
+}
         /* Gleiche Optik wie Zoom- und Standort-Buttons im minimierten Zustand */
         .map-info-widget.minimized {
             width: 34px; height: 34px; border-radius: 4px; overflow: hidden; background: white; border: 2px solid rgba(0,0,0,0.2); box-shadow: 0 1px 5px rgba(0,0,0,0.45);
@@ -530,7 +534,7 @@
         
         <button id="pop-save-btn" class="btn btn-save">Speichern</button>
         <button id="pop-delete-btn" class="btn btn-delete" style="display: none;">Bank löschen</button>
-        <button id="pop-cancel-btn" class="btn btn-cancel">Abbrechen</button>
+        <button id="pop-cancel-btn" class="btn btn-cancel" onclick="closeAndResetForm()">Abbrechen</button>
     </div>
 
     <!-- Namen-Abfrage Pflichtfeld Overlay bei Trupp-Aktionen -->
@@ -686,6 +690,21 @@
                 console.error("Fehler beim Entfernen des Bildes aus dem Storage:", err);
             }
         }
+        
+        function closeAndResetForm() {
+    // Das Overlay ausblenden
+    document.getElementById('fullscreen-overlay').style.display = 'none';
+    
+    // Alle Eingabefelder leeren
+    document.getElementById('pop-description').value = '';
+    document.getElementById('pop-damage-description').value = '';
+    document.getElementById('pop-dimensions').value = '';
+    document.getElementById('pop-note').value = '';
+    
+    // Optional: Falls du ein Select-Feld für den Status hast, setze es zurück
+    // document.getElementById('pop-status').selectedIndex = 0;
+}
+
 
         function compressImage(file, maxWidth = 1024, maxHeight = 1024, quality = 0.7) {
             return new Promise((resolve, reject) => {
