@@ -1064,7 +1064,38 @@
                 }
             }
         }
+        // Prüft, ob ein Trupp oder Admin eingeloggt ist und eine relevante Schadensmeldung existiert
+function getRelevantReportForBench(benchId) {
+    if (currentRole === "Gast") return null;
 
+    // Finde alle Meldungen für diese spezifische Bank
+    const benchReports = guestDamageReports.filter(r => r.bench_id === benchId);
+    if (benchReports.length === 0) return null;
+
+    // Wenn Admin, ist jede Meldung relevant
+    if (currentRole === "Admin") return benchReports[0];
+
+    // Für Trupps nach den Schlüsselwörtern filtern
+    return benchReports.find(r => {
+        if (!r.description) return false;
+        if (currentRole === 'Zimmerer' && r.description.includes('Bank beschädigt')) return true;
+        if (currentRole === 'Stadt Reinigung' && r.description.includes('Müllproblem / Vogelkot')) return true;
+        if (currentRole === 'Grünpflege' && r.description.includes('Bank zugewachsen')) return true;
+        if (currentRole === 'Gala Bau' && r.description.includes('Bank Irreparabel')) return true;
+        return false;
+    });
+}
+
+// Navigiert den User direkt zur Schadensmeldung im Overlay
+window.navigateToDamageReport = function(reportId) {
+    // 1. Öffne das Schadensmeldungs-Overlay im korrekten Modus
+    window.openReportsOverlay('damage').then(() => {
+        // 2. Zeige die Detailansicht für diese spezifische Report-ID
+        if (typeof window.showReportDetail === 'function') {
+            window.showReportDetail('damage', reportId);
+        }
+    });
+};
         function applyRolePermissions() {
             const hasReportsAccess = (currentRole === 'Admin' || currentRole === 'Zimmerer' || currentRole === 'Gala Bau' || currentRole === 'Stadt Reinigung' || currentRole === 'Grünpflege');
             document.getElementById('menu-damage-reports-btn').style.display = hasReportsAccess ? 'block' : 'none';
@@ -2086,189 +2117,233 @@
             if (markersLayer) { markersLayer.clearLayers(); }
             window.markerDict = {}; 
 
-            benches.forEach(bench => {
-                if (!bench || !bench.type) return;
-                
-                let status = calculateStatus(bench);
-                const hatSchadensmeldung = guestDamageReports.some(r => r.bench_id === bench.id);
-                
-                if (currentRole === 'Gast' && (status === 'Beschädigt' || hatSchadensmeldung)) {
-                    status = 'Beschädigt';
-                }
+            // ==========================================
+// 1. HILFSFUNKTIONEN (Vor benches.forEach platzieren)
+// ==========================================
+function getRelevantReportForBench(benchId) {
+    if (currentRole === "Gast") return null;
 
-                const matchDistrict = filterDistrict === 'Alle' || bench.district === filterDistrict;
-                const matchType = filterType === 'Alle' || bench.type === filterType;
-                const matchStatus = (selectedStatuses.length === 0) || selectedStatuses.includes(status); 
+    // Finde alle Meldungen für diese spezifische Bank
+    const benchReports = guestDamageReports.filter(r => r.bench_id === benchId);
+    if (benchReports.length === 0) return null;
 
-                if (matchDistrict) { 
-                    if(sidebarStats[bench.type] === undefined) sidebarStats[bench.type] = 0; 
-                    sidebarStats[bench.type]++; 
-                }
+    // Wenn Admin, ist jede Meldung relevant
+    if (currentRole === "Admin") return benchReports[0];
 
-                if (matchDistrict && matchType && matchStatus) {
-                    liveFilteredStats[bench.type]++;
-                    totalLiveVisible++;
-
-                    if (markersLayer && typeof L !== 'undefined') {
-                        const style = getMarkerStyle(status, bench.approved);
-                        const marker = L.circleMarker([bench.lat, bench.lng], style);
-
-                        let descHtml = '';
-                        let dmgHtml = '';
-                        let dimHtml = '';
-                        let noteHtml = '';
-                        let timeHtml = '';
-                        let workerHtml = '';
-
-                        if (bench.manual_status === 'Automatisch' && bench.last_maintenance) {
-                            const maintDate = new Date(bench.last_maintenance);
-                            const nextIntervalDate = new Date(maintDate.getFullYear() + 3, maintDate.getMonth(), maintDate.getDate());
-                            const today = new Date();
-                            const diffTime = nextIntervalDate - today;
-                            const diffDaysTotal = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                            
-                            if (diffDaysTotal > 0) {
-                                const years = Math.floor(diffDaysTotal / 365);
-                                const days = diffDaysTotal % 365;
-                                let timeString = "";
-                                if (years > 0) {
-                                    timeString += `${years} ${years === 1 ? 'Jahr' : 'Jahre'} und `;
-                                }
-                                timeString += `${days} ${days === 1 ? 'Tag' : 'Tage'}`;
-                                timeHtml = `<br/>⏳ <b>Intervall-Restzeit:</b> ${timeString} verbleibend`;
-                            } else {
-                                const absDaysTotal = Math.abs(diffDaysTotal);
-                                const years = Math.floor(absDaysTotal / 365);
-                                const days = absDaysTotal % 365;
-                                let timeString = "";
-                                if (years > 0) {
-                                    timeString += `${years} ${years === 1 ? 'Jahr' : 'Jahre'} und `;
-                                }
-                                timeString += `${days} ${days === 1 ? 'Tag' : 'Tage'}`;
-                                timeHtml = `<br/>⏳ <b>Intervall-Restzeit:</b> <span style="color:#c0392b; font-weight:bold;">Seit ${timeString} überfällig</span>`;
-                            }
-                        }
-
-                        if (currentRole !== 'Gast') {
-                            descHtml = bench.description ? `<br/>ℹ <b>Beschreibung:</b> ${bench.description}` : '';
-                            dmgHtml = (bench.damage_description || hatSchadensmeldung) ? `<br/>⚠️ <b>Schaden:</b> <span style="color:#c0392b;">${bench.damage_description || 'Schaden gemeldet'}</span>` : '';
-                            dimHtml = bench.dimensions ? `<br/>📐 <b>Maße:</b> ${bench.dimensions}` : '';
-                            noteHtml = bench.note ? `<br/>📝 <b>Notiz:</b> ${bench.note}` : '';
-                            workerHtml = bench.worker_name ? `<br/>👷 <b>Bearbeiter:</b> ${bench.worker_name}` : '';
-                        } else {
-                            if (bench.damage_description || hatSchadensmeldung) {
-                                dmgHtml = `<br/>⚠️ <b>Status:</b> <span style="color:#c0392b; font-weight:bold;">Schaden bereits erfasst</span>`;
-                            }
-                        }
-
-                        let ActionButtons = '';
-                        if (currentRole === 'Gast') {
-                            if (status === 'Beschädigt' || hatSchadensmeldung) {
-                                ActionButtons = `<div style="color:#8B0000; font-weight:bold; text-align:center; padding:8px; background:rgba(139,0,0,0.1); border:1px solid #8B0000; border-radius:4px; font-size:12px;">⚠️ Schaden bereits gemeldet</div>`;
-                            } else {
-                                ActionButtons = `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background:#e74c3c;">⚠️ Schaden melden</button>`;
-                            }
-                        } else {
-                            // Buttons je nach Benutzerrolle anpassen
-
-                            if (currentRole === 'Admin') {
-                                ActionButtons += `<button onclick="window.quickMaintenance(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🟢 Wartung heute</button>`;
-                                ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
-                                ActionButtons += `
-                                    <div style="display: flex; gap: 4px; margin-bottom: 5px;">
-                                        <button onclick="window.triggerEdit(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1;">Bearbeiten</button>
-                                        <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
-                                        <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
-                                    </div>
-                                `;
-                            }
-
-                            else if (currentRole === 'Zimmerer') {
-                                ActionButtons += `<button onclick="window.quickMaintenance(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🟢 Wartung heute</button>`;
-                                ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
-                                ActionButtons += `
-                                    <div style="display: flex; gap: 4px; margin-bottom: 5px;">
-                                        <button onclick="window.triggerEdit(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1;">Bearbeiten</button>
-                                        <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
-                                        <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
-                                    </div>
-                                `;
-                            }
-
-                            else if (currentRole === 'Spielplatzkontrolle') {
-                                ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
-                                ActionButtons += `
-                                    <div style="display: flex; gap: 4px; margin-bottom: 5px;">
-                                        <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
-                                        <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
-                                    </div>
-                                `;
-                            }
-
-                            else if (currentRole === 'Gala Bau') {
-                                ActionButtons += `<button onclick="window.galaReplaceBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">♻️ Bank Ausgetauscht</button>`;
-                                ActionButtons += `<button onclick="window.openGalaModelOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #34495e; font-weight: bold; margin-bottom:5px;">📐 Neues Modell</button>`;
-                                ActionButtons += `<button onclick="window.requestGalaDelete(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #c0392b; font-weight: bold; margin-bottom:5px;">🗑️ Bank abgebaut</button>`;
-                                ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden Melden</button>`;
-                                ActionButtons += `
-                                    <div style="display: flex; gap: 4px; margin-bottom: 5px;">
-                                        <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
-                                        <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
-                                    </div>
-                                `;
-                            }
-
-                            else if (currentRole === 'Stadt Reinigung') {
-    // Der Button "Bank Gereinigt" erscheint NUR, wenn der Status "Verschmutzt" (Orange) ist
-    if (status === 'Verschmutzt') {
-        ActionButtons += `<button onclick="window.malerQuickStatus(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🧹 Bank Gereinigt</button>`;
-    }
-    ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
-    ActionButtons += `
-        <div style="display: flex; gap: 4px; margin-bottom: 5px;">
-            <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
-            <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
-        </div>
-    `;
+    // Für Trupps nach den Schlüsselwörtern filtern
+    return benchReports.find(r => {
+        if (!r.description) return false;
+        if (currentRole === 'Zimmerer' && r.description.includes('Bank beschädigt')) return true;
+        if (currentRole === 'Stadt Reinigung' && r.description.includes('Müllproblem / Vogelkot')) return true;
+        if (currentRole === 'Grünpflege' && r.description.includes('Bank zugewachsen')) return true;
+        if (currentRole === 'Gala Bau' && r.description.includes('Bank Irreparabel')) return true;
+        return false;
+    });
 }
 
-else if (currentRole === 'Grünpflege') {
-    // Button nur anzeigen, wenn der Status "Zugewachsen" ist
-    if (status === 'Zugewachsen') {
-        ActionButtons += `<button onclick="window.cutFreeQuickStatus(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #2980b9; font-weight: bold; margin-bottom:5px;">🌿 Bank freischneiden</button>`;
+window.navigateToDamageReport = function(reportId) {
+    if (typeof window.openReportsOverlay === 'function') {
+        window.openReportsOverlay('damage').then(() => {
+            if (typeof window.showReportDetail === 'function') {
+                window.showReportDetail('damage', reportId);
+            }
+        });
     }
+};
+
+// ==========================================
+// 2. DEINE BESTEHENDE SCHLEIFE (Aktualisiert)
+// ==========================================
+benches.forEach(bench => {
+    if (!bench || !bench.type) return;
     
-    // Standard-Buttons für die Grünpflege
-    ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
-    ActionButtons += `
-        <div style="display: flex; gap: 4px; margin-bottom: 5px;">
-            <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
-            <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
-        </div>
-    `;
-}
-                            if (currentRole === 'Admin' && bench.approved === false) {
-                                ActionButtons += `
-                                    <button onclick="window.showDirectApprovalFromMap(${bench.id})" class="btn" style="padding: 4px; font-size: 12px; font-weight: bold; margin-top: 5px; background: 	#1E90FF; color: white; display: flex; align-items: center; justify-content: center;">➕ Freigabe-Meldung öffnen</button>
-                                `;
-                            }
-                        }
+    let status = calculateStatus(bench);
+    const hatSchadensmeldung = guestDamageReports.some(r => r.bench_id === bench.id);
+    
+    if (currentRole === 'Gast' && (status === 'Beschädigt' || hatSchadensmeldung)) {
+        status = 'Beschädigt';
+    }
 
-                        let popupHtml = `
-                            <div style="font-size:14px; line-height:1.4; min-width:240px; color:#333;">
-                                <strong>${bench.type}</strong> (${bench.district}) ${bench.approved === false && currentRole !== 'Gast' ? '<span style="color:orange;">(Wartet auf Freigabe)</span>' : ''}<br/>
-                                Status: <b>${status}</b>${timeHtml}${descHtml}${dmgHtml}${dimHtml}${workerHtml}${noteHtml}
-                                <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
-                                    ${ActionButtons}
-                                </div>
-                            </div>
-                        `;
-                        marker.bindPopup(popupHtml); 
-                        markersLayer.addLayer(marker);
-                        window.markerDict[bench.id] = marker; 
+    const matchDistrict = filterDistrict === 'Alle' || bench.district === filterDistrict;
+    const matchType = filterType === 'Alle' || bench.type === filterType;
+    const matchStatus = (selectedStatuses.length === 0) || selectedStatuses.includes(status); 
+
+    if (matchDistrict) { 
+        if(sidebarStats[bench.type] === undefined) sidebarStats[bench.type] = 0; 
+        sidebarStats[bench.type]++; 
+    }
+
+    if (matchDistrict && matchType && matchStatus) {
+        liveFilteredStats[bench.type]++;
+        totalLiveVisible++;
+
+        if (markersLayer && typeof L !== 'undefined') {
+            const style = getMarkerStyle(status, bench.approved);
+            const marker = L.circleMarker([bench.lat, bench.lng], style);
+
+            let descHtml = '';
+            let dmgHtml = '';
+            let dimHtml = '';
+            let noteHtml = '';
+            let timeHtml = '';
+            let workerHtml = '';
+
+            if (bench.manual_status === 'Automatisch' && bench.last_maintenance) {
+                const maintDate = new Date(bench.last_maintenance);
+                const nextIntervalDate = new Date(maintDate.getFullYear() + 3, maintDate.getMonth(), maintDate.getDate());
+                const today = new Date();
+                const diffTime = nextIntervalDate - today;
+                const diffDaysTotal = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                if (diffDaysTotal > 0) {
+                    const years = Math.floor(diffDaysTotal / 365);
+                    const days = diffDaysTotal % 365;
+                    let timeString = "";
+                    if (years > 0) {
+                        timeString += `${years} ${years === 1 ? 'Jahr' : 'Jahre'} und `;
                     }
+                    timeString += `${days} ${days === 1 ? 'Tag' : 'Tage'}`;
+                    timeHtml = `<br/>⏳ <b>Intervall-Restzeit:</b> ${timeString} verbleibend`;
+                } else {
+                    const absDaysTotal = Math.abs(diffDaysTotal);
+                    const years = Math.floor(absDaysTotal / 365);
+                    const days = absDaysTotal % 365;
+                    let timeString = "";
+                    if (years > 0) {
+                        timeString += `${years} ${years === 1 ? 'Jahr' : 'Jahre'} und `;
+                    }
+                    timeString += `${days} ${days === 1 ? 'Tag' : 'Tage'}`;
+                    timeHtml = `<br/>⏳ <b>Intervall-Restzeit:</b> <span style="color:#c0392b; font-weight:bold;">Seit ${timeString} überfällig</span>`;
                 }
-            });
+            }
+
+            if (currentRole !== 'Gast') {
+                descHtml = bench.description ? `<br/>ℹ <b>Beschreibung:</b> ${bench.description}` : '';
+                dmgHtml = (bench.damage_description || hatSchadensmeldung) ? `<br/>⚠️ <b>Schaden:</b> <span style="color:#c0392b;">${bench.damage_description || 'Schaden gemeldet'}</span>` : '';
+                dimHtml = bench.dimensions ? `<br/>📐 <b>Maße:</b> ${bench.dimensions}` : '';
+                noteHtml = bench.note ? `<br/>📝 <b>Notiz:</b> ${bench.note}` : '';
+                workerHtml = bench.worker_name ? `<br/>👷 <b>Bearbeiter:</b> ${bench.worker_name}` : '';
+            } else {
+                if (bench.damage_description || hatSchadensmeldung) {
+                    dmgHtml = `<br/>⚠️ <b>Status:</b> <span style="color:#c0392b; font-weight:bold;">Schaden bereits erfasst</span>`;
+                }
+            }
+
+            let ActionButtons = '';
+            if (currentRole === 'Gast') {
+                if (status === 'Beschädigt' || hatSchadensmeldung) {
+                    ActionButtons = `<div style="color:#8B0000; font-weight:bold; text-align:center; padding:8px; background:rgba(139,0,0,0.1); border:1px solid #8B0000; border-radius:4px; font-size:12px;">⚠️ Schaden bereits gemeldet</div>`;
+                } else {
+                    ActionButtons = `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background:#e74c3c;">⚠️ Schaden melden</button>`;
+                }
+            } else {
+                if (currentRole === 'Admin') {
+                    ActionButtons += `<button onclick="window.quickMaintenance(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🟢 Wartung heute</button>`;
+                    ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
+                    ActionButtons += `
+                        <div style="display: flex; gap: 4px; margin-bottom: 5px;">
+                            <button onclick="window.triggerEdit(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1;">Bearbeiten</button>
+                            <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
+                            <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
+                        </div>
+                    `;
+                }
+
+                else if (currentRole === 'Zimmerer') {
+                    ActionButtons += `<button onclick="window.quickMaintenance(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🟢 Wartung heute</button>`;
+                    ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
+                    ActionButtons += `
+                        <div style="display: flex; gap: 4px; margin-bottom: 5px;">
+                            <button onclick="window.triggerEdit(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1;">Bearbeiten</button>
+                            <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
+                            <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
+                        </div>
+                    `;
+                }
+
+                else if (currentRole === 'Spielplatzkontrolle') {
+                    ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
+                    ActionButtons += `
+                        <div style="display: flex; gap: 4px; margin-bottom: 5px;">
+                            <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
+                            <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
+                        </div>
+                    `;
+                }
+
+                else if (currentRole === 'Gala Bau') {
+                    ActionButtons += `<button onclick="window.galaReplaceBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">♻️ Bank Ausgetauscht</button>`;
+                    ActionButtons += `<button onclick="window.openGalaModelOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #34495e; font-weight: bold; margin-bottom:5px;">📐 Neues Modell</button>`;
+                    ActionButtons += `<button onclick="window.requestGalaDelete(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #c0392b; font-weight: bold; margin-bottom:5px;">🗑️ Bank abgebaut</button>`;
+                    ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden Melden</button>`;
+                    ActionButtons += `
+                        <div style="display: flex; gap: 4px; margin-bottom: 5px;">
+                            <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
+                            <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
+                        </div>
+                    `;
+                }
+
+                else if (currentRole === 'Stadt Reinigung') {
+                    if (status === 'Verschmutzt') {
+                        ActionButtons += `<button onclick="window.malerQuickStatus(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🧹 Bank Gereinigt</button>`;
+                    }
+                    ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
+                    ActionButtons += `
+                        <div style="display: flex; gap: 4px; margin-bottom: 5px;">
+                            <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
+                            <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
+                        </div>
+                    `;
+                }
+
+                else if (currentRole === 'Grünpflege') {
+                    if (status === 'Zugewachsen') {
+                        ActionButtons += `<button onclick="window.cutFreeQuickStatus(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #2980b9; font-weight: bold; margin-bottom:5px;">🌿 Bank freischneiden</button>`;
+                    }
+                    ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
+                    ActionButtons += `
+                        <div style="display: flex; gap: 4px; margin-bottom: 5px;">
+                            <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
+                            <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #9b59b6;">Teilen</button>
+                        </div>
+                    `;
+                }
+
+                if (currentRole === 'Admin' && bench.approved === false) {
+                    ActionButtons += `
+                        <button onclick="window.showDirectApprovalFromMap(${bench.id})" class="btn" style="padding: 4px; font-size: 12px; font-weight: bold; margin-top: 5px; background: #1E90FF; color: white; display: flex; align-items: center; justify-content: center;">➕ Freigabe-Meldung öffnen</button>
+                    `;
+                }
+
+                // --------------------------------------------------------
+                // NEU: Relevante Schadensmeldung prüfen und Button anhängen
+                // --------------------------------------------------------
+                const relevantReport = getRelevantReportForBench(bench.id);
+                if (relevantReport) {
+                    ActionButtons += `
+                        <button onclick="window.navigateToDamageReport(${relevantReport.id})" class="btn" style="padding:6px; font-size:12px; background:#e74c3c; font-weight:bold; margin-top:5px; width:100%;">
+                            🚨 Schadensmeldung anzeigen
+                        </button>
+                    `;
+                }
+            }
+
+            let popupHtml = `
+                <div style="font-size:14px; line-height:1.4; min-width:240px; color:#333;">
+                    <strong>${bench.type}</strong> (${bench.district}) ${bench.approved === false && currentRole !== 'Gast' ? '<span style="color:orange;">(Wartet auf Freigabe)</span>' : ''}<br/>
+                    Status: <b>${status}</b>${timeHtml}${descHtml}${dmgHtml}${dimHtml}${workerHtml}${noteHtml}
+                    <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
+                        ${ActionButtons}
+                    </div>
+                </div>
+            `;
+            marker.bindPopup(popupHtml); 
+            markersLayer.addLayer(marker);
+            window.markerDict[bench.id] = marker; 
+        }
+    }
+});
 
             const statsList = document.getElementById('stats-list');
             if(statsList) {
