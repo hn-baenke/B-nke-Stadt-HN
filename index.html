@@ -290,11 +290,43 @@
         cursor: zoom-in;
     }
 
-    /* Zustand, wenn hineingezoomt wurde */
-    .modal-content.zoomed {
-        transform: scale(2); /* Zoom-Faktor (2-fache Größe). Kannst du anpassen! */
-        cursor: zoom-out;
-    }   
+    /* Modal-Hintergrund */
+.image-modal {
+    display: none; 
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9); /* Etwas dunkler für besseren Fokus */
+    align-items: center;
+    justify-content: center;
+    overflow: hidden; 
+    touch-action: none; /* Verhindert, dass das Smartphone die Seite scrollt während des Zoomens */
+}
+
+/* Das vergrößerte Bild */
+.modal-content {
+    max-width: 95%;
+    max-height: 95%;
+    object-fit: contain;
+    transition: transform 0.05s ease-out; /* Minimale Verzögerung für flüssiges Tracking */
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+/* Schließen-Button */
+.close-modal {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    color: #fff;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 10000; /* Immer über dem Bild */
+}
 
     /* Schließen-Button (X) */
     .close-modal {
@@ -2636,7 +2668,18 @@ map = L.map('map', {
             if (savedWidgetMin === 'false') { toggleWidget(); }
             updateSyncIndicator();
         };
-        // Funktion zum Öffnen des Modals
+        // Variablen für Zoom und Verschiebung (Außerhalb der Funktion)
+let zoomScale = 1;
+let touchStartDist = 0;
+const MIN_SCALE = 1;
+const MAX_SCALE = 5;
+
+// Variablen für das Verschieben (Pan)
+let isDragging = false;
+let startX = 0, startY = 0;
+let translateX = 0, translateY = 0;
+let currentTranslateX = 0, currentTranslateY = 0;
+
 function openModal(imgSrc) {
     const modal = document.getElementById("imageModal");
     const modalImg = document.getElementById("modalImg");
@@ -2644,27 +2687,134 @@ function openModal(imgSrc) {
     modalImg.src = imgSrc;
     modal.style.display = "flex";
     
-    // Zoom zurücksetzen beim Öffnen
-    modalImg.classList.remove("zoomed");
+    // Alles beim Öffnen komplett zurücksetzen
+    zoomScale = 1;
+    translateX = 0;
+    translateY = 0;
+    currentTranslateX = 0;
+    currentTranslateY = 0;
+    resetZoomTransform();
     
-    // Klick-Event für den Zoom-Wechsel
-    modalImg.onclick = function(e) {
-        e.stopPropagation(); // Verhindert das Schließen des Modals
-        this.classList.toggle("zoomed");
+    // ==========================================
+    // 1. MAUSRAD-ZOOM (PC)
+    // ==========================================
+    modal.onwheel = function(e) {
+        e.preventDefault();
+        const delta = e.deltaY * -0.01;
+        const oldScale = zoomScale;
+        zoomScale = Math.min(Math.max(MIN_SCALE, zoomScale + delta), MAX_SCALE);
+        
+        // Wenn wieder ganz herausgezoomt wird, auch Position zurücksetzen
+        if (zoomScale === 1) {
+            translateX = 0; translateY = 0;
+            currentTranslateX = 0; currentTranslateY = 0;
+        }
+        applyZoomTransform();
+    };
+
+    // ==========================================
+    // 2. TOUCH-GESTEN (Smartphone: Pinch & Drag)
+    // ==========================================
+    modal.ontouchstart = function(e) {
+        if (e.touches.length === 2) {
+            // Pinch-to-Zoom Start
+            touchStartDist = Math.hypot(
+                e.touches[0].pageX - e.touches[1].pageX,
+                e.touches[0].pageY - e.touches[1].pageY
+            );
+        } else if (e.touches.length === 1 && zoomScale > 1) {
+            // Verschieben Start
+            isDragging = true;
+            startX = e.touches[0].pageX - currentTranslateX;
+            startY = e.touches[0].pageY - currentTranslateY;
+        }
+    };
+
+    modal.ontouchmove = function(e) {
+        if (e.touches.length === 2) {
+            e.preventDefault();
+            const dist = Math.hypot(
+                e.touches[0].pageX - e.touches[1].pageX,
+                e.touches[0].pageY - e.touches[1].pageY
+            );
+            const factor = dist / touchStartDist;
+            touchStartDist = dist;
+            zoomScale = Math.min(Math.max(MIN_SCALE, zoomScale * factor), MAX_SCALE);
+            
+            if (zoomScale === 1) {
+                translateX = 0; translateY = 0;
+                currentTranslateX = 0; currentTranslateY = 0;
+            }
+            applyZoomTransform();
+        } else if (e.touches.length === 1 && isDragging) {
+            e.preventDefault();
+            translateX = e.touches[0].pageX - startX;
+            translateY = e.touches[0].pageY - startY;
+            applyZoomTransform();
+        }
+    };
+
+    modal.ontouchend = function(e) {
+        if (e.touches.length < 1) {
+            isDragging = false;
+            currentTranslateX = translateX;
+            currentTranslateY = translateY;
+        }
+    };
+
+    // ==========================================
+    // 3. MAUS-DRAG (PC: Klicken & Ziehen)
+    // ==========================================
+    modalImg.onmousedown = function(e) {
+        if (zoomScale > 1) {
+            e.preventDefault();
+            isDragging = true;
+            modalImg.style.cursor = "grabbing";
+            startX = e.clientX - currentTranslateX;
+            startY = e.clientY - currentTranslateY;
+        }
+    };
+
+    window.onmousemove = function(e) {
+        if (isDragging) {
+            e.preventDefault();
+            translateX = e.clientX - startX;
+            translateY = e.clientY - startY;
+            applyZoomTransform();
+        }
+    };
+
+    window.onmouseup = function() {
+        if (isDragging) {
+            isDragging = false;
+            modalImg.style.cursor = "grab";
+            currentTranslateX = translateX;
+            currentTranslateY = translateY;
+        }
     };
 }
 
-// Funktion zum Schließen des Modals
+function applyZoomTransform() {
+    const modalImg = document.getElementById("modalImg");
+    // Wichtig: Erst verschieben, dann skaliieren!
+    modalImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoomScale})`;
+}
+
+function resetZoomTransform() {
+    const modalImg = document.getElementById("modalImg");
+    modalImg.style.transform = "translate(0px, 0px) scale(1)";
+    modalImg.style.cursor = "zoom-in";
+}
+
 function closeModal() {
     const modal = document.getElementById("imageModal");
     modal.style.display = "none";
+    isDragging = false;
 }
 
-// Optional: Schließen mit der Escape-Taste
+// Schließen mit Escape
 document.addEventListener('keydown', function(e) {
-    if (e.key === "Escape") {
-        closeModal();
-    }
+    if (e.key === "Escape") closeModal();
 });
     </script>
 </body>
