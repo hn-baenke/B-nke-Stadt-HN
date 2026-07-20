@@ -1995,7 +1995,16 @@ window.navigateToDamageReport = function(reportId) {
             const bench = benches.find(b => b.id === id);
             if(!bench) return;
             
-            const updatedData = { manual_status: 'Automatisch', damage_description: null };
+            // Holt das aktuelle Datum im ISO-Format (YYYY-MM-DD) passend für die Datenbank
+            const todayStr = new Date().toISOString().split('T')[0];
+            
+            // Fehler behoben: last_maintenance wird jetzt wieder korrekt auf den heutigen Tag gesetzt
+            const updatedData = { 
+                manual_status: 'Automatisch', 
+                last_maintenance: todayStr, 
+                damage_description: null 
+            };
+            
             if(map) map.closePopup();
 
             const idx = benches.findIndex(b => b.id === id);
