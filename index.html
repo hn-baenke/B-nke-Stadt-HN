@@ -1172,83 +1172,94 @@ window.navigateToDamageReport = function(reportId) {
         };
 
         window.submitGuestDamageReport = async function() {
-            const desc = document.getElementById('guest-damage-text').value.trim();
-            if(!desc && !selectedDamageCategory) { 
-                alert("Bitte gib eine Schadensbeschreibung ein oder wähle eine Option aus."); 
-                return; 
-            }
+    const desc = document.getElementById('guest-damage-text').value.trim();
+    if(!desc && !selectedDamageCategory) { 
+        alert("Bitte gib eine Schadensbeschreibung ein oder wähle eine Option aus."); 
+        return; 
+    }
 
-            let imageUrl = null;
-            if(activeGuestFile && supabaseClient) {
-                const fileName = `${Date.now()}_damage.jpg`;
-                const { error: uploadError } = await supabaseClient.storage.from('bench-images').upload(fileName, activeGuestFile);
-                if(!uploadError) {
-                    imageUrl = `${SUPABASE_URL}/storage/v1/object/public/bench-images/${fileName}`;
-                }
-            }
+    let imageUrl = null;
+    if(activeGuestFile && supabaseClient) {
+        const fileName = `${Date.now()}_damage.jpg`;
+        const { error: uploadError } = await supabaseClient.storage.from('bench-images').upload(fileName, activeGuestFile);
+        if(!uploadError) {
+            imageUrl = `${SUPABASE_URL}/storage/v1/object/public/bench-images/${fileName}`;
+        }
+    }
 
-            if(supabaseClient) {
-                let targetBenchId = selectedDamageBenchId;
+    if(supabaseClient) {
+        let targetBenchId = selectedDamageBenchId;
 
-                // Falls freie Fläche geklickt wurde, temporäre Bank anlegen
-                if(selectedDamageCoords) {
-                    let initialStatus = "Beschädigt";
-                    if (selectedDamageCategory === "Müllproblem / Vogelkot") initialStatus = "Verschmutzt";
-                    else if (selectedDamageCategory === "Bank zugewachsen") initialStatus = "Zugewachsen";
-                    else if (selectedDamageCategory === "Bank Irreparabel") initialStatus = "Irreparabel";
+        // Falls freie Fläche geklickt wurde, temporäre Bank anlegen
+        if(selectedDamageCoords) {
+            let initialStatus = "Beschädigt";
+            if (selectedDamageCategory === "Müllproblem / Vogelkot") initialStatus = "Verschmutzt";
+            else if (selectedDamageCategory === "Bank zugewachsen") initialStatus = "Zugewachsen";
+            else if (selectedDamageCategory === "Bank Irreparabel") initialStatus = "Irreparabel";
 
-                    const { data: newBench, error: benchError } = await supabaseClient.from('benches').insert([{
-                        lat: selectedDamageCoords.lat,
-                        lng: selectedDamageCoords.lng,
-                        type: "Sonstige",
-                        district: "Heilbronn",
-                        manual_status: initialStatus,
-                        damage_description: selectedDamageCategory ? `${selectedDamageCategory}: ${desc}` : desc,
-                        approved: false,
-                        pending_action: "insert"
-                    }]).select().single();
+            const { data: newBench, error: benchError } = await supabaseClient.from('benches').insert([{
+                lat: selectedDamageCoords.lat,
+                lng: selectedDamageCoords.lng,
+                type: "Sonstige",
+                district: "Heilbronn",
+                manual_status: initialStatus,
+                damage_description: selectedDamageCategory ? `${selectedDamageCategory}: ${desc}` : desc,
+                approved: false,
+                pending_action: "insert"
+            }]).select().single();
 
-                    if(!benchError && newBench) {
-                        targetBenchId = newBench.id;
-                    } else {
-                        alert("Fehler beim Erstellen der temporären Bank: " + (benchError ? benchError.message : "Unbekannt"));
-                        return;
-                    }
-                } else if (selectedDamageBenchId) {
-                    // Status der bestehenden Bank anpassen
-                    let newStatus = null;
-                    if (selectedDamageCategory === "Müllproblem / Vogelkot") newStatus = "Verschmutzt";
-                    else if (selectedDamageCategory === "Bank zugewachsen") newStatus = "Zugewachsen";
-                    else if (selectedDamageCategory === "Bank beschädigt") newStatus = "Beschädigt";
-                    else if (selectedDamageCategory === "Bank Irreparabel") newStatus = "Irreparabel";
-
-                    if (newStatus) {
-                        await supabaseClient.from('benches').update({ 
-                            manual_status: newStatus,
-                            damage_description: selectedDamageCategory ? `${selectedDamageCategory}: ${desc}` : desc
-                        }).eq('id', selectedDamageBenchId);
-                    }
-                }
-
-                // Eigentliche Schadensmeldung absenden
-                const { error } = await supabaseClient.from('damage_reports').insert([{
-                    bench_id: targetBenchId,
-                    description: selectedDamageCategory ? `[${selectedDamageCategory}] ${desc}` : desc,
-                    image_url: imageUrl
-                }]);
-                
-                if(!error) {
-                    alert("Vielen Dank für die Meldung! Die Zuständigen kümmern sich darum.");
-                    closeGuestDamageOverlay();
-                    await updateBadgeCounters();
-                    await fetchBenchesFromCloud();
-                } else {
-                    alert("Fehler beim Absenden der Meldung: " + error.message);
-                }
+            if(!benchError && newBench) {
+                targetBenchId = newBench.id;
             } else {
-                alert("Keine Verbindung zur Cloud vorhanden. Meldungen können nur online eingesendet werden.");
+                alert("Fehler beim Erstellen der temporären Bank: " + (benchError ? benchError.message : "Unbekannt"));
+                return;
             }
-        };
+        } else if (selectedDamageBenchId) {
+            // Status der bestehenden Bank anpassen
+            let newStatus = null;
+            if (selectedDamageCategory === "Müllproblem / Vogelkot") newStatus = "Verschmutzt";
+            else if (selectedDamageCategory === "Bank zugewachsen") newStatus = "Zugewachsen";
+            else if (selectedDamageCategory === "Bank beschädigt") newStatus = "Beschädigt";
+            else if (selectedDamageCategory === "Bank Irreparabel") newStatus = "Irreparabel";
+
+            if (newStatus) {
+                await supabaseClient.from('benches').update({ 
+                    manual_status: newStatus,
+                    damage_description: selectedDamageCategory ? `${selectedDamageCategory}: ${desc}` : desc
+                }).eq('id', selectedDamageBenchId);
+            }
+        }
+
+        // --- NEU: Abteilungs-Kürzel ermitteln ---
+        let deptCode = "H"; // Standard-Fallback (Hochbau/Spielplatz)
+        if (selectedDamageCategory === "Müllproblem / Vogelkot") {
+            deptCode = "S"; // Stadtreinigung
+        } else if (selectedDamageCategory === "Bank zugewachsen" || selectedDamageCategory === "Bank Irreparabel") {
+            deptCode = "G"; // Grünpflege / Gala
+        } else if (selectedDamageCategory === "Bank beschädigt") {
+            deptCode = "H"; // Hochbauunterhaltung / Zimmerer
+        }
+
+        // Eigentliche Schadensmeldung absenden (jetzt MIT dept_code!)
+        const { error } = await supabaseClient.from('damage_reports').insert([{
+            bench_id: targetBenchId,
+            description: selectedDamageCategory ? `[${selectedDamageCategory}] ${desc}` : desc,
+            image_url: imageUrl,
+            dept_code: deptCode // <-- Hier wird das Kürzel übergeben
+        }]);
+        
+        if(!error) {
+            alert("Vielen Dank für die Meldung! Die Zuständigen kümmern sich darum.");
+            closeGuestDamageOverlay();
+            await updateBadgeCounters();
+            await fetchBenchesFromCloud();
+        } else {
+            alert("Fehler beim Absenden der Meldung: " + error.message);
+        }
+    } else {
+        alert("Keine Verbindung zur Cloud vorhanden. Meldungen können nur online eingesendet werden.");
+    }
+};
 
         window.openReportsOverlay = async function(mode) {
             const container = document.getElementById('reports-list-container');
@@ -1301,14 +1312,16 @@ window.navigateToDamageReport = function(reportId) {
                             truppReports.forEach(rep => {
                                 const date = new Date(rep.created_at).toLocaleDateString('de-DE');
                                 fullHTML += `
+                                
+                    
                                     <div class="report-compact-item">
-                                        <div class="report-compact-info">
-                                            <strong>${rep.benches ? rep.benches.type : 'Nicht registrierte Bank'}</strong> - ${date} <br/>
-                                            <small>${rep.description.substring(0, 50)}${rep.description.length > 50 ? '...' : ''}</small>
-                                        </div>
-                                        <button class="btn" style="padding:6px 12px; width:auto; font-size:12px;" onclick="window.showReportDetail('damage', ${rep.id})">Meldung anzeigen</button>
-                                    </div>
-                                `;
+        <div class="report-compact-info">
+            <strong>${rep.ticket_number || 'Ohne NR'}</strong> - ${rep.benches ? rep.benches.type : 'Nicht registriert'} (${date})<br/>
+            <small>${rep.description.substring(0, 50)}${rep.description.length > 50 ? '...' : ''}</small>
+        </div>
+        <button class="btn" style="padding:6px 12px; width:auto; font-size:12px;" onclick="window.showReportDetail('damage', ${rep.id})">Anzeigen</button>
+    </div>
+`;
                             });
                         }
                     });
@@ -1431,10 +1444,10 @@ window.navigateToDamageReport = function(reportId) {
                 const date = new Date(rep.created_at).toLocaleString('de-DE');
                 
                 detailContainer.innerHTML = `
-                    <div class="report-card">
-                        <h4>Details zur Schadensmeldung</h4>
-                        <p><strong>Gemeldet am:</strong> ${date}</p>
-                        <p><strong>Beschreibung:</strong> ${rep.description}</p>
+    <div class="report-card">
+        <h4>Schadensmeldung ${rep.ticket_number ? `#${rep.ticket_number}` : ''}</h4>
+        <p><strong>Gemeldet am:</strong> ${date}</p>
+        <p><strong>Beschreibung:</strong> ${rep.description}</p>
                         ${rep.image_url ? `<div class="report-image-wrapper" style="cursor: pointer;" onclick="openModal('${rep.image_url}')"><img src="${rep.image_url}" /></div>` : ''}
                         
 <div id="report-minimap-container" class="report-minimap" 
