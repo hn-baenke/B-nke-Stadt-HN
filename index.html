@@ -2077,6 +2077,10 @@ window.closeReportDetail = function() {
             promptWorkerName('gala-delete');
         };
 
+        // ==========================================
+        // OFFLINE-SPEICHER & SYNCHRONISATION
+        // ==========================================
+
         function updateSyncIndicator() {
             const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
             const icon = document.getElementById('sync-cloud-icon');
@@ -2089,13 +2093,13 @@ window.closeReportDetail = function() {
             } else {
                 icon.innerText = `☁️ (${queue.length})`;
                 icon.className = "sync-indicator sync-red";
-                icon.title = `${queue.length} Änderungen blockiert.`;
+                icon.title = `${queue.length} Änderungen im Speicher zur Offline-Synchronisation bereit.`;
             }
         }
 
         window.handleCloudClick = async function() {
             const icon = document.getElementById('sync-cloud-icon');
-            icon.innerText = "⏳";
+            if (icon) icon.innerText = "⏳";
             
             if (!supabaseClient) {
                 alert("Keine Verbindung zur Cloud-Datenbank.");
@@ -2144,58 +2148,58 @@ window.closeReportDetail = function() {
         }
 
         async function fetchBenchesFromCloud() {
-    // 1. Erstmal beides aus dem Cache laden (für sofortigen Start)
-    const cachedData = localStorage.getItem('benches_cache');
-    const cachedPending = localStorage.getItem('pending_benches_cache');
+            // 1. Erstmal beides aus dem Cache laden (für sofortigen Start)
+            const cachedData = localStorage.getItem('benches_cache');
+            const cachedPending = localStorage.getItem('pending_benches_cache');
 
-    if (cachedData) {
-        benches = JSON.parse(cachedData);
-    }
-    if (cachedPending) {
-        window.pendingBenches = JSON.parse(cachedPending);
-    } else {
-        window.pendingBenches = window.pendingBenches || [];
-    }
+            if (cachedData) {
+                benches = JSON.parse(cachedData);
+            }
+            if (cachedPending) {
+                window.pendingBenches = JSON.parse(cachedPending);
+            } else {
+                window.pendingBenches = window.pendingBenches || [];
+            }
 
-    // Wenn Cache da ist, UI direkt rendern
-    if (cachedData || cachedPending) {
-        updateApp();
-    }
+            // Wenn Cache da ist, UI direkt rendern
+            if (cachedData || cachedPending) {
+                updateApp();
+            }
 
-    if (!supabaseClient) return;
+            if (!supabaseClient) return;
 
-    try {
-        // 2. Bänke UND Pending-Bänke parallel aus Supabase laden (mit Timeout)
-        const [benchesRes, pendingRes] = await Promise.race([
-            Promise.all([
-                supabaseClient.from('benches').select('*'),
-                supabaseClient.from('pending_benches').select('*')
-            ]),
-            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
-        ]);
+            try {
+                // 2. Bänke UND Pending-Bänke parallel aus Supabase laden (mit Timeout)
+                const [benchesRes, pendingRes] = await Promise.race([
+                    Promise.all([
+                        supabaseClient.from('benches').select('*'),
+                        supabaseClient.from('pending_benches').select('*')
+                    ]),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
+                ]);
 
-        if (benchesRes.error) throw benchesRes.error;
+                if (benchesRes.error) throw benchesRes.error;
 
-        // Bänke aktualisieren
-        benches = benchesRes.data || [];
-        localStorage.setItem('benches_cache', JSON.stringify(benches));
+                // Bänke aktualisieren
+                benches = benchesRes.data || [];
+                localStorage.setItem('benches_cache', JSON.stringify(benches));
 
-        // Pending Bänke aktualisieren
-        if (!pendingRes.error && pendingRes.data) {
-            window.pendingBenches = pendingRes.data;
-            localStorage.setItem('pending_benches_cache', JSON.stringify(window.pendingBenches));
+                // Pending Bänke aktualisieren
+                if (!pendingRes.error && pendingRes.data) {
+                    window.pendingBenches = pendingRes.data;
+                    localStorage.setItem('pending_benches_cache', JSON.stringify(window.pendingBenches));
+                }
+
+                // 3. UI, Badges und DeepLink verarbeiten
+                updateApp();
+                await updateBadgeCounters();
+                handleDeepLink();
+
+            } catch (err) {
+                console.warn("Karten-Daten Timeout oder Fehler:", err);
+                handleDeepLink();
+            }
         }
-
-        // 3. UI, Badges und DeepLink verarbeiten
-        updateApp();
-        await updateBadgeCounters();
-        handleDeepLink();
-
-    } catch (err) {
-        console.warn("Karten-Daten Timeout oder Fehler:", err);
-        handleDeepLink();
-    }
-}
 
         async function syncOfflineQueue() {
             if (!supabaseClient) return;
@@ -2212,18 +2216,22 @@ window.closeReportDetail = function() {
                 
                 try {
                     let result;
+                    const targetTable = item.targetTable || 'benches';
+
                     if (item.action === 'insert') {
-                        result = await supabaseClient.from('benches').insert([item.data]).select();
+                        result = await supabaseClient.from(targetTable).insert([item.data]).select();
                     } else if (item.action === 'update') {
-                        result = await supabaseClient.from('benches').update(item.data).eq('id', item.id);
+                        result = await supabaseClient.from(targetTable).update(item.data).eq('id', item.id);
                     } else if (item.action === 'delete') {
-                        result = await supabaseClient.from('benches').delete().eq('id', item.id);
+                        result = await supabaseClient.from(targetTable).delete().eq('id', item.id);
                     }
 
-                    if (result.error) {
+                    if (result && result.error) {
+                        console.error(`Fehler beim Synchronisieren (${targetTable}):`, result.error);
                         remainingQueue.push(item);
                     }
                 } catch (e) {
+                    console.error("Netzwerkfehler beim Synchronisieren:", e);
                     remainingQueue.push(item);
                 }
             }
@@ -2233,21 +2241,31 @@ window.closeReportDetail = function() {
             updateApp();
         }
 
-        function saveOfflineAction(action, data, id = null, tempId = null) {
+        function saveOfflineAction(action, data, id = null, tempId = null, targetTable = 'benches') {
             const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
-            queue.push({ action, data, id, tempId, timestamp: Date.now() });
+            queue.push({ action, data, id, tempId, targetTable, timestamp: Date.now() });
             localStorage.setItem('offline_sync_queue', JSON.stringify(queue));
             
-            if (action === 'insert') {
-                const mockId = tempId || Math.floor(Math.random() * -100000); 
-                benches.push({ id: mockId, ...data });
-            } else if (action === 'update') {
-                const index = benches.findIndex(b => b.id === id);
-                if (index !== -1) benches[index] = { ...benches[index], ...data };
-            } else if (action === 'delete') {
-                benches = benches.filter(b => b.id !== id);
+            if (targetTable === 'pending_benches') {
+                // Bei Pending-Bänken in den lokalen Pending-Cache schreiben
+                window.pendingBenches = window.pendingBenches || [];
+                const mockId = tempId || Math.floor(Math.random() * -100000);
+                window.pendingBenches.push({ id: mockId, ...data });
+                localStorage.setItem('pending_benches_cache', JSON.stringify(window.pendingBenches));
+            } else {
+                // Direkte Aktionen auf der Haupttabelle
+                if (action === 'insert') {
+                    const mockId = tempId || Math.floor(Math.random() * -100000); 
+                    benches.push({ id: mockId, ...data });
+                } else if (action === 'update') {
+                    const index = benches.findIndex(b => b.id === id);
+                    if (index !== -1) benches[index] = { ...benches[index], ...data };
+                } else if (action === 'delete') {
+                    benches = benches.filter(b => b.id !== id);
+                }
+                localStorage.setItem('benches_cache', JSON.stringify(benches));
             }
-            localStorage.setItem('benches_cache', JSON.stringify(benches));
+
             updateSyncIndicator();
             updateApp();
         }
@@ -2255,9 +2273,10 @@ window.closeReportDetail = function() {
         function subscribeToRealtime() {
             if (!supabaseClient) return;
             supabaseClient.channel('custom-all-channel')
-            .on('postgres_changes', { event: '*', pattern: 'public', table: 'benches' }, () => { fetchBenchesFromCloud(); })
-            .on('postgres_changes', { event: '*', pattern: 'public', table: 'bench_types' }, () => { fetchTypesFromCloud(); })
-            .subscribe();
+                .on('postgres_changes', { event: '*', pattern: 'public', table: 'benches' }, () => { fetchBenchesFromCloud(); })
+                .on('postgres_changes', { event: '*', pattern: 'public', table: 'pending_benches' }, () => { fetchBenchesFromCloud(); })
+                .on('postgres_changes', { event: '*', pattern: 'public', table: 'bench_types' }, () => { fetchTypesFromCloud(); })
+                .subscribe();
         }
 
         window.toggleSidebar = function() {
