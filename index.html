@@ -538,45 +538,56 @@
     </div>
 
     <!-- Schadensmeldung Absenden Overlay (Für Gast & Trupps) -->
-    <div id="guest-damage-overlay" class="fullscreen-overlay">
-        <h3>Schaden melden</h3>
+<div id="guest-damage-overlay" class="fullscreen-overlay">
+    <h3>Schaden melden</h3>
+    
+    <!-- Auswählbare Schadens-Optionen -->
+    <label>Schadensbild klassifizieren:</label>
+    <div class="damage-options-container">
+        <label class="damage-opt-item">
+            <input type="checkbox" id="dmg-opt-clean" value="Müllproblem / Vogelkot" onchange="handleDamageOptionSelect(this)">
+            <span>🧹 Müllproblem / Vogelkot (Stadtreinigung)</span>
+        </label>
+        <label class="damage-opt-item">
+            <input type="checkbox" id="dmg-opt-green" value="Bank zugewachsen" onchange="handleDamageOptionSelect(this)">
+            <span>🌿 Bank zugewachsen (Grünpflege)</span>
+        </label>
+        <label class="damage-opt-item">
+            <input type="checkbox" id="dmg-opt-wood" value="Bank beschädigt" onchange="handleDamageOptionSelect(this)">
+            <span>🪓 Bank beschädigt (Zimmerer)</span>
+        </label>
+        <label class="damage-opt-item" id="dmg-opt-black-wrapper" style="display:none;">
+            <input type="checkbox" id="dmg-opt-black" value="Bank Irreparabel" onchange="handleDamageOptionSelect(this)">
+            <span>⚫ Bank Irreparabel (Galabau)</span>
+        </label>
         
-        <!-- NEU: Auswählbare Schadens-Optionen -->
-        <label>Schadensbild klassifizieren:</label>
-        <div class="damage-options-container">
-            <label class="damage-opt-item">
-                <input type="checkbox" id="dmg-opt-clean" value="Müllproblem / Vogelkot" onchange="handleDamageOptionSelect(this)">
-                <span>🧹 Müllproblem / Vogelkot (Stadtreinigung)</span>
-            </label>
-            <label class="damage-opt-item">
-                <input type="checkbox" id="dmg-opt-green" value="Bank zugewachsen" onchange="handleDamageOptionSelect(this)">
-                <span>🌿 Bank zugewachsen (Grünpflege)</span>
-            </label>
-            <label class="damage-opt-item">
-                <input type="checkbox" id="dmg-opt-wood" value="Bank beschädigt" onchange="handleDamageOptionSelect(this)">
-                <span>🪓 Bank beschädigt (Zimmerer)</span>
-            </label>
-            <label class="damage-opt-item" id="dmg-opt-black-wrapper" style="display:none;">
-                <input type="checkbox" id="dmg-opt-black" value="Bank Irreparabel" onchange="handleDamageOptionSelect(this)">
-                <span>⚫ Bank Irreparabel (Galabau)</span>
-            </label>
-        </div>
-
-        <label>Schadensbeschreibung:</label>
-        <textarea id="guest-damage-text" rows="4" style="width:100%; border-radius:8px; border:1px solid #bdc3c7; padding:10px; font-size:16px; box-sizing:border-box;" placeholder="Bitte beschreibe den Schaden hier genauer..."></textarea>
-        
-        <label>Foto hinzufügen:</label>
-        <div class="file-input-container">
-            <input type="file" id="guest-damage-camera" accept="image/*" capture="environment" style="display: none;" onchange="handleGuestFileSelection(this)">
-            <input type="file" id="guest-damage-gallery" accept="image/*" style="display: none;" onchange="handleGuestFileSelection(this)">
-            <button type="button" class="btn btn-camera" onclick="document.getElementById('guest-damage-camera').click()">📸 Foto live aufnehmen</button>
-            <button type="button" class="btn btn-camera btn-gallery" onclick="document.getElementById('guest-damage-gallery').click()">📁 Aus Galerie wählen</button>
-            <span id="guest-file-status" class="file-status-text">Kein Foto ausgewählt</span>
-        </div>
-
-        <button class="btn btn-save" style="margin-top:25px;" onclick="submitGuestDamageReport()">Meldung abschicken</button>
-        <button class="btn btn-cancel" onclick="closeGuestDamageOverlay()">Abbrechen</button>
+        <!-- Option für Fundort einer neuen Bank ohne Schaden -->
+        <label class="damage-opt-item" id="dmg-opt-newbench-wrapper" style="display:none;">
+            <input type="checkbox" id="dmg-opt-newbench" value="Neue Bank, kein Schaden" onchange="handleDamageOptionSelect(this)">
+            <span>🪑 Neue Bank, kein Schaden (Fundort)</span>
+        </label>
     </div>
+
+    <label>Schadensbeschreibung:</label>
+    <textarea id="guest-damage-text" rows="4" style="width:100%; border-radius:8px; border:1px solid #bdc3c7; padding:10px; font-size:16px; box-sizing:border-box;" placeholder="Bitte beschreibe den Schaden hier genauer..."></textarea>
+    
+    <label>Foto hinzufügen:</label>
+    <div class="file-input-container" id="guest-file-input-wrapper">
+        <input type="file" id="guest-damage-camera" accept="image/*" capture="environment" style="display: none;" onchange="handleGuestFileSelection(this)">
+        <input type="file" id="guest-damage-gallery" accept="image/*" style="display: none;" onchange="handleGuestFileSelection(this)">
+        <button type="button" class="btn btn-camera" onclick="document.getElementById('guest-damage-camera').click()">📸 Foto live aufnehmen</button>
+        <button type="button" class="btn btn-camera btn-gallery" onclick="document.getElementById('guest-damage-gallery').click()">📁 Aus Galerie wählen</button>
+        <span id="guest-file-status" class="file-status-text">Kein Foto ausgewählt</span>
+    </div>
+    
+    <!-- Hinweistext (standardmäßig versteckt) -->
+    <div id="no-image-needed-hint" style="display: none; background-color: #e8f4f8; color: #1d6f8a; border-left: 4px solid #3498db; border-radius: 4px; padding: 10px 12px; margin-top: 10px; font-size: 0.9em; line-height: 1.4;">
+    ℹ️ <strong>Foto nicht erforderlich:</strong> Bei Neumeldungen einer Bank ist kein Bild notwendig.
+</div>
+
+    <button class="btn btn-save" style="margin-top:25px;" onclick="submitGuestDamageReport()">Meldung abschicken</button>
+    <button class="btn btn-cancel" onclick="closeGuestDamageOverlay()">Abbrechen</button>
+</div>
 
     <!-- Admin / Zimmerer Prüfungs-Listen Overlay -->
     <div id="reports-overlay" class="fullscreen-overlay">
@@ -670,34 +681,39 @@
     </div>
 
     <!-- Neues Modell Auswahl-Dialog für Galabau -->
-    <div id="gala-model-overlay" class="fullscreen-overlay" style="z-index: 4000;">
-        <h3>Neues Modell auswählen</h3>
-        <label>Modelltyp:</label>
-        <select id="gala-model-select" style="width: 100%; padding: 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 16px;"></select>
-        <button class="btn btn-save" style="margin-top: 25px;" onclick="executeGalaModelChange()">Modelltyp ändern & Speichern</button>
-        <button class="btn btn-cancel" onclick="closeGalaModelOverlay()">Abbrechen</button>
-    </div>
+<div id="gala-model-overlay" class="fullscreen-overlay" style="z-index: 4000;">
+    <h3>Neues Modell auswählen</h3>
+    
+    <label>Modelltyp:</label>
+    <select id="gala-model-select" style="width: 100%; padding: 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 16px; margin-bottom: 15px;"></select>
+    
+    <label style="display:block; margin-top: 10px; font-weight: bold;">Bearbeiter / Trupp-Name:</label>
+    <input type="text" id="gala-worker-name" placeholder="z. B. Trupp Galabau (Klaus)" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 16px; box-sizing: border-box;">
 
-    <div id="type-fullscreen-overlay" class="fullscreen-overlay">
-        <h3>Neuen Bautyp registrieren</h3>
+    <button class="btn btn-save" style="margin-top: 25px;" onclick="executeGalaModelChange()">Modelltyp ändern & Speichern</button>
+    <button class="btn btn-cancel" onclick="closeGalaModelOverlay()">Abbrechen</button>
+</div>
+
+<div id="type-fullscreen-overlay" class="fullscreen-overlay">
+    <h3>Neuen Bautyp registrieren</h3>
+    
+    <label>Name des Bautyps:</label>
+    <input type="text" id="new-type-input" placeholder="z.B. Holz-Special V2, Betonbank, etc.">
+    
+    <label>Musterfoto hinterlegen:</label>
+    <div class="file-input-container">
+        <input type="file" id="new-type-image-camera" accept="image/*" capture="environment" style="display: none;" onchange="handleTypeFileSelection(this)">
+        <input type="file" id="new-type-image-gallery" accept="image/*" style="display: none;" onchange="handleTypeFileSelection(this)">
         
-        <label>Name des Bautyps:</label>
-        <input type="text" id="new-type-input" placeholder="z.B. Holz-Special V2, Betonbank, etc.">
+        <button type="button" class="btn btn-camera" onclick="triggerTypeCameraInput()">📸 Foto live aufnehmen</button>
+        <button type="button" class="btn btn-camera btn-gallery" onclick="triggerTypeGalleryInput()">📁 Bild aus Galerie wählen</button>
         
-        <label>Musterfoto hinterlegen:</label>
-        <div class="file-input-container">
-            <input type="file" id="new-type-image-camera" accept="image/*" capture="environment" style="display: none;" onchange="handleTypeFileSelection(this)">
-            <input type="file" id="new-type-image-gallery" accept="image/*" style="display: none;" onchange="handleTypeFileSelection(this)">
-            
-            <button type="button" class="btn btn-camera" onclick="triggerTypeCameraInput()">📸 Foto live aufnehmen</button>
-            <button type="button" class="btn btn-camera btn-gallery" onclick="triggerTypeGalleryInput()">📁 Bild aus Galerie wählen</button>
-            
-            <span id="type-file-status-text" class="file-status-text">Kein Foto ausgewählt</span>
-        </div>
-        
-        <button id="add-type-btn" class="btn btn-save" style="margin-top: 30px;">Typ & Bild speichern</button>
-        <button type="button" class="btn btn-cancel" onclick="closeTypeOverlay()">Abbrechen</button>
+        <span id="type-file-status-text" class="file-status-text">Kein Foto ausgewählt</span>
     </div>
+    
+    <button id="add-type-btn" class="btn btn-save" style="margin-top: 30px;">Typ & Bild speichern</button>
+    <button type="button" class="btn btn-cancel" onclick="closeTypeOverlay()">Abbrechen</button>
+</div>
 
     <!-- Modal für die Bildvergrößerung -->
     <div id="imageModal" class="image-modal" onclick="closeModal()">
@@ -1115,80 +1131,137 @@ window.navigateToDamageReport = function(reportId) {
     });
 };
         function applyRolePermissions() {
-            const hasReportsAccess = (currentRole === 'Admin' || currentRole === 'Zimmerer' || currentRole === 'Gala Bau' || currentRole === 'Stadt Reinigung' || currentRole === 'Grünpflege');
-            document.getElementById('menu-damage-reports-btn').style.display = hasReportsAccess ? 'block' : 'none';
-            document.getElementById('menu-new-entries-btn').style.display = (currentRole === 'Admin') ? 'block' : 'none';
-            document.getElementById('admin-add-type-container').style.display = (currentRole === 'Admin') ? 'block' : 'none';
-            updateBadgeCounters();
+    const hasReportsAccess = (currentRole === 'Admin' || currentRole === 'Zimmerer' || currentRole === 'Gala Bau' || currentRole === 'Stadt Reinigung' || currentRole === 'Grünpflege');
+    document.getElementById('menu-damage-reports-btn').style.display = hasReportsAccess ? 'block' : 'none';
+    document.getElementById('menu-new-entries-btn').style.display = (currentRole === 'Admin') ? 'block' : 'none';
+    document.getElementById('admin-add-type-container').style.display = (currentRole === 'Admin') ? 'block' : 'none';
+    updateBadgeCounters();
+}
+
+window.openGuestDamageOverlay = function(benchId, isUnregistered = false, lat = null, lng = null) {
+    if(isUnregistered) {
+        selectedDamageBenchId = null;
+        selectedDamageCoords = { lat: lat, lng: lng };
+    } else {
+        selectedDamageBenchId = benchId;
+        selectedDamageCoords = null;
+    }
+    
+    // Text & Status zurücksetzen
+    document.getElementById('guest-damage-text').value = "";
+    document.getElementById('guest-file-status').innerText = "Kein Foto ausgewählt";
+    activeGuestFile = null;
+    selectedDamageCategory = "";
+    
+    // Checkboxen entmarkieren
+    document.getElementById('dmg-opt-clean').checked = false;
+    document.getElementById('dmg-opt-green').checked = false;
+    document.getElementById('dmg-opt-wood').checked = false;
+    document.getElementById('dmg-opt-black').checked = false;
+    const optNewBench = document.getElementById('dmg-opt-newbench');
+    if (optNewBench) optNewBench.checked = false;
+
+    // Sichtbarkeit der Admin/Zimmerer-Option ("Irreparabel") steuern
+    const blackOptWrapper = document.getElementById('dmg-opt-black-wrapper');
+    if (blackOptWrapper) {
+        if (currentRole === 'Admin' || currentRole === 'Zimmerer') {
+            blackOptWrapper.style.display = "flex";
+        } else {
+            blackOptWrapper.style.display = "none";
         }
+    }
 
-        window.openGuestDamageOverlay = function(benchId, isUnregistered = false, lat = null, lng = null) {
-            if(isUnregistered) {
-                selectedDamageBenchId = null;
-                selectedDamageCoords = { lat: lat, lng: lng };
-            } else {
-                selectedDamageBenchId = benchId;
-                selectedDamageCoords = null;
-            }
-            
-            // Text & Status zurücksetzen
-            document.getElementById('guest-damage-text').value = "";
-            document.getElementById('guest-file-status').innerText = "Kein Foto ausgewählt";
-            activeGuestFile = null;
-            selectedDamageCategory = "";
-            
-            // Checkboxen entmarkieren
-            document.getElementById('dmg-opt-clean').checked = false;
-            document.getElementById('dmg-opt-green').checked = false;
-            document.getElementById('dmg-opt-wood').checked = false;
-            document.getElementById('dmg-opt-black').checked = false;
+    // --- NEU: Sichtbarkeit für "Neue Bank, kein Schaden" steuern ---
+    const allowedNewBenchRoles = ['Gast', 'Gala Bau', 'Stadt Reinigung', 'Grünpflege'];
+    const newBenchWrapper = document.getElementById('dmg-opt-newbench-wrapper');
+    if (newBenchWrapper) {
+        if (isUnregistered && allowedNewBenchRoles.includes(currentRole)) {
+            newBenchWrapper.style.display = "flex";
+        } else {
+            newBenchWrapper.style.display = "none";
+        }
+    }
 
-            // Sichtbarkeit der Admin/Zimmerer-Option ("Irreparabel") steuern
-            const blackOptWrapper = document.getElementById('dmg-opt-black-wrapper');
-            if (currentRole === 'Admin' || currentRole === 'Zimmerer') {
-                blackOptWrapper.style.display = "flex";
-            } else {
-                blackOptWrapper.style.display = "none";
-            }
+    if(map) map.closePopup();
+    document.getElementById('guest-damage-overlay').style.display = "block";
+};
 
-            if(map) map.closePopup();
-            document.getElementById('guest-damage-overlay').style.display = "block";
-        };
+    // In openGuestDamageOverlay hinzufügen:
+const uploadWrapper = document.getElementById('guest-file-input-wrapper');
+if (uploadWrapper) {
+    uploadWrapper.style.opacity = "1.0";
+    uploadWrapper.style.pointerEvents = "auto";
+}
+const hintText = document.getElementById('no-image-needed-hint');
+if (hintText) hintText.style.display = "none";
 
-        window.closeGuestDamageOverlay = function() {
-    const guestOverlay = document.getElementById('guest-damage-overlay'); // Name deiner Schadensmeldungs-Maske
+window.closeGuestDamageOverlay = function() {
+    const guestOverlay = document.getElementById('guest-damage-overlay');
     if (guestOverlay) guestOverlay.style.display = 'none';
 };
 
-        // Steuerung der Radiobutton-ähnlichen Checkbox-Auswahl
-        window.handleDamageOptionSelect = function(selectedCheckbox) {
-            const checkboxes = ["dmg-opt-clean", "dmg-opt-green", "dmg-opt-wood", "dmg-opt-black"];
-            checkboxes.forEach(id => {
-                const cb = document.getElementById(id);
-                if (cb && cb !== selectedCheckbox) {
-                    cb.checked = false;
-                }
-            });
-            
-            if (selectedCheckbox.checked) {
-                selectedDamageCategory = selectedCheckbox.value;
-            } else {
-                selectedDamageCategory = "";
-            }
-        };
+window.handleDamageOptionSelect = function(selectedCheckbox) {
+    const checkboxes = ["dmg-opt-clean", "dmg-opt-green", "dmg-opt-wood", "dmg-opt-black", "dmg-opt-newbench"];
+    checkboxes.forEach(id => {
+        const cb = document.getElementById(id);
+        if (cb && cb !== selectedCheckbox) {
+            cb.checked = false;
+        }
+    });
+    
+    if (selectedCheckbox.checked) {
+        selectedDamageCategory = selectedCheckbox.value;
+    } else {
+        selectedDamageCategory = "";
+    }
 
-        window.handleGuestFileSelection = async function(input) {
-            if(input.files.length > 0) {
-                document.getElementById('guest-file-status').innerText = `⏳ Bild wird komprimiert...`;
-                try {
-                    activeGuestFile = await compressImage(input.files[0]);
-                    document.getElementById('guest-file-status').innerText = `✅ Foto bereit (optimiert)`;
-                } catch (e) {
-                    activeGuestFile = input.files[0];
-                    document.getElementById('guest-file-status').innerText = `✅ Foto bereit (unkomprimiert)`;
-                }
-            }
-        };
+    // Prüfen, ob "Neue Bank, kein Schaden" ausgewählt ist
+    const isNewBench = (selectedDamageCategory === "Neue Bank, kein Schaden");
+    
+    const fileWrapper = document.getElementById('guest-file-input-wrapper');
+    const cameraInput = document.getElementById('guest-damage-camera');
+    const galleryInput = document.getElementById('guest-damage-gallery');
+    const hintText = document.getElementById('no-image-needed-hint');
+
+    if (isNewBench) {
+        // Buttons ausgrauen und Klicks deaktivieren
+        if (fileWrapper) {
+            fileWrapper.style.opacity = "0.4";
+            fileWrapper.style.pointerEvents = "none";
+        }
+        if (cameraInput) cameraInput.value = "";
+        if (galleryInput) galleryInput.value = "";
+        
+        activeGuestFile = null;
+        
+        if (hintText) hintText.style.display = "block";
+        document.getElementById('guest-file-status').innerText = "Kein Foto erforderlich";
+    } else {
+        // Normalen Zustand wiederherstellen
+        if (fileWrapper) {
+            fileWrapper.style.opacity = "1.0";
+            fileWrapper.style.pointerEvents = "auto";
+        }
+        if (hintText) hintText.style.display = "none";
+        
+        if (!activeGuestFile) {
+            document.getElementById('guest-file-status').innerText = "Kein Foto ausgewählt";
+        }
+    }
+};
+
+window.handleGuestFileSelection = async function(input) {
+    if(input.files.length > 0) {
+        document.getElementById('guest-file-status').innerText = `⏳ Bild wird komprimiert...`;
+        try {
+            activeGuestFile = await compressImage(input.files[0]);
+            document.getElementById('guest-file-status').innerText = `✅ Foto bereit (optimiert)`;
+        } catch (e) {
+            activeGuestFile = input.files[0];
+            document.getElementById('guest-file-status').innerText = `✅ Foto bereit (unkomprimiert)`;
+        }
+    }
+};
 
 // Hilfsfunktion zur Ermittlung der nächsten fortlaufenden Ticketnummer über die Supabase-Zählertabelle
 async function getNextTicketNumber(category) {
@@ -1224,7 +1297,6 @@ async function getNextTicketNumber(category) {
         kuerzel = 'H';
     }
 
-    // Aktuelle 2-stellige Jahreszahl (z. B. "26" für 2026)
     const yearPrefix = new Date().getFullYear().toString().slice(-2);
     const counterId = `${yearPrefix}${kuerzel}`;
 
@@ -1276,11 +1348,13 @@ window.submitGuestDamageReport = async function() {
     if(supabaseClient) {
         let targetBenchId = selectedDamageBenchId;
         const catUpper = (selectedDamageCategory || '').toUpperCase();
+        const isNewBenchOnly = catUpper.includes("KEIN SCHADEN") || catUpper.includes("NEUE BANK");
 
         // Falls freie Fläche geklickt wurde, temporäre Bank anlegen
         if(selectedDamageCoords) {
             let initialStatus = "Beschädigt";
-            if (catUpper.includes("MÜLL") || catUpper.includes("VOGELKOT")) initialStatus = "Verschmutzt";
+            if (isNewBenchOnly) initialStatus = "Ungeprüft";
+            else if (catUpper.includes("MÜLL") || catUpper.includes("VOGELKOT")) initialStatus = "Verschmutzt";
             else if (catUpper.includes("ZUGEWACHSEN")) initialStatus = "Zugewachsen";
             else if (catUpper.includes("IRREPARABEL")) initialStatus = "Irreparabel";
 
@@ -1290,8 +1364,8 @@ window.submitGuestDamageReport = async function() {
                 type: "Sonstige",
                 district: "Heilbronn",
                 manual_status: initialStatus,
-                damage_description: selectedDamageCategory ? `${selectedDamageCategory}: ${desc}` : desc,
-                approved: false,
+                damage_description: desc ? `[Neufund] ${desc}` : "Neue Bank gemeldet",
+                approved: false, // Sorgt für den unbestätigten / ausstehenden Modus (grauer Marker)
                 pending_action: "insert"
             }]).select().single();
 
@@ -1301,6 +1375,16 @@ window.submitGuestDamageReport = async function() {
                 alert("Fehler beim Erstellen der temporären Bank: " + (benchError ? benchError.message : "Unbekannt"));
                 return;
             }
+
+            // --- SONDERFALL: Nur eine neue Bank ohne Schaden gemeldet ---
+            if (isNewBenchOnly) {
+                alert("Vielen Dank! Die neue Bank wurde zur Prüfung eingereicht.");
+                closeGuestDamageOverlay();
+                await updateBadgeCounters();
+                await fetchBenchesFromCloud();
+                return; // Beendet den Vorgang, OHNE ein Schadens-Ticket zu erzeugen!
+            }
+
         } else if (selectedDamageBenchId) {
             // Status der bestehenden Bank anpassen
             let newStatus = null;
@@ -1317,10 +1401,10 @@ window.submitGuestDamageReport = async function() {
             }
         }
 
-        // 1. Richtige Ticketnummer live berechnen (z. B. "26G0115")
+        // 1. Richtige Ticketnummer live berechnen (nur für echte Schadensmeldungen)
         const newTicketNumber = await getNextTicketNumber(selectedDamageCategory);
 
-        // 2. Trupp-Kürzel direkt aus dem 3. Zeichen ziehen (z. B. "G")
+        // 2. Trupp-Kürzel direkt aus dem 3. Zeichen ziehen
         const deptCode = newTicketNumber ? newTicketNumber.charAt(2) : 'H';
 
         // 3. In Supabase-Tabelle "damage_reports" einfügen
@@ -1338,7 +1422,6 @@ window.submitGuestDamageReport = async function() {
             closeGuestDamageOverlay();
             await updateBadgeCounters();
             await fetchBenchesFromCloud();
-            // openReportsOverlay wurde hier entfernt – das Menü bleibt jetzt sauber geschlossen!
         } else {
             alert("Fehler beim Absenden der Meldung: " + error.message);
         }
@@ -1576,20 +1659,27 @@ window.openReportsOverlay = async function(mode) {
 };
 
         window.showDirectApprovalFromMap = function(benchId) {
-            if (currentRole !== 'Admin') return;
-            if (map) map.closePopup();
-            
-            window.openReportsOverlay('entries').then(() => {
-                if (window.currentPendingBenches && window.currentPendingBenches.length > 0) {
-                    const found = window.currentPendingBenches.find(item => item.id === benchId);
-                    if (found) {
-                        window.showReportDetail('entry', benchId);
-                    } else {
-                        alert("Eintrag konnte im Freigabe-Center nicht gefunden werden.");
-                    }
-                }
-            });
-        };
+    if (currentRole !== 'Admin') return;
+    if (map) map.closePopup();
+    
+    window.openReportsOverlay('entries').then(() => {
+        if (window.currentPendingBenches && window.currentPendingBenches.length > 0) {
+            // Sucht sowohl nach der pending-ID als auch nach der bench_id (als Zahl & String)
+            const found = window.currentPendingBenches.find(item => 
+                String(item.id) === String(benchId) || String(item.bench_id) === String(benchId)
+            );
+
+            if (found) {
+                // Öffnet die Detailansicht mit der echten ID des Pending-Eintrags
+                window.showReportDetail('entry', found.id);
+            } else {
+                alert("Eintrag konnte im Freigabe-Center nicht gefunden werden.");
+            }
+        } else {
+            alert("Eintrag konnte im Freigabe-Center nicht gefunden werden.");
+        }
+    });
+};
 
         window.showReportDetail = async function(type, id) {
     const detailOverlay = document.getElementById('report-detail-overlay');
@@ -1853,11 +1943,10 @@ window.closeReportDetail = function() {
                 const { error: guestApproveErr } = await supabaseClient
                     .from('benches')
                     .update({ 
-                        status: 'ok', 
-                        manual_status: 'In Ordnung',
-                        approved: true 
-                    })
-                    .eq('id', pendingItem.id);
+                    manual_status: 'In Ordnung',
+                    approved: true 
+             })
+                .eq('id', pendingItem.id);
 
                 if (guestApproveErr) throw guestApproveErr;
             } else {
@@ -2045,18 +2134,56 @@ window.closeReportDetail = function() {
         };
 
         window.executeGalaModelChange = async function() {
-            const selectedType = document.getElementById('gala-model-select').value;
-            const updatedData = { type: selectedType, manual_status: 'Automatisch', damage_description: null };
-            closeGalaModelOverlay();
+    const selectedType = document.getElementById('gala-model-select')?.value;
+    const workerNameInput = document.getElementById('gala-worker-name');
+    const workerName = workerNameInput ? workerNameInput.value.trim() : '';
 
-            if(supabaseClient) {
-                await supabaseClient.from('benches').update(updatedData).eq('id', selectedDamageBenchId);
-                await autoDeleteDamageReport(selectedDamageBenchId); // <-- Schadensmeldung automatisch löschen
-                await fetchBenchesFromCloud();
-            } else {
-                saveOfflineAction('update', updatedData, selectedDamageBenchId);
+    if (!workerName) {
+        alert("Bitte gib deinen Namen / dein Trupp-Kürzel ein.");
+        return;
+    }
+
+    if (!selectedDamageBenchId) {
+        alert("Keine Bank für den Modelltausch ausgewählt!");
+        return;
+    }
+
+    // Heutiges Datum im Format YYYY-MM-DD generieren
+    const todayISO = new Date().toISOString().split('T')[0];
+
+    // Datenobjekt für das Update vorbereiten
+    const updatedData = { 
+        type: selectedType,
+        last_maintenance: todayISO,         // Datum auf heute setzen
+        manual_status: null,                // Status zurücksetzen -> greift wieder auf datumsbasierte Berechnung
+        damage_description: null,           // Schaden ist behoben
+        worker_name: workerName,            // Bearbeiter eintragen
+        approved: false,                    // Admin-Freigabe erforderlich
+        pending_action: "update"            // Löst die Alt/Neu-Gegenüberstellung im Admin-Dashboard aus
+    };
+
+    closeGalaModelOverlay();
+
+    if (supabaseClient) {
+        const { error } = await supabaseClient.from('benches').update(updatedData).eq('id', selectedDamageBenchId);
+        
+        if (!error) {
+            // Schadensmeldung automatisch löschen/schließen
+            if (typeof autoDeleteDamageReport === 'function') {
+                await autoDeleteDamageReport(selectedDamageBenchId);
             }
-        };
+            alert("Modelltausch wurde eingereicht! Der Admin muss die Änderung noch freigeben.");
+            if (typeof updateBadgeCounters === 'function') await updateBadgeCounters();
+            await fetchBenchesFromCloud();
+        } else {
+            alert("Fehler beim Speichern: " + error.message);
+        }
+    } else {
+        if (typeof saveOfflineAction === 'function') {
+            saveOfflineAction('update', updatedData, selectedDamageBenchId);
+        }
+    }
+};
 
         window.galaReplaceBench = async function(id) {
             const updatedData = { manual_status: 'Automatisch', damage_description: null };
@@ -2216,13 +2343,15 @@ window.closeReportDetail = function() {
                 
                 try {
                     let result;
-                    const targetTable = item.targetTable || 'benches';
+                    // Falls targetTable nicht gesetzt ist, anhand der action erraten:
+                    const targetTable = item.targetTable || (item.action === 'insert_pending' ? 'pending_benches' : 'benches');
+                    const realAction = item.action === 'insert_pending' ? 'insert' : item.action;
 
-                    if (item.action === 'insert') {
+                    if (realAction === 'insert') {
                         result = await supabaseClient.from(targetTable).insert([item.data]).select();
-                    } else if (item.action === 'update') {
+                    } else if (realAction === 'update') {
                         result = await supabaseClient.from(targetTable).update(item.data).eq('id', item.id);
-                    } else if (item.action === 'delete') {
+                    } else if (realAction === 'delete') {
                         result = await supabaseClient.from(targetTable).delete().eq('id', item.id);
                     }
 
@@ -3089,14 +3218,15 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
 
         if (supabaseClient) {
             try {
-                await supabaseClient.from('benches').update(rowData).eq('id', selectedDamageBenchId);
+                const { error } = await supabaseClient.from('benches').update(rowData).eq('id', selectedDamageBenchId);
+                if (error) throw error;
                 alert("Löschung beantragt. Der Administrator muss dies bestätigen.");
                 await fetchBenchesFromCloud();
             } catch (e) {
-                saveOfflineAction('update', rowData, selectedDamageBenchId);
+                saveOfflineAction('update', rowData, selectedDamageBenchId, null, 'benches');
             }
         } else {
-            saveOfflineAction('update', rowData, selectedDamageBenchId);
+            saveOfflineAction('update', rowData, selectedDamageBenchId, null, 'benches');
         }
         return;
     }
@@ -3137,14 +3267,18 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
             if (supabaseClient) {
                 try {
                     if (isNewBenchMode) { 
-                        await supabaseClient.from('benches').insert([rowData]);
+                        const { error } = await supabaseClient.from('benches').insert([rowData]);
+                        if (error) throw error;
                     } else { 
-                        await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id);
+                        const { error } = await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id);
+                        if (error) throw error;
                     }
                     await fetchBenchesFromCloud();
                 } catch(e) {
-                    saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id, tempId);
+                    saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id, tempId, 'benches');
                 }
+            } else {
+                saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id, tempId, 'benches');
             }
         } else {
             // Nicht-Admin/Trupp: Geht als Entwurf in pending_benches
@@ -3170,10 +3304,10 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
                     await fetchBenchesFromCloud();
                 } catch(e) {
                     console.error("Fehler beim Speichern des Entwurfs:", e);
-                    saveOfflineAction('insert_pending', pendingData, currentEditingBench.id);
+                    saveOfflineAction('insert', pendingData, currentEditingBench.id, tempId, 'pending_benches');
                 }
             } else {
-                saveOfflineAction('insert_pending', pendingData, currentEditingBench.id);
+                saveOfflineAction('insert', pendingData, currentEditingBench.id, tempId, 'pending_benches');
             }
         }
 
@@ -3195,10 +3329,10 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
                 if (error) throw error;
                 await fetchBenchesFromCloud();
             } catch(e) {
-                saveOfflineAction('delete', null, targetId);
+                saveOfflineAction('delete', null, targetId, null, 'benches');
             }
         } else {
-            saveOfflineAction('delete', null, targetId);
+            saveOfflineAction('delete', null, targetId, null, 'benches');
         }
     }
 }
