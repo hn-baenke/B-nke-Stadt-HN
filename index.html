@@ -329,7 +329,7 @@
                 <text x="56" y="54" font-family="Georgia, serif" font-weight="900" font-size="42" fill="#1a1a1a">N</text>
                 <path d="M22 66 L78 66 M18 75 L82 75 M28 66 L28 86 M72 66 L72 86" stroke="#2c3e50" stroke-width="4.5" stroke-linecap="round"/>
             </svg>
-            <span>HN-Sitzbank-Kataster (<span id="total-count">0</span> Bänke)</span>
+            <span>HN-SitzFinder (<span id="total-count">0</span> Bänke)</span>
             <span id="display-role" class="role-badge role-gast" onclick="openLoginOverlay()">Login</span>
         </div>
         <span id="sync-cloud-icon" class="sync-indicator sync-green" onclick="handleCloudClick()" title="Daten-Synchronisation">☁️</span>
@@ -538,7 +538,7 @@
     </div>
 
     <!-- Schadensmeldung Absenden Overlay (Für Gast & Trupps) -->
-<div id="guest-damage-overlay" class="fullscreen-overlay">
+<div id="damage-reports-overlay" class="fullscreen-overlay">
     <h3>Schaden melden</h3>
     
     <!-- Auswählbare Schadens-Optionen -->
@@ -569,14 +569,14 @@
     </div>
 
     <label>Schadensbeschreibung:</label>
-    <textarea id="guest-damage-text" rows="4" style="width:100%; border-radius:8px; border:1px solid #bdc3c7; padding:10px; font-size:16px; box-sizing:border-box;" placeholder="Bitte beschreibe den Schaden hier genauer..."></textarea>
+    <textarea id="damage-reports-text" rows="4" style="width:100%; border-radius:8px; border:1px solid #bdc3c7; padding:10px; font-size:16px; box-sizing:border-box;" placeholder="Bitte beschreibe den Schaden hier genauer..."></textarea>
     
     <label>Foto hinzufügen:</label>
     <div class="file-input-container" id="guest-file-input-wrapper">
-        <input type="file" id="guest-damage-camera" accept="image/*" capture="environment" style="display: none;" onchange="handleGuestFileSelection(this)">
-        <input type="file" id="guest-damage-gallery" accept="image/*" style="display: none;" onchange="handleGuestFileSelection(this)">
-        <button type="button" class="btn btn-camera" onclick="document.getElementById('guest-damage-camera').click()">📸 Foto live aufnehmen</button>
-        <button type="button" class="btn btn-camera btn-gallery" onclick="document.getElementById('guest-damage-gallery').click()">📁 Aus Galerie wählen</button>
+        <input type="file" id="damage-reports-camera" accept="image/*" capture="environment" style="display: none;" onchange="handleDamageReportFileSelection(this)">
+        <input type="file" id="damage-reports-gallery" accept="image/*" style="display: none;" onchange="handleDamageReportFileSelection(this)">
+        <button type="button" class="btn btn-camera" onclick="document.getElementById('damage-reports-camera').click()">📸 Foto live aufnehmen</button>
+        <button type="button" class="btn btn-camera btn-gallery" onclick="document.getElementById('damage-reports-gallery').click()">📁 Aus Galerie wählen</button>
         <span id="guest-file-status" class="file-status-text">Kein Foto ausgewählt</span>
     </div>
     
@@ -585,8 +585,8 @@
     ℹ️ <strong>Foto nicht erforderlich:</strong> Bei Neumeldungen einer Bank ist kein Bild notwendig.
 </div>
 
-    <button class="btn btn-save" style="margin-top:25px;" onclick="submitGuestDamageReport()">Meldung abschicken</button>
-    <button class="btn btn-cancel" onclick="closeGuestDamageOverlay()">Abbrechen</button>
+    <button class="btn btn-save" style="margin-top:25px;" onclick="submitDamageReport()">Meldung abschicken</button>
+    <button class="btn btn-cancel" onclick="closeDamageReportsOverlay()">Abbrechen</button>
 </div>
 
     <!-- Admin / Zimmerer Prüfungs-Listen Overlay -->
@@ -623,48 +623,56 @@
 </div>
 
     <!-- Hauptformular (Sitzbank eintragen / bearbeiten) -->
-    <div id="fullscreen-overlay" class="fullscreen-overlay">
-        <h3 id="form-title">Sitzbank eintragen</h3>
-        
-        <label>Bautyp:</label>
-        <select id="pop-type" onchange="handleTypeChange()"></select>
-        
-        <div class="type-preview-box" id="image-preview-container">
-            <span class="no-image-text" id="preview-placeholder">Kein Bild für diesen Typ hinterlegt</span>
-            <img id="preview-img" src="" alt="Vorschau Banktyp">
-        </div>
-
-        <label>Stadtteil / Bereich:</label><select id="pop-district"></select>
-        <label>Letzte Wartung:</label><input type="date" id="pop-date">
-        
-        <label>Sonderstatus:</label>
-        <select id="pop-manual">
-            <option value="Automatisch">Nach Datum berechnen</option>
-            <option value="Wartung empfohlen">Wartung empfohlen (Gelb)</option>
-            <option value="Wartung Nötig">Wartung Nötig (Rot)</option>
-            <option value="In Bearbeitung">In Bearbeitung (Lila)</option>
-            <option value="Irreparabel">Irreparabel (Austausch nötig)</option>
-            <option value="Verschmutzt">Verschmutzt (Orange)</option>
-            <option value="Zugewachsen">Zugewachsen (Blau)</option>
-            <option value="Ungeprüft">Ungeprüft (Grau)</option>
-            <option value="Wartungsfrei">Wartungsfrei (Dauerhaft Grün)</option>
-        </select>
-        
-        <label>Bank Beschreibung:</label>
-        <input type="text" id="pop-description" placeholder="Beschreibung eingeben...">
-        <span class="field-example">z.B. Bank auf Betonsockel, Rundbank auf Gestell</span>
-
-        <label>Schadens Beschreibung:</label>
-        <input type="text" id="pop-damage-description" placeholder="Schäden beschreiben...">
-        <span class="field-example">z.B. Lehne Beschmiert Bretter Morsch</span>
-
-        <label>Maße (z.B. 180x50x45 cm):</label><input type="text" id="pop-dimensions" placeholder="Länge x Breite x Höhe...">
-        <label>Notiz:</label><input type="text" id="pop-note" placeholder="Notiz eingeben...">
-        
-        <button id="pop-save-btn" class="btn btn-save">Speichern</button>
-        <button id="pop-delete-btn" class="btn btn-delete" style="display: none;">Bank löschen</button>
-        <button id="pop-cancel-btn" class="btn btn-cancel" onclick="closeAndResetForm()">Abbrechen</button>
+<div id="fullscreen-overlay" class="fullscreen-overlay">
+    <h3 id="form-title">Sitzbank eintragen</h3>
+    
+    <label for="pop-type">Bautyp:</label>
+    <select id="pop-type" onchange="handleTypeChange()"></select>
+    
+    <div class="type-preview-box" id="image-preview-container">
+        <span class="no-image-text" id="preview-placeholder">Kein Bild für diesen Typ hinterlegt</span>
+        <img id="preview-img" src="" alt="Vorschau Banktyp">
     </div>
+
+    <label for="pop-district">Stadtteil / Bereich:</label>
+    <select id="pop-district"></select>
+
+    <!-- Datum mit den 3 Schnell-Buttons -->
+    <label for="pop-date">Letzte Wartung:</label>
+    <input type="date" id="pop-date">
+    <div class="date-quick-buttons" style="margin-top: 6px; margin-bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap;">
+        <button type="button" class="btn btn-sm" style="padding: 4px 8px; font-size: 12px; background-color: #2C3E50; color: #fff;" onclick="setMaintenanceDate('today')">📅 Heute</button>
+        <button type="button" class="btn btn-sm" style="padding: 4px 8px; font-size: 12px; background-color: #2C3E50; color: #fff;" onclick="setMaintenanceDate('yellow')">🟡 Wartung empfohlen (3 Jahre)</button>
+        <button type="button" class="btn btn-sm" style="padding: 4px 8px; font-size: 12px; background-color: #2C3E50; color: #fff;" onclick="setMaintenanceDate('red')">🔴 Wartung nötig (5 Jahre)</button>
+    </div>
+    
+    <!-- Bereinigter Sonderstatus -->
+    <label for="pop-manual">Sonderstatus:</label>
+    <select id="pop-manual">
+        <option value="Automatisch">Nach Datum berechnen</option>
+        <option value="In Bearbeitung">In Bearbeitung (Lila)</option>
+        <option value="Ungeprüft">Ungeprüft (Grau)</option>
+        <option value="Wartungsfrei">Wartungsfrei (Dauerhaft Grün)</option>
+    </select>
+    
+    <label for="pop-description">Bank Beschreibung:</label>
+    <input type="text" id="pop-description" placeholder="Beschreibung eingeben...">
+    <span class="field-example">z.B. Bank auf Betonsockel, Rundbank auf Gestell</span>
+
+    <label for="pop-damage-description">Schadens Beschreibung:</label>
+    <input type="text" id="pop-damage-description" placeholder="Schäden beschreiben...">
+    <span class="field-example">z.B. Lehne Beschmiert Bretter Morsch</span>
+
+    <label for="pop-dimensions">Maße (z.B. 180x50x45 cm):</label>
+    <input type="text" id="pop-dimensions" placeholder="Länge x Breite x Höhe...">
+
+    <label for="pop-note">Notiz:</label>
+    <input type="text" id="pop-note" placeholder="Notiz eingeben...">
+    
+    <button id="pop-save-btn" class="btn btn-save">Speichern</button>
+    <button id="pop-delete-btn" class="btn btn-delete" style="display: none;">Bank löschen</button>
+    <button id="pop-cancel-btn" class="btn btn-cancel" onclick="closeAndResetForm()">Abbrechen</button>
+</div>
 
     <!-- Namen-Abfrage Pflichtfeld Overlay bei Trupp-Aktionen -->
     <div id="worker-name-overlay" class="fullscreen-overlay" style="z-index: 4000; display: none; background: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
@@ -749,7 +757,7 @@
         const DEFAULT_TYPES = ["H-Bank", "Wetz Ergo7000", "Bitburg", "Sonstige"];
         let types = [...DEFAULT_TYPES];
         let benches = [];
-        let guestDamageReports = []; 
+        let damagereports = []; 
         let map, markersLayer, supabaseClient, userLocationMarker;
         let currentEditingBench = null;
         let isNewBenchMode = false;
@@ -1043,18 +1051,18 @@
 
     // 1. Alle Schadensmeldungen aus der Datenbank abrufen
     const { count: totalDmgCount, data: dmgData } = await supabaseClient.from('damage_reports').select('*', { count: 'exact' });
-    guestDamageReports = dmgData || [];
+    damagereports = dmgData || [];
     
     // 2. Meldungen basierend auf der aktuellen Truppen-Rolle filtern
-    let filteredDmgData = guestDamageReports;
+    let filteredDmgData = damagereports;
     if (currentRole === 'Zimmerer') {
-        filteredDmgData = guestDamageReports.filter(r => r.description && r.description.includes('Bank beschädigt'));
+        filteredDmgData = damagereports.filter(r => r.description && r.description.includes('Bank beschädigt'));
     } else if (currentRole === 'Stadt Reinigung') {
-        filteredDmgData = guestDamageReports.filter(r => r.description && r.description.includes('Müllproblem / Vogelkot'));
+        filteredDmgData = damagereports.filter(r => r.description && r.description.includes('Müllproblem / Vogelkot'));
     } else if (currentRole === 'Grünpflege') {
-        filteredDmgData = guestDamageReports.filter(r => r.description && r.description.includes('Bank zugewachsen'));
+        filteredDmgData = damagereports.filter(r => r.description && r.description.includes('Bank zugewachsen'));
     } else if (currentRole === 'Gala Bau') {
-        filteredDmgData = guestDamageReports.filter(r => r.description && r.description.includes('Bank Irreparabel'));
+        filteredDmgData = damagereports.filter(r => r.description && r.description.includes('Bank Irreparabel'));
     } // Admin behält alle Meldungen (kein Filter)
 
     const finalDmgCount = filteredDmgData.length;
@@ -1103,7 +1111,7 @@ function getRelevantReportForBench(benchId) {
     if (currentRole === "Gast") return null;
 
     // Finde alle Meldungen für diese spezifische Bank
-    const benchReports = guestDamageReports.filter(r => r.bench_id === benchId);
+    const benchReports = damagereports.filter(r => r.bench_id === benchId);
     if (benchReports.length === 0) return null;
 
     // Wenn Admin, ist jede Meldung relevant
@@ -1138,7 +1146,7 @@ window.navigateToDamageReport = function(reportId) {
     updateBadgeCounters();
 }
 
-window.openGuestDamageOverlay = function(benchId, isUnregistered = false, lat = null, lng = null) {
+window.openDamageReportsOverlay = function(benchId, isUnregistered = false, lat = null, lng = null) {
     if(isUnregistered) {
         selectedDamageBenchId = null;
         selectedDamageCoords = { lat: lat, lng: lng };
@@ -1148,7 +1156,7 @@ window.openGuestDamageOverlay = function(benchId, isUnregistered = false, lat = 
     }
     
     // Text & Status zurücksetzen
-    document.getElementById('guest-damage-text').value = "";
+    document.getElementById('damage-reports-text').value = "";
     document.getElementById('guest-file-status').innerText = "Kein Foto ausgewählt";
     activeGuestFile = null;
     selectedDamageCategory = "";
@@ -1183,10 +1191,10 @@ window.openGuestDamageOverlay = function(benchId, isUnregistered = false, lat = 
     }
 
     if(map) map.closePopup();
-    document.getElementById('guest-damage-overlay').style.display = "block";
+    document.getElementById('damage-reports-overlay').style.display = "block";
 };
 
-    // In openGuestDamageOverlay hinzufügen:
+    // In openDamageReportsOverlay hinzufügen:
 const uploadWrapper = document.getElementById('guest-file-input-wrapper');
 if (uploadWrapper) {
     uploadWrapper.style.opacity = "1.0";
@@ -1195,8 +1203,8 @@ if (uploadWrapper) {
 const hintText = document.getElementById('no-image-needed-hint');
 if (hintText) hintText.style.display = "none";
 
-window.closeGuestDamageOverlay = function() {
-    const guestOverlay = document.getElementById('guest-damage-overlay');
+window.closeDamageReportsOverlay = function() {
+    const guestOverlay = document.getElementById('damage-reports-overlay');
     if (guestOverlay) guestOverlay.style.display = 'none';
 };
 
@@ -1219,8 +1227,8 @@ window.handleDamageOptionSelect = function(selectedCheckbox) {
     const isNewBench = (selectedDamageCategory === "Neue Bank, kein Schaden");
     
     const fileWrapper = document.getElementById('guest-file-input-wrapper');
-    const cameraInput = document.getElementById('guest-damage-camera');
-    const galleryInput = document.getElementById('guest-damage-gallery');
+    const cameraInput = document.getElementById('damage-reports-camera');
+    const galleryInput = document.getElementById('damage-reports-gallery');
     const hintText = document.getElementById('no-image-needed-hint');
 
     if (isNewBench) {
@@ -1250,7 +1258,7 @@ window.handleDamageOptionSelect = function(selectedCheckbox) {
     }
 };
 
-window.handleGuestFileSelection = async function(input) {
+window.handleDamageReportFileSelection = async function(input) {
     if(input.files.length > 0) {
         document.getElementById('guest-file-status').innerText = `⏳ Bild wird komprimiert...`;
         try {
@@ -1329,8 +1337,8 @@ async function getNextTicketNumber(category) {
     }
 }
 
-window.submitGuestDamageReport = async function() {
-    const desc = document.getElementById('guest-damage-text').value.trim();
+window.submitDamageReport = async function() {
+    const desc = document.getElementById('damage-reports-text').value.trim();
     if(!desc && !selectedDamageCategory) { 
         alert("Bitte gib eine Schadensbeschreibung ein oder wähle eine Option aus."); 
         return; 
@@ -1379,7 +1387,7 @@ window.submitGuestDamageReport = async function() {
             // --- SONDERFALL: Nur eine neue Bank ohne Schaden gemeldet ---
             if (isNewBenchOnly) {
                 alert("Vielen Dank! Die neue Bank wurde zur Prüfung eingereicht.");
-                closeGuestDamageOverlay();
+                closeDamageReportsOverlay();
                 await updateBadgeCounters();
                 await fetchBenchesFromCloud();
                 return; // Beendet den Vorgang, OHNE ein Schadens-Ticket zu erzeugen!
@@ -1419,7 +1427,7 @@ window.submitGuestDamageReport = async function() {
         
         if(!error) {
             alert(`Vielen Dank für die Meldung! (Ticketnummer: ${newTicketNumber || 'Erstellt'})`);
-            closeGuestDamageOverlay();
+            closeDamageReportsOverlay();
             await updateBadgeCounters();
             await fetchBenchesFromCloud();
         } else {
@@ -1462,6 +1470,9 @@ window.openReportsOverlay = async function(mode) {
             filteredData = data.filter(r => r.dept_code === 'G' && r.description && r.description.includes('Irreparabel'));
         }
 
+        // Shared Style für den Anzeige-Button
+        const btnStyle = 'padding:6px 12px; width:auto; font-size:12px; background-color: #2C3E50 !important; color: #ffffff !important; border: none;';
+
         if (currentRole === 'Admin') {
             const trupps = [
                 { name: '🪵 Zimmerer', code: 'H', keyword: 'beschädigt' },
@@ -1500,7 +1511,7 @@ window.openReportsOverlay = async function(mode) {
                                     <strong>${ticketNo}</strong> - ${benchType} (${date}) <br/>
                                     <small>${rep.description ? rep.description.substring(0, 50) + (rep.description.length > 50 ? '...' : '') : ''}</small>
                                 </div>
-                                <button class="btn" style="padding:6px 12px; width:auto; font-size:12px;" onclick="window.showReportDetail('damage', ${rep.id})">Anzeigen</button>
+                                <button class="btn" style="${btnStyle}" onclick="window.showReportDetail('damage', ${rep.id})">Anzeigen</button>
                             </div>
                         `;
                     });
@@ -1521,7 +1532,7 @@ window.openReportsOverlay = async function(mode) {
                                 <strong>${ticketNo}</strong> - ${benchType} (${date}) <br/>
                                 <small>${rep.description ? rep.description.substring(0, 50) + (rep.description.length > 50 ? '...' : '') : ''}</small>
                             </div>
-                            <button class="btn" style="padding:6px 12px; width:auto; font-size:12px;" onclick="window.showReportDetail('damage', ${rep.id})">Anzeigen</button>
+                            <button class="btn" style="${btnStyle}" onclick="window.showReportDetail('damage', ${rep.id})">Anzeigen</button>
                         </div>
                     `;
                 });
@@ -1541,46 +1552,38 @@ window.openReportsOverlay = async function(mode) {
                             <strong>${ticketNo}</strong> - ${benchType} (${date}) <br/>
                             <small>${rep.description ? rep.description.substring(0, 50) + (rep.description.length > 50 ? '...' : '') : ''}</small>
                         </div>
-                        <button class="btn" style="padding:6px 12px; width:auto; font-size:12px;" onclick="window.showReportDetail('damage', ${rep.id})">Anzeigen</button>
+                        <button class="btn" style="${btnStyle}" onclick="window.showReportDetail('damage', ${rep.id})">Anzeigen</button>
                     </div>
                 `;
             }).join('');
         }
 
     // ==========================================
-    // 🟢 AUSSTEHENDE FREIGABEN / NEUE EINTRAGUNGEN & ÄNDERUNGEN (INKL. GÄSTE)
+    // 🟢 AUSSTEHENDE FREIGABEN
     // ==========================================
     } else if(mode === 'entries') {
         document.getElementById('reports-title').innerText = "🔍 Ausstehende Freigaben";
         
-        // 1. Anträge von Arbeitern aus pending_benches laden
         const { data: pendingData, error: pendingError } = await supabaseClient.from('pending_benches').select('*');
-        if (pendingError) {
-            console.error("Fehler beim Laden von pending_benches:", pendingError);
-        }
+        if (pendingError) console.error("Fehler beim Laden von pending_benches:", pendingError);
 
-        // 2. Vom Gast hinzugefügte Bänke direkt aus der benches-Tabelle laden (gefiltert nach approved = false)
         const { data: guestData, error: guestError } = await supabaseClient
             .from('benches')
             .select('*')
             .eq('approved', false);
 
-        if (guestError) {
-            console.error("Fehler beim Laden der Gast-Bänke:", guestError);
-        }
+        if (guestError) console.error("Fehler beim Laden der Gast-Bänke:", guestError);
 
         const workerPending = pendingData || window.pendingBenches || [];
         
-        // Umwandlung der Gast-Bänke in ein kompatibles Objekt-Format
         const guestPending = (guestData || []).map(g => ({
             ...g,
-            is_direct_bench: true, // Flag damit approveEntry & showReportDetail wissen, dass es direkt aus 'benches' stammt
+            is_direct_bench: true,
             bench_id: g.id,
             pending_action: g.pending_action || 'insert',
             worker_name: 'Gast / Bürger'
         }));
 
-        // Alle ausstehenden Anträge zusammenführen
         const allPending = [...workerPending, ...guestPending];
 
         if (allPending.length === 0) { 
@@ -1589,7 +1592,6 @@ window.openReportsOverlay = async function(mode) {
             return; 
         }
 
-        // Daten global speichern, damit showReportDetail darauf zugreifen kann
         window.currentPendingBenches = allPending;
 
         let htmlContent = "";
@@ -1598,7 +1600,6 @@ window.openReportsOverlay = async function(mode) {
             const isGuest = b.is_direct_bench || b.worker_name === 'Gast / Bürger';
             const isInsert = b.pending_action === 'insert' || !b.bench_id || isGuest;
             
-            // Visuelles Styling und Zuordnung je nach Typ
             let actionBadge = "";
             let borderColor = "#e67e22";
 
@@ -1621,7 +1622,7 @@ window.openReportsOverlay = async function(mode) {
                         <strong>${b.type || 'Unbekannte Bank'}</strong> (${b.district || 'Kein Stadtteil'})<br/>
                         <small>Aktion: ${actionBadge}${worker}</small>
                     </div>
-                    <button class="btn" style="padding:6px 12px; width:auto; font-size:12px; background:#2980b9;" onclick="window.showReportDetail('entry', '${b.id}')">Meldung anzeigen</button>
+                    <button class="btn" style="padding:6px 12px; width:auto; font-size:12px; background-color:#2C3E50 !important; color:#ffffff !important; border:none;" onclick="window.showReportDetail('entry', '${b.id}')">Meldung anzeigen</button>
                 </div>
             `;
         });
@@ -1890,31 +1891,91 @@ window.closeReportDetail = function() {
         };
 
         window.resolveDamageReport = async function(reportId, benchId, reportImageUrl) {
-    if(confirm("Möchtest du diese Schadensmeldung wirklich als erledigt markieren? Der Status wird auf 'Ungeprüft' gesetzt und zur Freigabe eingereicht.")) {
-        if(supabaseClient) {
-            if(reportImageUrl) { await deleteAttachedStorageImage(reportImageUrl); }
-            
-            // Bank aktualisieren: Schadensbeschreibung entfernen, Status auf 'Ungeprüft' setzen
-            // und als ausstehende Änderung markieren, damit sie im "Neue Meldungen"-Menü landet
-            await supabaseClient.from('benches').update({ 
-                manual_status: 'Ungeprüft', 
-                damage_description: null, 
-                approved: false, 
-                pending_action: 'UPDATE' 
-            }).eq('id', benchId);
+    if (!confirm("Möchtest du diese Schadensmeldung wirklich als erledigt markieren?")) {
+        return;
+    }
 
-            // Schadensmeldung aus der Damage-Reports Tabelle entfernen
-            await supabaseClient.from('damage_reports').delete().eq('id', reportId);
-            
-            alert("Schadensmeldung erledigt! Der Eintrag befindet sich nun als 'Ungeprüft' zur Freigabe in der Übersicht.");
-            
-            if (typeof window.closeReportDetail === 'function') {
-                window.closeReportDetail();
-            }
-            closeReportsOverlay();
-            
-            await fetchBenchesFromCloud();
+    if (!supabaseClient) return;
+
+    try {
+        // 1. Falls ein Bild vorhanden war, dieses im Storage löschen
+        if (reportImageUrl) { 
+            await deleteAttachedStorageImage(reportImageUrl); 
         }
+
+        // 2. Aktuelle Bank-Daten laden, um zu prüfen, ob bereits ein Pflegedatum existiert
+        const { data: bench, error: fetchErr } = await supabaseClient
+            .from('benches')
+            .select('*')
+            .eq('id', benchId)
+            .single();
+
+        if (fetchErr || !bench) {
+            alert("Fehler: Bank-Daten konnten nicht abgerufen werden.");
+            return;
+        }
+
+        const today = new Date().toISOString().split('T')[0]; // Aktuelles Tagesdatum (YYYY-MM-DD)
+        const hasExistingDate = bench.last_maintenance && bench.last_maintenance.trim() !== "";
+
+        let newStatus = 'Automatisch'; // Entspricht "Nach Datum berechnen"
+        let newMaintenanceDate = bench.last_maintenance;
+
+        // 3. Logik nach Trupp / Rolle anwenden
+        if (currentRole === 'Admin' || currentRole === 'Zimmerer' || currentRole === 'Gala Bau') {
+            // Admin, Zimmerer & Gala Bau: Datum auf heute setzen, Status automatisch nach Datum
+            newMaintenanceDate = today;
+            newStatus = 'Automatisch';
+        } else if (currentRole === 'Stadt Reinigung' || currentRole === 'Grünpflege') {
+            if (!hasExistingDate) {
+                // Schadensmeldung einer NEUEN Bank (kein Datum vorhanden) -> Ungeprüft Grau
+                newStatus = 'Ungeprüft';
+            } else {
+                // Bestehende Bank -> Datum bleibt bestehen, Status automatisch nach Datum
+                newStatus = 'Automatisch';
+            }
+        }
+
+        // 4. Bank in der Datenbank aktualisieren (Direkt für alle Trupps freigeben)
+        const updateData = { 
+            manual_status: newStatus, 
+            damage_description: null, 
+            approved: true,          // Direkt freigeben für alle Trupps
+            pending_action: null     // Keine ausstehende Admin-Aktion nötig
+        };
+
+        if (newMaintenanceDate !== bench.last_maintenance) {
+            updateData.last_maintenance = newMaintenanceDate;
+        }
+
+        await supabaseClient.from('benches').update(updateData).eq('id', benchId);
+
+        await supabaseClient.from('benches').update(updateData).eq('id', benchId);
+
+        // 5. Schadensmeldung aus der Tabelle 'damage_reports' entfernen
+        await supabaseClient.from('damage_reports').delete().eq('id', reportId);
+        
+        alert("Schadensmeldung erfolgreich erledigt!");
+
+        // --- 1. Detail-Modal der einzelnen Meldung schließen ---
+        if (typeof window.closeReportDetail === 'function') {
+            window.closeReportDetail();
+        } else {
+            const detailModal = document.getElementById('reportDetailModal') || document.getElementById('report-detail-view-container');
+            if (detailModal) detailModal.style.display = 'none';
+        }
+
+        // --- 2. Bänke auf der Karte aktualisieren ---
+        await fetchBenchesFromCloud();
+
+        // --- 3. Liste im geöffneten Meldungsmenü direkt neu laden ---
+        if (typeof window.openReportsOverlay === 'function') {
+            await window.openReportsOverlay('damage');
+        }
+
+    } catch (err) {
+        console.error("Fehler beim Erledigen der Schadensmeldung:", err);
+        alert("Ein Fehler ist aufgetreten: " + err.message);
     }
 };
 
@@ -2059,8 +2120,8 @@ window.closeReportDetail = function() {
                         await supabaseClient.from('damage_reports').delete().eq('id', report.id);
                         
                         // Lokal aus dem Array entfernen, damit das rote Ausrufungszeichen sofort verschwindet
-                        if (window.guestDamageReports) {
-                            window.guestDamageReports = window.guestDamageReports.filter(r => r.id !== report.id);
+                        if (window.damagereports) {
+                            window.damagereports = window.damagereports.filter(r => r.id !== report.id);
                         }
                     }
                     // Zähler-Badges auf der Oberfläche aktualisieren, falls vorhanden
@@ -2624,7 +2685,7 @@ function calculateStatus(bench) {
     const today = new Date();
     const diffYears = Math.abs(today - maintDate) / (1000 * 60 * 60 * 24 * 365.25);
 
-    if (diffYears >= 5) return 'Wartung Nötig'; // 🔴 Einheitlich auf 'Wartung Nötig'
+    if (diffYears >= 5) return 'Wartung nötig'; // 🔴 Einheitlich auf 'Wartung nötig'
     if (diffYears >= 3) return 'Wartung empfohlen';
     return 'Gut';
 }
@@ -2650,7 +2711,7 @@ function getMarkerStyle(status, approved) {
             break;
         
         // 🔴 Fängt JETZT alle Varianten von "Wartung nötig / überfällig" sauber ab:
-        case 'Wartung Nötig':
+        case 'Wartung nötig':
         case 'Wartung nötig':
         case 'Wartung überfällig':
         case 'Wartung Überfällig':
@@ -2745,7 +2806,7 @@ function getMarkerStyle(status, approved) {
     function getRelevantReportForBench(benchId) {
         if (currentRole === "Gast") return null;
 
-        const benchReports = guestDamageReports.filter(r => r.bench_id === benchId);
+        const benchReports = damagereports.filter(r => r.bench_id === benchId);
         if (benchReports.length === 0) return null;
 
         if (currentRole === "Admin") return benchReports[0];
@@ -2777,7 +2838,7 @@ function getMarkerStyle(status, approved) {
         if (!bench || !bench.type) return;
         
         let status = calculateStatus(bench);
-        const hatSchadensmeldung = guestDamageReports.some(r => r.bench_id === bench.id);
+        const hatSchadensmeldung = damagereports.some(r => r.bench_id === bench.id);
         
         if (currentRole === 'Gast' && (status === 'Beschädigt' || hatSchadensmeldung)) {
             status = 'Beschädigt';
@@ -2866,12 +2927,12 @@ function getMarkerStyle(status, approved) {
                     if (status === 'Beschädigt' || hatSchadensmeldung) {
                         ActionButtons = `<div style="color:#8B0000; font-weight:bold; text-align:center; padding:8px; background:rgba(139,0,0,0.1); border:1px solid #8B0000; border-radius:4px; font-size:12px;">⚠️ Schaden bereits gemeldet</div>`;
                     } else {
-                        ActionButtons = `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background:#e74c3c;">⚠️ Schaden melden</button>`;
+                        ActionButtons = `<button onclick="window.openDamageReportsOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background:#e74c3c;">⚠️ Schaden melden</button>`;
                     }
                 } else {
                     if (currentRole === 'Admin') {
                         ActionButtons += `<button onclick="window.quickMaintenance(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🟢 Wartung heute</button>`;
-                        ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
+                        ActionButtons += `<button onclick="window.openDamageReportsOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
                         ActionButtons += `
                             <div style="display: flex; gap: 4px; margin-bottom: 5px;">
                                 <button onclick="window.triggerEdit(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1;">Bearbeiten</button>
@@ -2883,7 +2944,7 @@ function getMarkerStyle(status, approved) {
 
                     else if (currentRole === 'Zimmerer') {
                         ActionButtons += `<button onclick="window.quickMaintenance(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🟢 Wartung heute</button>`;
-                        ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
+                        ActionButtons += `<button onclick="window.openDamageReportsOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
                         ActionButtons += `
                             <div style="display: flex; gap: 4px; margin-bottom: 5px;">
                                 <button onclick="window.triggerEdit(${bench.id})" class="btn" style="padding:6px; font-size:12px; flex: 1;">Bearbeiten</button>
@@ -2894,7 +2955,7 @@ function getMarkerStyle(status, approved) {
                     }
 
                     else if (currentRole === 'Spielplatzkontrolle') {
-                        ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
+                        ActionButtons += `<button onclick="window.openDamageReportsOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
                         ActionButtons += `
                             <div style="display: flex; gap: 4px; margin-bottom: 5px;">
                                 <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
@@ -2907,7 +2968,7 @@ function getMarkerStyle(status, approved) {
                         ActionButtons += `<button onclick="window.galaReplaceBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">♻️ Bank Ausgetauscht</button>`;
                         ActionButtons += `<button onclick="window.openGalaModelOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #34495e; font-weight: bold; margin-bottom:5px;">📐 Neues Modell</button>`;
                         ActionButtons += `<button onclick="window.requestGalaDelete(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #c0392b; font-weight: bold; margin-bottom:5px;">🗑️ Bank abgebaut</button>`;
-                        ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden Melden</button>`;
+                        ActionButtons += `<button onclick="window.openDamageReportsOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden Melden</button>`;
                         ActionButtons += `
                             <div style="display: flex; gap: 4px; margin-bottom: 5px;">
                                 <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
@@ -2920,7 +2981,7 @@ function getMarkerStyle(status, approved) {
                         if (status === 'Verschmutzt') {
                             ActionButtons += `<button onclick="window.malerQuickStatus(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🧹 Bank Gereinigt</button>`;
                         }
-                        ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
+                        ActionButtons += `<button onclick="window.openDamageReportsOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
                         ActionButtons += `
                             <div style="display: flex; gap: 4px; margin-bottom: 5px;">
                                 <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
@@ -2933,7 +2994,7 @@ function getMarkerStyle(status, approved) {
                         if (status === 'Zugewachsen') {
                             ActionButtons += `<button onclick="window.cutFreeQuickStatus(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #2980b9; font-weight: bold; margin-bottom:5px;">🌿 Bank freischneiden</button>`;
                         }
-                        ActionButtons += `<button onclick="window.openGuestDamageOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
+                        ActionButtons += `<button onclick="window.openDamageReportsOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #e74c3c; font-weight: bold; margin-bottom:5px;">⚠️ Schaden melden</button>`;
                         ActionButtons += `
                             <div style="display: flex; gap: 4px; margin-bottom: 5px;">
                                 <button onclick="window.openRoute(${bench.lat}, ${bench.lng})" class="btn" style="padding:6px; font-size:12px; flex: 1; background: #e67e22;">Route</button>
@@ -3048,6 +3109,23 @@ window.triggerEdit = function(id) {
         if(map) map.closePopup(); 
         openFullscreenForm(bench, false); 
     }
+};
+
+// --- Hilfsfunktion für Schnell-Buttons im Formular ---
+window.setMaintenanceDate = function(mode) {
+    const dateInput = document.getElementById('pop-date');
+    if (!dateInput) return;
+
+    const targetDate = new Date();
+
+    if (mode === 'yellow') {
+        targetDate.setFullYear(targetDate.getFullYear() - 3);
+    } else if (mode === 'red') {
+        targetDate.setFullYear(targetDate.getFullYear() - 5);
+    }
+
+    const formattedDate = targetDate.toISOString().split('T')[0];
+    dateInput.value = formattedDate;
 };
 
 window.triggerNewBenchCreation = function(lat, lng) {
@@ -3197,8 +3275,8 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
                         }
                         await supabaseClient.from('damage_reports').delete().eq('id', report.id);
                         
-                        if (window.guestDamageReports) {
-                            window.guestDamageReports = window.guestDamageReports.filter(r => r.id !== report.id);
+                        if (window.damagereports) {
+                            window.damagereports = window.damagereports.filter(r => r.id !== report.id);
                         }
                     }
                     if (typeof updateBadgeCounters === 'function') await updateBadgeCounters();
@@ -3427,7 +3505,7 @@ map = L.map('map', {
                     .setContent(`
                         <div style="text-align:center; padding: 5px;">
                             <strong style="display:block; margin-bottom:8px;">Neuer Fundort</strong>
-                            <button onclick="window.openGuestDamageOverlay(null, true, ${lat}, ${lng})" class="btn" style="padding:8px 12px; font-size:12px; background:#e74c3c;">⚠️ Schaden/Fundort melden</button>
+                            <button onclick="window.openDamageReportsOverlay(null, true, ${lat}, ${lng})" class="btn" style="padding:8px 12px; font-size:12px; background:#e74c3c;">⚠️ Schaden/Fundort melden</button>
                         </div>
                     `)
                     .openOn(map);
