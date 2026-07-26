@@ -708,8 +708,8 @@
     <label>Modelltyp:</label>
     <select id="gala-model-select" style="width: 100%; padding: 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 16px; margin-bottom: 15px;"></select>
     
-    <label style="display:block; margin-top: 10px; font-weight: bold;">Bearbeiter / Trupp-Name:</label>
-    <input type="text" id="gala-worker-name" placeholder="z. B. Trupp Galabau (Klaus)" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 16px; box-sizing: border-box;">
+    <label style="display:block; margin-top: 10px; font-weight: bold;">Bearbeiter:</label>
+    <input type="text" id="gala-worker-name" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 16px; box-sizing: border-box;">
 
     <button class="btn btn-save" style="margin-top: 25px;" onclick="executeGalaModelChange()">Modelltyp ändern & Speichern</button>
     <button class="btn btn-cancel" onclick="closeGalaModelOverlay()">Abbrechen</button>
@@ -2214,7 +2214,7 @@ window.closeReportDetail = function() {
     const workerName = workerNameInput ? workerNameInput.value.trim() : '';
 
     if (!workerName) {
-        alert("Bitte gib deinen Namen / dein Trupp-Kürzel ein.");
+        alert("Bitte gib deinen Namen ein.");
         return;
     }
 
@@ -2223,27 +2223,45 @@ window.closeReportDetail = function() {
         return;
     }
 
+    // Die betroffene Bank aus dem Speicher laden, um Standort und Stadtteil zu erhalten
+    const targetBench = (typeof benches !== 'undefined' ? benches.find(b => b.id === selectedDamageBenchId) : {}) || {};
+
     // Heutiges Datum im Format YYYY-MM-DD generieren
     const todayISO = new Date().toISOString().split('T')[0];
 
-    // Datenobjekt für das Update vorbereiten
-    const updatedData = { 
-        type: selectedType,
-        last_maintenance: todayISO,         // Datum auf heute setzen
-        manual_status: null,                // Status zurücksetzen -> greift wieder auf datumsbasierte Berechnung
+    // Bearbeiter-Format einheitlich aufbauen (z. B. "Galabau (Müller)")
+    const formattedWorkerName = (typeof currentRole !== 'undefined' && currentRole) 
+        ? `${currentRole} (${workerName})` 
+        : `Galabau (${workerName})`;
+
+    // Datenobjekt für PENDING_BENCHES aufbauen
+    const pendingData = { 
+        bench_id: selectedDamageBenchId,
+        pending_action: "update",           
+        type: selectedType,                 // Der NEUE Modelltyp
+        district: targetBench.district || null,
+        lat: targetBench.lat || null,
+        lng: targetBench.lng || null,
+        
+        // HIER DIE ANPASSUNGEN:
+        last_maintenance: todayISO,         // Aktuelles Datum (YYYY-MM-DD)
+        manual_status: null,                // Auf null setzen -> schaltet auf automatische Statusberechnung um
         damage_description: null,           // Schaden ist behoben
-        worker_name: workerName,            // Bearbeiter eintragen
-        approved: false,                    // Admin-Freigabe erforderlich
-        pending_action: "update"            // Löst die Alt/Neu-Gegenüberstellung im Admin-Dashboard aus
+        
+        worker_name: formattedWorkerName,   
+        note: `Modelltausch auf ${selectedType}`
     };
 
     closeGalaModelOverlay();
 
     if (supabaseClient) {
-        const { error } = await supabaseClient.from('benches').update(updatedData).eq('id', selectedDamageBenchId);
+        // HIER DIE KORREKTUR: In 'pending_benches' einfügen statt 'benches' zu updaten!
+        const { error } = await supabaseClient
+            .from('pending_benches')
+            .insert([pendingData]);
         
         if (!error) {
-            // Schadensmeldung automatisch löschen/schließen
+            // Schadensmeldung/Bilder automatisch aufräumen
             if (typeof autoDeleteDamageReport === 'function') {
                 await autoDeleteDamageReport(selectedDamageBenchId);
             }
@@ -2251,13 +2269,16 @@ window.closeReportDetail = function() {
             if (typeof updateBadgeCounters === 'function') await updateBadgeCounters();
             await fetchBenchesFromCloud();
         } else {
+            console.error("Fehler beim Erstellen des Antrags:", error);
             alert("Fehler beim Speichern: " + error.message);
         }
     } else {
         if (typeof saveOfflineAction === 'function') {
-            saveOfflineAction('update', updatedData, selectedDamageBenchId);
+            saveOfflineAction('insert', pendingData, selectedDamageBenchId, null, 'pending_benches');
         }
     }
+
+    if (typeof updateApp === 'function') updateApp();
 };
 
         window.galaReplaceBench = async function(id) {
@@ -3316,73 +3337,161 @@ window.triggerNewBenchCreation = function(lat, lng) {
     }, true);
 };
 
-        function openFullscreenForm(bench, isNew) {
-            if(currentRole === 'Gast') { return; }
+function openFullscreenForm(bench, isNew) {
+    if(currentRole === 'Gast') { return; }
 
-            currentEditingBench = bench; isNewBenchMode = isNew;
-            document.getElementById('form-title').innerText = isNew ? 'Neue Sitzbank eintragen' : 'Sitzbank Details';
-            
-            const targetType = isNew ? lastSelectedType : bench.type;
-            const targetDistrict = isNew ? lastSelectedDistrict : bench.district;
+    currentEditingBench = bench; isNewBenchMode = isNew;
+    document.getElementById('form-title').innerText = isNew ? 'Neue Sitzbank eintragen' : 'Sitzbank Details';
+    
+    const targetType = isNew ? lastSelectedType : bench.type;
+    const targetDistrict = isNew ? lastSelectedDistrict : bench.district;
 
-            document.getElementById('pop-type').innerHTML = types.map(t => `<option value="${t}" ${targetType === t ? 'selected':''}>${t}</option>`).join('');
-            document.getElementById('pop-district').innerHTML = DISTRICTS.map(d => `<option value="${d}" ${targetDistrict === d ? 'selected':''}>${d}</option>`).join('');
+    document.getElementById('pop-type').innerHTML = types.map(t => `<option value="${t}" ${targetType === t ? 'selected':''}>${t}</option>`).join('');
+    document.getElementById('pop-district').innerHTML = DISTRICTS.map(d => `<option value="${d}" ${targetDistrict === d ? 'selected':''}>${d}</option>`).join('');
 
-            document.getElementById('pop-date').value = bench.last_maintenance || '';
-            document.getElementById('pop-manual').value = bench.manual_status || 'Automatisch';
-            document.getElementById('pop-description').value = bench.description || '';
-            document.getElementById('pop-damage-description').value = bench.damage_description || '';
-            document.getElementById('pop-dimensions').value = bench.dimensions || '';
-            document.getElementById('pop-note').value = bench.note || '';
-            
-            const canDelete = (currentRole === 'Admin');
-            document.getElementById('pop-delete-btn').style.display = (isNew || !canDelete) ? 'none' : 'block';
-            
-            document.getElementById('fullscreen-overlay').style.display = 'block';
-            handleTypeChange(); 
+    document.getElementById('pop-date').value = bench.last_maintenance || '';
+    document.getElementById('pop-manual').value = bench.manual_status || 'Automatisch';
+    document.getElementById('pop-description').value = bench.description || '';
+    document.getElementById('pop-damage-description').value = bench.damage_description || '';
+    document.getElementById('pop-dimensions').value = bench.dimensions || '';
+    document.getElementById('pop-note').value = bench.note || '';
+    
+    const canDelete = (currentRole === 'Admin');
+    const deleteBtn = document.getElementById('pop-delete-btn');
+    
+    if (deleteBtn) {
+        deleteBtn.style.display = (isNew || !canDelete) ? 'none' : 'block';
+        // Hier binden wir die Sicherheitsabfrage ein:
+        deleteBtn.onclick = function() {
+            if (currentEditingBench && currentEditingBench.id) {
+                confirmDeleteBench(currentEditingBench.id);
+            }
+        };
+    }
+    
+    document.getElementById('fullscreen-overlay').style.display = 'block';
+    handleTypeChange(); 
+}
+
+// Sicherheitsabfrage per Prompt
+window.confirmDeleteBench = function(benchId) {
+    if (!benchId) {
+        alert("Fehler: Keine Bank-ID zum Löschen gefunden.");
+        return;
+    }
+
+    const bench = (window.benches || []).find(b => b.id == benchId) || window.currentEditingBench;
+    const benchInfo = bench ? `#${bench.id}${bench.district ? ' (' + bench.district + ')' : ''}` : `#${benchId}`;
+
+    const userInput = prompt(
+        `⚠️ WARNUNG: Möchtest du die Bank ${benchInfo} wirklich unwiderruflich löschen?\n\n` +
+        `Tippe "löschen" in das Feld, um das Löschen zu bestätigen:`
+    );
+
+    if (userInput && userInput.trim().toLowerCase() === 'löschen') {
+        executeDeleteBench(benchId);
+    } else if (userInput !== null) {
+        alert("Löschvorgang abgebrochen. Die Eingabe war nicht korrekt.");
+    }
+};
+
+// Eigentlicher Löschbefehl an Supabase & lokales Update
+async function executeDeleteBench(benchId) {
+    try {
+        const numericId = Number(benchId);
+
+        // 1. Online: Aus Supabase-Datenbank löschen
+        if (navigator.onLine && typeof supabaseClient !== 'undefined') {
+            const { error } = await supabaseClient
+                .from('benches')
+                .delete()
+                .eq('id', numericId);
+
+            if (error) throw error;
+        } else {
+            // Offline: Aus dem lokalen Speicher entfernen
+            let queue = JSON.parse(localStorage.getItem('offline_bench_queue') || '[]');
+            queue = queue.filter(b => Number(b.id) !== numericId);
+            localStorage.setItem('offline_bench_queue', JSON.stringify(queue));
         }
+
+        // 2. Sofort aus der lokalen 'benches'-Liste entfernen (mit Typ-Sicherheit)
+        if (window.benches) {
+            window.benches = window.benches.filter(b => Number(b.id) !== numericId);
+        }
+
+        // 3. Den Marker DIREKT aus Leaflet & markerDict löschen (hart abräumen)
+        if (window.markerDict && window.markerDict[numericId]) {
+            if (window.markersLayer) {
+                window.markersLayer.removeLayer(window.markerDict[numericId]);
+            }
+            delete window.markerDict[numericId];
+        }
+
+        // 4. Offenes Map-Popup schließen
+        if (typeof map !== 'undefined' && map) {
+            map.closePopup();
+        }
+
+        // 5. Overlays schließen
+        const overlay = document.getElementById('fullscreen-overlay');
+        if (overlay) overlay.style.display = 'none';
+
+        // 6. UI neu zeichnen ODER Daten aus der Cloud nachladen
+        if (navigator.onLine && typeof fetchBenchesFromCloud === 'function') {
+            await fetchBenchesFromCloud(); // Lädt den aktuellen Stand aus Supabase neu
+        } else if (typeof updateApp === 'function') {
+            updateApp();
+        }
+
+        alert(`Bank #${benchId} wurde erfolgreich gelöscht.`);
+    } catch (err) {
+        console.error("Löschfehler:", err);
+        alert("Fehler beim Löschen der Bank: " + err.message);
+    }
+}
 
         function promptWorkerName(actionType) {
-            if (currentRole === 'Admin') {
-                executeFinalDatabaseAction(actionType);
-                return;
-            }
+    if (currentRole === 'Admin') {
+        executeFinalDatabaseAction(actionType);
+        return;
+    }
 
-            const cachedName = sessionStorage.getItem('hn_cached_worker_name');
-            const cachedRole = sessionStorage.getItem('hn_cached_worker_role');
+    const cachedName = sessionStorage.getItem('hn_cached_worker_name');
+    const cachedRole = sessionStorage.getItem('hn_cached_worker_role');
 
-            if (cachedName && cachedRole === currentRole) {
-                executeFinalDatabaseAction(actionType, cachedName);
-                return;
-            }
+    if (cachedName && cachedRole === currentRole) {
+        executeFinalDatabaseAction(actionType, cachedName);
+        return;
+    }
 
-            pendingWorkerAction = actionType;
-            document.getElementById('worker-display-role').innerText = currentRole;
-            document.getElementById('worker-name-input').value = "";
-            document.getElementById('worker-name-overlay').style.display = 'flex';
-        }
+    pendingWorkerAction = actionType;
+    document.getElementById('worker-display-role').innerText = currentRole;
+    document.getElementById('worker-name-input').value = "";
+    document.getElementById('worker-name-overlay').style.display = 'flex';
+}
 
-        document.getElementById('worker-cancel-btn').onclick = () => {
-            document.getElementById('worker-name-overlay').style.display = 'none';
-            pendingWorkerAction = null;
-        };
+document.getElementById('worker-cancel-btn').onclick = () => {
+    document.getElementById('worker-name-overlay').style.display = 'none';
+    pendingWorkerAction = null;
+};
 
-        document.getElementById('worker-confirm-btn').onclick = () => {
-            const nameInput = document.getElementById('worker-name-input').value.trim();
-            if (!nameInput) {
-                alert("Bitte gib deinen Namen ein. Dies ist ein Pflichtfeld für Reparaturtrupps.");
-                return;
-            }
-            
-            sessionStorage.setItem('hn_cached_worker_name', nameInput);
-            sessionStorage.setItem('hn_cached_worker_role', currentRole);
+document.getElementById('worker-confirm-btn').onclick = () => {
+    const nameInput = document.getElementById('worker-name-input').value.trim();
+    if (!nameInput) {
+        alert("Bitte gib deinen Namen ein. Dies ist ein Pflichtfeld für Reparaturtrupps.");
+        return;
+    }
+    
+    sessionStorage.setItem('hn_cached_worker_name', nameInput);
+    sessionStorage.setItem('hn_cached_worker_role', currentRole);
 
-            document.getElementById('worker-name-overlay').style.display = 'none';
-            executeFinalDatabaseAction(pendingWorkerAction, nameInput);
-        };
+    document.getElementById('worker-name-overlay').style.display = 'none';
+    executeFinalDatabaseAction(pendingWorkerAction, nameInput);
+};
 
-        document.getElementById('pop-save-btn').onclick = () => { promptWorkerName('save'); };
-        document.getElementById('pop-delete-btn').onclick = () => { promptWorkerName('delete'); };
+document.getElementById('pop-save-btn').onclick = () => { promptWorkerName('save'); };
+document.getElementById('pop-delete-btn').onclick = () => { promptWorkerName('delete'); };
 
 async function executeFinalDatabaseAction(actionType, workerName = null) {
     lastSelectedType = document.getElementById('pop-type') ? document.getElementById('pop-type').value : null;
@@ -3395,36 +3504,48 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
 
     const isAdmin = currentRole === 'Admin';
     
+    // Namens-Formatierung zentral aufbauen
     let finalWorkerName = (currentEditingBench && currentEditingBench.worker_name) ? currentEditingBench.worker_name : null;
     if (workerName) {
         finalWorkerName = `${currentRole} (${workerName})`;
     } else if (isAdmin && typeof isNewBenchMode !== 'undefined' && isNewBenchMode) {
         finalWorkerName = "Admin";
+    } else if (currentRole && currentRole !== 'Gast') {
+        finalWorkerName = currentRole;
     }
 
     let finalNote = document.getElementById('pop-note') ? document.getElementById('pop-note').value : "";
 
     // --- FALL 1: LÖSCHANTRAG (GALABAU) ---
     if (actionType === 'gala-delete') {
-        const rowData = {
-            approved: false,
+        const benchId = selectedDamageBenchId || (currentEditingBench ? currentEditingBench.id : null);
+        const targetBench = benches.find(b => b.id === benchId) || currentEditingBench || {};
+
+        // Richtigen Bearbeiternamen festlegen
+        const calculatedWorkerName = workerName 
+            ? `${currentRole} (${workerName})` 
+            : (finalWorkerName || currentRole || 'Galabau');
+
+        // Datensatz für pending_benches vorbereiten
+        const pendingData = {
+            bench_id: benchId,
             pending_action: 'delete',
-            worker_name: `${currentRole} (${workerName})`,
-            manual_status: 'Gesperrt',
-            damage_description: null
+            type: targetBench.type || lastSelectedType || 'Unbekannt',
+            district: targetBench.district || lastSelectedDistrict || 'Unbekannt',
+            manual_status: 'Abgebaut / Entfernt',
+            worker_name: calculatedWorkerName,
+            lat: targetBench.lat || null,
+            lng: targetBench.lng || null,
+            note: finalNote || 'Antrag auf Abbau/Entfernung durch Galabau'
         };
 
-        const idx = benches.findIndex(b => b.id === selectedDamageBenchId);
-        if (idx !== -1) {
-            benches[idx] = { ...benches[idx], ...rowData };
-        }
-
+        // 1. ZUERST BILDER & SCHADENSMELDUNGEN LÖSCHEN
         if (supabaseClient) {
             try {
                 const { data: reports } = await supabaseClient
                     .from('damage_reports')
                     .select('id, image_url')
-                    .eq('bench_id', selectedDamageBenchId);
+                    .eq('bench_id', benchId);
 
                 if (reports && reports.length > 0) {
                     for (const report of reports) {
@@ -3453,26 +3574,33 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
             }
         }
 
+        // 2. OVERLAYS SCHLIESSEN & UI AKTUALISIEREN
         if (map) map.closePopup();
         
         const nameOverlay = document.getElementById('worker-name-overlay') || document.getElementById('gala-model-overlay');
         if (nameOverlay) nameOverlay.style.display = "none";
         if (typeof closeWorkerNameOverlay === 'function') closeWorkerNameOverlay();
 
-        updateApp();
-
+        // 3. ANTRAG IN PENDING_BENCHES SPEICHERN (STATT BENCHES ZU ÜBERSCHREIBEN)
         if (supabaseClient) {
             try {
-                const { error } = await supabaseClient.from('benches').update(rowData).eq('id', selectedDamageBenchId);
+                const { error } = await supabaseClient
+                    .from('pending_benches')
+                    .insert([pendingData]);
+
                 if (error) throw error;
+
                 alert("Löschung beantragt. Der Administrator muss dies bestätigen.");
                 await fetchBenchesFromCloud();
             } catch (e) {
-                saveOfflineAction('update', rowData, selectedDamageBenchId, null, 'benches');
+                console.error("Fehler beim Speichern in pending_benches:", e);
+                saveOfflineAction('insert', pendingData, benchId, null, 'pending_benches');
             }
         } else {
-            saveOfflineAction('update', rowData, selectedDamageBenchId, null, 'benches');
+            saveOfflineAction('insert', pendingData, benchId, null, 'pending_benches');
         }
+
+        updateApp();
         return;
     }
 
