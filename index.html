@@ -2706,58 +2706,80 @@ function calculateStatus(bench) {
 
 // 1. Wird aufgerufen, wenn man im Formular auf "Position anpassen" klickt
 window.startLocationPicker = function() {
-    // 1. Overlay ausblenden
     const overlay = document.getElementById('fullscreen-overlay') || 
                     document.getElementById('bench-modal') || 
                     document.getElementById('edit-bench-overlay');
     if (overlay) overlay.style.display = 'none';
 
-    // 2. Koordinaten holen
     let lat = currentEditingBench?.lat || map.getCenter().lat;
     let lng = currentEditingBench?.lng || map.getCenter().lng;
 
-    // 3. Alten Marker entfernen
     if (tempDragMarker) map.removeLayer(tempDragMarker);
 
-    // 4. Farbe basierend auf Status/Schadensmeldung bestimmen
-    let color = '#2ecc71'; // Standard: Grün
-    
-    // Prüfen, ob Schäden oder Warnungen vorliegen
-    const hasDamage = currentEditingBench && damagereports.some(d => d.bench_id === currentEditingBench.id);
-    const manualStatus = currentEditingBench?.manual_status;
-
-    if (hasDamage || manualStatus === 'Defekt' || manualStatus === 'Beschädigt') {
-        color = '#e74c3c'; // Rot für Schaden/Defekt
-    } else if (manualStatus === 'Wartung erforderlich' || manualStatus === 'In Bearbeitung') {
-        color = '#f1c40f'; // Gelb
-    }
-
-    // 5. Farbigen Kreis als DivIcon erstellen (exakt wie deine Kreise auf der Karte)
-    const statusDotIcon = L.divIcon({
+    const greenDotIcon = L.divIcon({
         className: 'custom-drag-marker',
-        html: `<div style="
-            width: 22px; 
-            height: 22px; 
-            background-color: ${color}; 
-            border: 2px solid white; 
+        html: `<div id="drag-dot-element" style="
+            width: 16px; 
+            height: 16px; 
+            background-color: #2ecc71; 
+            border: 2.5px solid white; 
             border-radius: 50%; 
-            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
             cursor: grab;
+            transition: transform 0.1s ease, margin-top 0.1s ease;
         "></div>`,
-        iconSize: [22, 22],
-        iconAnchor: [11, 11] // Zentriert den Punkt exakt auf der Koordinate
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
     });
 
-    // 6. Marker mit dem Statuspunkt-Icon erstellen
     tempDragMarker = L.marker([lat, lng], {
-        icon: statusDotIcon,
+        icon: greenDotIcon,
         draggable: true,
         autoPan: true
     }).addTo(map);
 
-    tempDragMarker.bindTooltip("Hierhin ziehen", { permanent: true, direction: "top", offset: [0, -10] }).openTooltip();
+    // Tooltip mit neuem Text initialisieren und anzeigen
+    tempDragMarker.bindTooltip("Halten zum Verschieben", { 
+        permanent: true, 
+        direction: "top", 
+        offset: [0, -10] 
+    }).openTooltip();
 
-    // Banner anzeigen
+    // 1. Beim Greifen: Punkt 60px nach oben schieben UND Tooltip ausblenden
+    tempDragMarker.on('dragstart', function() {
+        const dot = document.getElementById('drag-dot-element');
+        if (dot) {
+            dot.style.marginTop = '-60px';
+            dot.style.transform = 'scale(1.2)';
+        }
+        // Tooltip ausblenden, damit das Sichtfeld frei bleibt
+        tempDragMarker.closeTooltip();
+    });
+
+    // 2. Beim Loslassen: Umrechnen, Punkt versetzen UND Tooltip wieder anzeigen
+    tempDragMarker.on('dragend', function(e) {
+        const dot = document.getElementById('drag-dot-element');
+        if (dot) {
+            dot.style.marginTop = '0px';
+            dot.style.transform = 'scale(1)';
+        }
+
+        const fingerLatLng = e.target.getLatLng();
+        const fingerPoint = map.latLngToContainerPoint(fingerLatLng);
+        const targetPoint = L.point(fingerPoint.x, fingerPoint.y - 60);
+        const correctLatLng = map.containerPointToLatLng(targetPoint);
+
+        tempDragMarker.setLatLng(correctLatLng);
+
+        if (currentEditingBench) {
+            currentEditingBench.lat = correctLatLng.lat;
+            currentEditingBench.lng = correctLatLng.lng;
+        }
+
+        // Tooltip an der neuen Position wieder einblenden
+        tempDragMarker.openTooltip();
+    });
+
     const banner = document.getElementById('drag-info-banner');
     if (banner) banner.style.display = 'block';
 };
