@@ -368,6 +368,14 @@
                 <ul id="widget-details"></ul>
             </div>
         </div>
+
+        <!-- Info-Banner auf der Karte (anfangs versteckt) -->
+    <div id="drag-info-banner" style="display: none; position: fixed; top: 120px; left: 50%; transform: translateX(-50%); z-index: 2000; background: #2c3e50; color: white; padding: 12px 18px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 14px; text-align: center;">
+            🖐️ <b>Marker an die richtige Stelle ziehen</b>
+            <div style="margin-top: 6px;">
+            <button class="btn btn-sm" style="background: #27ae60; color: white; padding: 6px 16px; font-size: 13px; border: none; border-radius: 8px; cursor: pointer; width: 100%;" onclick="confirmNewLocation()">Fertig</button>
+        </div>
+    </div>
         
         <div id="sidebar">
             <button class="close-sidebar-btn" onclick="toggleSidebar()">✕ Menü schließen</button>
@@ -668,6 +676,11 @@
 
     <label for="pop-note">Notiz:</label>
     <input type="text" id="pop-note" placeholder="Notiz eingeben...">
+
+    <label>Standort:</label>
+    <button type="button" class="btn" style="background-color: #34495e; color: #fff; margin-bottom: 12px; width: 100%;" onclick="startLocationPicker()">
+    📍 Position auf Karte anpassen
+    </button>
     
     <button id="pop-save-btn" class="btn btn-save">Speichern</button>
     <button id="pop-delete-btn" class="btn btn-delete" style="display: none;">Bank löschen</button>
@@ -760,6 +773,7 @@
         let damagereports = []; 
         let map, markersLayer, supabaseClient, userLocationMarker;
         let currentEditingBench = null;
+        let tempDragMarker = null;
         let isNewBenchMode = false;
         let isTakingPhoto = false; 
         let pendingShareId = null;
@@ -2690,6 +2704,137 @@ function calculateStatus(bench) {
     return 'Gut';
 }
 
+// 1. Wird aufgerufen, wenn man im Formular auf "Position anpassen" klickt
+window.startLocationPicker = function() {
+    // 1. Overlay ausblenden
+    const overlay = document.getElementById('fullscreen-overlay') || 
+                    document.getElementById('bench-modal') || 
+                    document.getElementById('edit-bench-overlay');
+    if (overlay) overlay.style.display = 'none';
+
+    // 2. Koordinaten holen
+    let lat = currentEditingBench?.lat || map.getCenter().lat;
+    let lng = currentEditingBench?.lng || map.getCenter().lng;
+
+    // 3. Alten Marker entfernen
+    if (tempDragMarker) map.removeLayer(tempDragMarker);
+
+    // 4. Farbe basierend auf Status/Schadensmeldung bestimmen
+    let color = '#2ecc71'; // Standard: Grün
+    
+    // Prüfen, ob Schäden oder Warnungen vorliegen
+    const hasDamage = currentEditingBench && damagereports.some(d => d.bench_id === currentEditingBench.id);
+    const manualStatus = currentEditingBench?.manual_status;
+
+    if (hasDamage || manualStatus === 'Defekt' || manualStatus === 'Beschädigt') {
+        color = '#e74c3c'; // Rot für Schaden/Defekt
+    } else if (manualStatus === 'Wartung erforderlich' || manualStatus === 'In Bearbeitung') {
+        color = '#f1c40f'; // Gelb
+    }
+
+    // 5. Farbigen Kreis als DivIcon erstellen (exakt wie deine Kreise auf der Karte)
+    const statusDotIcon = L.divIcon({
+        className: 'custom-drag-marker',
+        html: `<div style="
+            width: 22px; 
+            height: 22px; 
+            background-color: ${color}; 
+            border: 2px solid white; 
+            border-radius: 50%; 
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            cursor: grab;
+        "></div>`,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11] // Zentriert den Punkt exakt auf der Koordinate
+    });
+
+    // 6. Marker mit dem Statuspunkt-Icon erstellen
+    tempDragMarker = L.marker([lat, lng], {
+        icon: statusDotIcon,
+        draggable: true,
+        autoPan: true
+    }).addTo(map);
+
+    tempDragMarker.bindTooltip("Hierhin ziehen", { permanent: true, direction: "top", offset: [0, -10] }).openTooltip();
+
+    // Banner anzeigen
+    const banner = document.getElementById('drag-info-banner');
+    if (banner) banner.style.display = 'block';
+};
+
+// 2. Wird aufgerufen, wenn man im Info-Banner auf "Fertig" klickt
+window.confirmNewLocation = function() {
+    if (tempDragMarker) {
+        const coord = tempDragMarker.getLatLng();
+
+        // Falls currentEditingBench noch leer ist (z. B. bei Neueintrag), Objekt initialisieren
+        if (!currentEditingBench) {
+            currentEditingBench = {};
+        }
+
+        // Neue Koordinaten im Objekt speichern
+        currentEditingBench.lat = coord.lat;
+        currentEditingBench.lng = coord.lng;
+
+        // Falls du Input-Felder im Formular für Lat/Lng nutzt, diese mit aktualisieren:
+        const latInput = document.getElementById('bench-lat') || document.getElementById('lat');
+        const lngInput = document.getElementById('bench-lng') || document.getElementById('lng');
+        if (latInput) latInput.value = coord.lat;
+        if (lngInput) lngInput.value = coord.lng;
+
+        // Temporären Marker von der Karte entfernen
+        map.removeLayer(tempDragMarker);
+        tempDragMarker = null;
+    }
+
+    // Info-Banner wieder ausblenden
+    const banner = document.getElementById('drag-info-banner');
+    if (banner) banner.style.display = 'none';
+
+    // Formular-Overlay wieder anzeigen
+    const overlay = document.getElementById('fullscreen-overlay') || 
+                    document.getElementById('bench-modal') || 
+                    document.getElementById('edit-bench-overlay');
+    if (overlay) overlay.style.display = 'block';
+};
+
+
+// 2. Wird aufgerufen, wenn man im Info-Banner auf "Fertig" klickt
+window.confirmNewLocation = function() {
+    if (tempDragMarker) {
+        const coord = tempDragMarker.getLatLng();
+
+        // Falls currentEditingBench noch leer ist (z. B. bei Neueintrag), Objekt initialisieren
+        if (!currentEditingBench) {
+            currentEditingBench = {};
+        }
+
+        // Neue Koordinaten im Objekt speichern
+        currentEditingBench.lat = coord.lat;
+        currentEditingBench.lng = coord.lng;
+
+        // Falls du Input-Felder im Formular für Lat/Lng nutzt, diese mit aktualisieren:
+        const latInput = document.getElementById('bench-lat') || document.getElementById('lat');
+        const lngInput = document.getElementById('bench-lng') || document.getElementById('lng');
+        if (latInput) latInput.value = coord.lat;
+        if (lngInput) lngInput.value = coord.lng;
+
+        // Temporären Marker von der Karte entfernen
+        map.removeLayer(tempDragMarker);
+        tempDragMarker = null;
+    }
+
+    // Info-Banner wieder ausblenden
+    const banner = document.getElementById('drag-info-banner');
+    if (banner) banner.style.display = 'none';
+
+    // Formular-Overlay wieder anzeigen
+    const overlay = document.getElementById('fullscreen-overlay') || 
+                    document.getElementById('bench-modal') || 
+                    document.getElementById('edit-bench-overlay');
+    if (overlay) overlay.style.display = 'block';
+};
+
 function getMarkerStyle(status, approved) {
     let baseStyle = {};
     
@@ -3311,13 +3456,21 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
 
     // --- FALL 2: SPEICHERN / BEARBEITEN ---
     if (actionType === 'save') {
+        // Prüfen, ob für die aktuelle Bank eine Schadensmeldung vorliegt
+        const hasDamage = currentEditingBench && damagereports.some(d => d.bench_id === currentEditingBench.id);
+
         const baseData = {
             lat: currentEditingBench.lat, 
             lng: currentEditingBench.lng, 
             type: lastSelectedType, 
             district: lastSelectedDistrict,
             last_maintenance: selectedDate, 
-            manual_status: document.getElementById('pop-manual') ? document.getElementById('pop-manual').value : 'In Ordnung',
+            
+            // Status-Schutz: Bei Schadensmeldung bisherigen Status behalten, sonst Dropdown-Wert nehmen
+            manual_status: hasDamage && currentEditingBench.manual_status 
+                ? currentEditingBench.manual_status 
+                : (document.getElementById('pop-manual') ? document.getElementById('pop-manual').value : 'In Ordnung'),
+                
             description: document.getElementById('pop-description') ? document.getElementById('pop-description').value : '', 
             damage_description: document.getElementById('pop-damage-description') ? document.getElementById('pop-damage-description').value : '',
             dimensions: document.getElementById('pop-dimensions') ? document.getElementById('pop-dimensions').value : '', 
