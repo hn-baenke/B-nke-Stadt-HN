@@ -10,6 +10,9 @@
     <link rel="apple-touch-icon" href="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/app-icon.png">
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
     <style>
         html, body { height: 100%; margin: 0; padding: 0; width: 100%; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; display: flex; flex-direction: column; background: #f4f6f8; color: #333; overflow: hidden; }
@@ -316,6 +319,50 @@
         cursor: pointer;
         user-select: none;
     }
+
+    /* Im Browser unsichtbar */
+#print-section {
+    display: none;
+}
+
+/* Im Browser unsichtbar */
+#print-section {
+    display: none;
+}
+
+/* Regeln für den A4-Ein-Seiten-Ausdruck */
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 8mm; /* Schnallt den Rand eng für maximale Fläche */
+    }
+
+    body * {
+        visibility: hidden !important;
+    }
+
+    #print-section, #print-section * {
+        visibility: visible !important;
+    }
+
+    #print-section {
+        display: block !important;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        box-sizing: border-box;
+        font-family: Arial, sans-serif;
+        color: #1e293b;
+        background: #fff;
+    }
+
+    /* Verhindert unbeabsichtigte Seitenumbrüche */
+    .print-no-break {
+        page-break-inside: avoid;
+    }
+}
+
     </style>
 </head>
 <body>
@@ -741,6 +788,8 @@
         <span class="close-modal">&times;</span>
         <img class="modal-content" id="modalImg" onclick="event.stopPropagation()">
     </div>
+
+<div id="print-section"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -1696,15 +1745,61 @@ window.openReportsOverlay = async function(mode) {
     });
 };
 
-        window.showReportDetail = async function(type, id) {
+      window.showReportDetail = async function(type, id) {
     const detailOverlay = document.getElementById('report-detail-overlay');
     const modalBody = document.getElementById('report-detail-modal-body');
     if (!detailOverlay || !modalBody) return;
 
+    // Falls vorherige Minimap noch existiert, diese sauber abbauen/zerstören
+    if (window.currentReportMinimap) {
+        try {
+            window.currentReportMinimap.remove();
+        } catch (e) {
+            console.warn("Fehler beim Entfernen der vorherigen Minimap:", e);
+        }
+        window.currentReportMinimap = null;
+    }
+
+    // Hilfsfunktion zum Formatieren des Ticket-Badges basierend auf Nummer UND Beschreibung
+    const getTicketBadge = (ticketNoRaw, descriptionRaw = '') => {
+        if (!ticketNoRaw) return '';
+        const ticket = String(ticketNoRaw).trim();
+        const desc = String(descriptionRaw).toLowerCase();
+        
+        let bgColor = '#7f8c8d'; // Standard-Grau
+        let truppName = '';
+
+        if (ticket.includes('H')) {
+            bgColor = '#2980b9'; // Blau
+            truppName = 'Zimmerer';
+        } else if (ticket.includes('S')) {
+            bgColor = '#e67e22'; // Orange
+            truppName = 'Stadtreinigung';
+        } else if (ticket.includes('G')) {
+            if (desc.includes('zugewachsen')) {
+                bgColor = '#2ecc71'; // Saftiges Grün
+                truppName = 'Grünpflege';
+            } else if (desc.includes('irreparabel')) {
+                bgColor = '#1e7145'; // Dunkelgrün
+                truppName = 'Gala Bau';
+            } else {
+                bgColor = '#2ecc71'; 
+                truppName = 'Grünpflege / Gala Bau';
+            }
+        } else if (ticket.includes('L') || ticket.includes('GB')) {
+            bgColor = '#1e7145'; // Dunkelgrün
+            truppName = 'Gala Bau';
+        }
+
+        const labelText = truppName ? `(${ticket}) ${truppName}` : `(${ticket})`;
+
+        return `<span style="background-color: ${bgColor}; color: #ffffff; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 0.9em; display: inline-block; margin-left: 6px;">${labelText}</span>`;
+    };
+
     if (type === 'damage') {
         const reportsList = window.currentReportData || [];
-        // Robusterer ID-Vergleich (== statt ===)
-        const rep = reportsList.find(r => r.id == id);
+        const currentIndex = reportsList.findIndex(r => String(r.id) === String(id));
+        const rep = reportsList[currentIndex];
         
         if (!rep) {
             modalBody.innerHTML = "<p style='padding: 10px; color: #666;'>Meldungsdaten konnten nicht gefunden werden.</p>";
@@ -1712,12 +1807,33 @@ window.openReportsOverlay = async function(mode) {
             return;
         }
 
+        const prevRep = currentIndex > 0 ? reportsList[currentIndex - 1] : null;
+        const nextRep = currentIndex < reportsList.length - 1 ? reportsList[currentIndex + 1] : null;
+
         const date = new Date(rep.created_at).toLocaleString('de-DE');
-        const ticketNo = rep.ticket_number ? ` (${rep.ticket_number})` : '';
+        const ticketBadge = getTicketBadge(rep.ticket_number, rep.description);
 
         modalBody.innerHTML = `
-            <div class="report-card">
-                <h4>Details zur Schadensmeldung${ticketNo}</h4>
+            <div class="report-card" style="position: relative;">
+                <div style="display: flex; align-items: center; justify-content: space-between; background: #f8fafc; padding: 6px 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
+                    <button class="btn" style="background-color: #2C3E50; color: #fff; padding: 6px 12px; font-size: 13px; font-weight: bold; min-width: 90px; text-align: center; border: none; border-radius: 4px;" 
+                            ${prevRep ? `onclick="window.showReportDetail('damage', '${prevRep.id}')"` : 'disabled style="background-color: #2C3E50; color: #fff; opacity: 0.3;"'}>
+                        ◀ Zurück
+                    </button>
+                    
+                    <span style="font-size: 13px; color: #475569; font-weight: 600; white-space: nowrap; padding: 0 5px;">
+                        ${currentIndex + 1} / ${reportsList.length}
+                    </span>
+                    
+                    <button class="btn" style="background-color: #2C3E50; color: #fff; padding: 6px 12px; font-size: 13px; font-weight: bold; min-width: 90px; text-align: center; border: none; border-radius: 4px;" 
+                            ${nextRep ? `onclick="window.showReportDetail('damage', '${nextRep.id}')"` : 'disabled style="background-color: #2C3E50; color: #fff; opacity: 0.3;"'}>
+                        Weiter ▶
+                    </button>
+                </div>
+
+                <h4 style="margin-top: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
+                    Details zur Schadensmeldung ${ticketBadge}
+                </h4>
                 <p><strong>Gemeldet am:</strong> ${date}</p>
                 <p><strong>Beschreibung:</strong> ${rep.description || 'Keine Angabe'}</p>
                 ${rep.image_url ? `<div class="report-image-wrapper" style="cursor: pointer;" onclick="openModal('${rep.image_url}')"><img src="${rep.image_url}" style="max-width:100%; border-radius:8px; margin: 10px 0;" /></div>` : ''}
@@ -1728,34 +1844,49 @@ window.openReportsOverlay = async function(mode) {
                      title="Auf der Hauptkarte anzeigen">
                 </div>
 
-                <div style="margin-top: 15px;">
-                    <button class="btn btn-save" onclick="resolveDamageReport(${rep.id}, ${rep.bench_id}, '${rep.image_url || ''}')">✔ Erledigt</button>
-                </div>
-            </div>
+                <div style="margin-top: 15px; display: flex; gap: 10px; align-items: stretch;">
+    <button class="btn btn-save" style="flex: 1; width: 50%; padding: 10px; font-size: 14px; font-weight: bold; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0;" onclick="resolveDamageReport(${rep.id}, ${rep.bench_id}, '${rep.image_url || ''}')">
+        ✔ Erledigt
+    </button>
+    <button class="btn" style="flex: 1; width: 50%; background-color: #2C3E50; color: white; padding: 10px; font-size: 14px; font-weight: bold; border: none; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; margin: 0;" onclick="window.printReport('${rep.id}')">
+        🖨️ Drucken
+    </button>
+</div>
         `;
         
         detailOverlay.style.display = 'flex';
 
-        if (rep.benches) {
+        if (rep.benches && rep.benches.lat && rep.benches.lng) {
             setTimeout(() => {
                 const miniMapContainer = document.getElementById('report-minimap-container');
-                if (miniMapContainer) {
-                    const miniMap = L.map('report-minimap-container', {
-                        dragging: false, zoomControl: false, scrollWheelZoom: false, touchZoom: false
-                    }).setView([rep.benches.lat, rep.benches.lng], 16);
-                    
-                    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(miniMap);
-                    L.circleMarker([rep.benches.lat, rep.benches.lng], { radius: 7, fillColor: '#e74c3c', color: '#fff', fillOpacity: 0.9 }).addTo(miniMap);
-                    miniMap.invalidateSize();
+                if (miniMapContainer && typeof L !== 'undefined') {
+                    try {
+                        // Prüfen ob bereits eine Map initialisiert wurde und entfernen
+                        if (miniMapContainer._leaflet_id) {
+                            miniMapContainer._leaflet_id = null;
+                        }
+
+                        const miniMap = L.map('report-minimap-container', {
+                            dragging: false, zoomControl: false, scrollWheelZoom: false, touchZoom: false
+                        }).setView([rep.benches.lat, rep.benches.lng], 16);
+                        
+                        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(miniMap);
+                        L.circleMarker([rep.benches.lat, rep.benches.lng], { radius: 7, fillColor: '#e74c3c', color: '#fff', fillOpacity: 0.9 }).addTo(miniMap);
+                        
+                        miniMap.invalidateSize();
+                        window.currentReportMinimap = miniMap;
+                    } catch (err) {
+                        console.error("Fehler beim Erstellen der Minimap:", err);
+                    }
                 }
-            }, 250);
+            }, 200);
         }
 
     } else {
         // --- AUSSTEHENDE FREIGABEN / NEUEINTRÄGE & ÄNDERUNGEN ---
         const pendingList = window.currentPendingBenches || [];
-        // Robusterer ID-Vergleich
-        const b = pendingList.find(item => String(item.id) === String(id));
+        const currentIndex = pendingList.findIndex(item => String(item.id) === String(id));
+        const b = pendingList[currentIndex];
 
         if (!b) {
             modalBody.innerHTML = "<p style='padding: 10px; color: #666;'>Eintragsdaten konnten nicht gefunden werden.</p>";
@@ -1763,15 +1894,15 @@ window.openReportsOverlay = async function(mode) {
             return;
         }
 
-        // 1. Suche nach der existierenden Bank in window.benches oder live in Supabase
+        const prevPending = currentIndex > 0 ? pendingList[currentIndex - 1] : null;
+        const nextPending = currentIndex < pendingList.length - 1 ? pendingList[currentIndex + 1] : null;
+
         const targetBenchId = b.bench_id || (b.is_direct_bench ? b.bench_id : null);
         let oldB = {};
 
         if (targetBenchId) {
-            // Erst lokal im Array versuchen
             oldB = (window.benches || []).find(item => String(item.id) === String(targetBenchId)) || {};
 
-            // Falls lokal nicht vorhanden (z.B. wegen fehlendem Load), direkt live aus Supabase holen
             if (!oldB.id && typeof supabaseClient !== 'undefined') {
                 try {
                     const { data } = await supabaseClient
@@ -1786,20 +1917,13 @@ window.openReportsOverlay = async function(mode) {
             }
         }
 
-        // 2. Präzise Erkennung, ob es ein echter Neueintrag ist
         const isNewInsert = !targetBenchId && (b.pending_action === 'insert' || !b.bench_id);
-
-        // Bearbeiter ermitteln
         const creatorName = b.worker_name ? b.worker_name : (b.note && b.note.startsWith('Trupp:') ? b.note : 'Unbekannter Bearbeiter');
 
-        // Hilfsfunktion zum Auslesen/Formatieren der Werte
         const oldVal = (field) => isNewInsert ? '(Neu)' : (oldB[field] !== undefined && oldB[field] !== null && oldB[field] !== '' ? oldB[field] : '-');
         const newVal = (field) => b[field] !== undefined && b[field] !== null && b[field] !== '' ? b[field] : '-';
-        
-        // Ein Feld gilt nur als geändert, wenn es KEIN Neueintrag ist UND sich der Wert vom alten unterscheidet
         const isChanged = (field) => !isNewInsert && (String(oldB[field] || '').trim() !== String(b[field] || '').trim());
 
-        // Generiere Zeilen für die optionalen Felder
         let optionalRows = '';
 
         const checkAndAddRow = (label, fieldKey, highlightColor = '#2980b9') => {
@@ -1821,6 +1945,22 @@ window.openReportsOverlay = async function(mode) {
 
         modalBody.innerHTML = `
             <div class="report-card" style="max-width: 100%;">
+                <div style="display: flex; align-items: center; justify-content: space-between; background: #f8fafc; padding: 6px 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
+                    <button class="btn" style="background-color: #2C3E50; color: #fff; padding: 6px 12px; font-size: 13px; font-weight: bold; min-width: 90px; text-align: center; border: none; border-radius: 4px;" 
+                            ${prevPending ? `onclick="window.showReportDetail('pending', '${prevPending.id}')"` : 'disabled style="background-color: #2C3E50; color: #fff; opacity: 0.3;"'}>
+                        ◀ Zurück
+                    </button>
+                    
+                    <span style="font-size: 13px; color: #475569; font-weight: 600; white-space: nowrap; padding: 0 5px;">
+                        ${currentIndex + 1} / ${pendingList.length}
+                    </span>
+                    
+                    <button class="btn" style="background-color: #2C3E50; color: #fff; padding: 6px 12px; font-size: 13px; font-weight: bold; min-width: 90px; text-align: center; border: none; border-radius: 4px;" 
+                            ${nextPending ? `onclick="window.showReportDetail('pending', '${nextPending.id}')"` : 'disabled style="background-color: #2C3E50; color: #fff; opacity: 0.3;"'}>
+                        Weiter ▶
+                    </button>
+                </div>
+
                 <h4 style="margin-top:0; color:#2c3e50;">📊 Gegenüberstellung der Änderung</h4>
                 
                 <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 15px; background: white; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
@@ -1832,7 +1972,6 @@ window.openReportsOverlay = async function(mode) {
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- PFLEGEFELDER (IMMER SICHTBAR) -->
                         <tr>
                             <td style="padding: 6px; font-weight: bold; border-bottom: 1px solid #eee;">BankTyp</td>
                             <td style="padding: 6px; color: #7f8c8d; border-bottom: 1px solid #eee;">${oldVal('type')}</td>
@@ -1848,25 +1987,20 @@ window.openReportsOverlay = async function(mode) {
                             <td style="padding: 6px; color: #7f8c8d; border-bottom: 1px solid #eee;">${oldVal('manual_status')}</td>
                             <td style="padding: 6px; font-weight: bold; color: ${isChanged('manual_status') ? '#e67e22' : '#2c3e50'}; border-bottom: 1px solid #eee;">${newVal('manual_status')}</td>
                         </tr>
-                        
-                        <!-- DYNAMISCHE FELDER -->
                         ${optionalRows}
                     </tbody>
                 </table>
 
-                <!-- Bearbeiter Info -->
                 <div style="background: #f1f5f9; padding: 10px; border-radius: 6px; font-size: 13px; margin-bottom: 15px; border-left: 4px solid #f1c40f;">
                     <strong>Änderung vorgenommen von:</strong> <mark style="background: #f1c40f; padding: 2px 6px; border-radius:4px; font-weight:bold;">${creatorName}</mark>
                 </div>
 
-                <!-- Mini Map -->
                 <div id="report-minimap-container" class="report-minimap" 
                      onclick="showBenchOnMap(${b.bench_id || b.id})" 
                      style="cursor: pointer; height: 180px; width: 100%; margin: 10px 0; border-radius: 8px; border: 1px solid #ccc;" 
                      title="Klicken, um zur Bank auf der Karte zu springen">
                 </div>
                 
-                <!-- Aktions-Buttons -->
                 <div class="equal-btn-container" style="margin-top: 15px;">
                     <button class="btn btn-save" onclick="approveEntry('${b.id}', true)">👍 Freigeben</button>
                     <button class="btn btn-delete" onclick="approveEntry('${b.id}', false)">👎 Ablehnen</button>
@@ -1879,17 +2013,203 @@ window.openReportsOverlay = async function(mode) {
         if (b.lat && b.lng) {
             setTimeout(() => {
                 const miniMapContainer = document.getElementById('report-minimap-container');
-                if (miniMapContainer) {
-                    const miniMap = L.map('report-minimap-container', {
-                        dragging: false, zoomControl: false, scrollWheelZoom: false, touchZoom: false
-                    }).setView([b.lat, b.lng], 16);
-                    
-                    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(miniMap);
-                    L.circleMarker([b.lat, b.lng], { radius: 7, fillColor: '#3498db', color: '#fff', fillOpacity: 0.9 }).addTo(miniMap);
-                    miniMap.invalidateSize();
+                if (miniMapContainer && typeof L !== 'undefined') {
+                    try {
+                        if (miniMapContainer._leaflet_id) {
+                            miniMapContainer._leaflet_id = null;
+                        }
+
+                        const miniMap = L.map('report-minimap-container', {
+                            dragging: false, zoomControl: false, scrollWheelZoom: false, touchZoom: false
+                        }).setView([b.lat, b.lng], 16);
+                        
+                        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(miniMap);
+                        L.circleMarker([b.lat, b.lng], { radius: 7, fillColor: '#3498db', color: '#fff', fillOpacity: 0.9 }).addTo(miniMap);
+                        
+                        miniMap.invalidateSize();
+                        window.currentReportMinimap = miniMap;
+                    } catch (err) {
+                        console.error("Fehler beim Erstellen der Minimap:", err);
+                    }
                 }
-            }, 250);
+            }, 200);
         }
+    }
+};
+
+window.printReport = function(repId) {
+    const reportsList = window.currentReportData || [];
+    const rep = reportsList.find(r => String(r.id) === String(repId));
+    
+    if (!rep) {
+        alert("Meldungsdaten für den Druck konnten nicht geladen werden.");
+        return;
+    }
+
+    const date = new Date(rep.created_at).toLocaleString('de-DE');
+    const b = rep.benches || {};
+    
+    // Ticket & Trupp ermitteln
+    const ticket = rep.ticket_number ? String(rep.ticket_number).trim() : 'Keine Nummer';
+    const descLower = (rep.description || '').toLowerCase();
+    let trupp = 'Allgemein';
+    
+    if (ticket.includes('H')) trupp = 'Zimmerer';
+    else if (ticket.includes('S')) trupp = 'Stadtreinigung';
+    else if (ticket.includes('G')) {
+        trupp = descLower.includes('zugewachsen') ? 'Grünpflege' : (descLower.includes('irreparabel') ? 'Gala Bau' : 'Grünpflege / Gala Bau');
+    }
+
+    const printContainer = document.getElementById('print-section');
+    
+    // Container sichtbar schalten & A4-Breite erzwingen für genaue Leaflet-Berechnung
+    printContainer.style.display = 'block';
+    printContainer.style.width = '794px'; 
+
+    // HTML-Aufbau
+    printContainer.innerHTML = `
+        <!-- HEADER MIT LOGOS -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2C3E50; padding-bottom: 8px; margin-bottom: 12px;">
+            <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/hnlogo.png" style="height: 60px; object-fit: contain;" alt="Stadt Heilbronn" crossorigin="anonymous">
+            <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/Logo%20SitzFinder.png" style="height: 66px; margin: -4px 0; object-fit: contain;" alt="SitzFinder" crossorigin="anonymous">
+        </div>
+
+        <!-- TICKET INFO & QR CODE -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; background: #f8fafc; padding: 12px 18px; border-radius: 6px; border: 1px solid #cbd5e1;">
+            <div>
+                <h2 style="margin: 0 0 4px 0; font-size: 22px; color: #1e293b;">Schadensmeldung: ${ticket}</h2>
+                <div style="font-size: 16px; font-weight: bold; color: #2563eb;">Zuständiger Trupp: ${trupp}</div>
+                <div style="font-size: 13px; color: #64748b; margin-top: 4px;">Gemeldet am: ${date}</div>
+            </div>
+            <div style="text-align: center;">
+                <div id="print-qrcode" style="display: flex; justify-content: center;"></div>
+                <div style="font-size: 10px; color: #64748b; margin-top: 4px; font-weight: bold;">In SitzFinder öffnen</div>
+            </div>
+        </div>
+
+        <!-- DETAILS ZUR BANK & SCHADEN (GROSSE SCHRIFT) -->
+        <div style="margin-bottom: 12px;">
+            <h3 style="margin: 0 0 6px 0; font-size: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; color: #334155;">Details zur Bank & Schaden</h3>
+            <div style="display: flex; gap: 24px; font-size: 14px; line-height: 1.5;">
+                <!-- Linke Spalte -->
+                <div style="flex: 1;">
+                    <div style="margin-bottom: 4px;"><strong style="color: #475569;">Bank-ID:</strong> #${rep.bench_id || 'Unbekannt'}</div>
+                    <div style="margin-bottom: 4px;"><strong style="color: #475569;">Stadtteil:</strong> ${b.district || 'Keine Angabe'}</div>
+                    <div><strong style="color: #475569;">Banktyp:</strong> ${b.type || 'Standard'}</div>
+                </div>
+                <!-- Rechte Spalte -->
+                <div style="flex: 1.2;">
+                    ${b.dimensions ? `<div style="margin-bottom: 4px;"><strong style="color: #475569;">Maße:</strong> ${b.dimensions}</div>` : ''}
+                    <div><strong style="color: #475569;">Schaden:</strong> ${rep.description || 'Keine Angabe'}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCHADENSFOTO (MAXIMAL ERHÖHT AUF 270px) -->
+        ${rep.image_url ? `
+            <div style="margin-bottom: 12px;">
+                <h3 style="margin: 0 0 6px 0; font-size: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; color: #334155;">Foto vom Schaden</h3>
+                <div style="display: flex; justify-content: center; background: #f1f5f9; border-radius: 6px; border: 1px solid #cbd5e1; overflow: hidden; max-height: 270px;">
+                    <img src="${rep.image_url}" style="max-width: 100%; max-height: 270px; object-fit: contain;" crossorigin="anonymous"/>
+                </div>
+            </div>
+        ` : ''}
+
+        <!-- ORIENTIERUNGSKARTE (ERHÖHT AUF 300px) -->
+        <div style="margin-bottom: 12px;" class="print-no-break">
+            <h3 style="margin: 0 0 6px 0; font-size: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; color: #334155;">Orientierungskarte</h3>
+            <div id="print-map" style="height: 300px; width: 100%; border-radius: 6px; border: 1px solid #cbd5e1; background: #e2e8f0;"></div>
+        </div>
+
+        <!-- UNTERSCHRIFTENBLOCK -->
+        <div style="margin-top: 12px; padding-top: 10px; border-top: 2px dashed #94a3b8;" class="print-no-break">
+            <h3 style="margin: 0 0 10px 0; font-size: 13px; color: #334155;">Erledigungsvermerk (Vor Ort auszufüllen)</h3>
+            <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                <div style="width: 30%;">
+                    <strong>Datum Erledigt:</strong>
+                    <div style="border-bottom: 1px solid #000; margin-top: 22px;"></div>
+                </div>
+                <div style="width: 30%;">
+                    <strong>Bearbeitet durch:</strong>
+                    <div style="border-bottom: 1px solid #000; margin-top: 22px;"></div>
+                </div>
+                <div style="width: 30%;">
+                    <strong>Unterschrift:</strong>
+                    <div style="border-bottom: 1px solid #000; margin-top: 22px;"></div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 1. QR-Code
+    const targetBenchId = rep.bench_id;
+    const sitzfinderUrl = targetBenchId 
+        ? `${window.location.origin}${window.location.pathname}?id=${targetBenchId}`
+        : window.location.href;
+
+    const qrContainer = document.getElementById("print-qrcode");
+    if (qrContainer) qrContainer.innerHTML = '';
+
+    new QRCode(qrContainer, {
+        text: sitzfinderUrl,
+        width: 72,
+        height: 72,
+        correctLevel: QRCode.CorrectLevel.H
+    });
+
+    // 2. Leaflet Karte initialisieren
+    const triggerPrint = () => {
+        window.print();
+        printContainer.style.width = '';
+        printContainer.style.display = '';
+    };
+
+    if (b.lat && b.lng && typeof L !== 'undefined') {
+        const mapDiv = document.getElementById('print-map');
+        if (mapDiv && mapDiv._leaflet_id) {
+            mapDiv._leaflet_id = null;
+        }
+
+        setTimeout(() => {
+            const printMap = L.map('print-map', {
+                dragging: false, 
+                zoomControl: false, 
+                scrollWheelZoom: false, 
+                touchZoom: false
+            }).setView([b.lat, b.lng], 16);
+
+            const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19
+            }).addTo(printMap);
+
+            L.circleMarker([b.lat, b.lng], { 
+                radius: 8, 
+                fillColor: '#e74c3c', 
+                color: '#fff', 
+                weight: 2,
+                fillOpacity: 0.9 
+            }).addTo(printMap);
+
+            printMap.invalidateSize();
+
+            let printed = false;
+            tileLayer.on('load', () => {
+                if (!printed) {
+                    printed = true;
+                    setTimeout(triggerPrint, 250);
+                }
+            });
+
+            setTimeout(() => {
+                if (!printed) {
+                    printed = true;
+                    triggerPrint();
+                }
+            }, 1000);
+
+        }, 100);
+    } else {
+        setTimeout(triggerPrint, 300);
     }
 };
 
