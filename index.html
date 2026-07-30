@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sitzbank-Kataster Heilbronn</title>
+    <title>BankRadar Heilbronn</title>
     
     <!-- Plattformübergreifende Icon-Integration aus der Supabase-Datenbank -->
     <link rel="icon" type="image/png" href="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/app-icon.png">
@@ -376,7 +376,7 @@
                 <text x="56" y="54" font-family="Georgia, serif" font-weight="900" font-size="42" fill="#1a1a1a">N</text>
                 <path d="M22 66 L78 66 M18 75 L82 75 M28 66 L28 86 M72 66 L72 86" stroke="#2c3e50" stroke-width="4.5" stroke-linecap="round"/>
             </svg>
-            <span>HN-SitzFinder (<span id="total-count">0</span> Bänke)</span>
+            <span>HN-BankRadar (<span id="total-count">0</span> Bänke)</span>
             <span id="display-role" class="role-badge role-gast" onclick="openLoginOverlay()">Login</span>
         </div>
         <span id="sync-cloud-icon" class="sync-indicator sync-green" onclick="handleCloudClick()" title="Daten-Synchronisation">☁️</span>
@@ -540,7 +540,7 @@
                 <text x="56" y="54" font-family="Georgia, serif" font-weight="900" font-size="42" fill="#1a1a1a">N</text>
                 <path d="M22 66 L78 66 M18 75 L82 75 M28 66 L28 86 M72 66 L72 86" stroke="#2c3e50" stroke-width="4.5" stroke-linecap="round"/>
             </svg>
-            <h2 id="login-overlay-title" style="color: #2c3e50; margin-top: 10px;">HN Bank Kataster</h2>
+            <h2 id="login-overlay-title" style="color: #2c3e50; margin-top: 10px;">BankRadar</h2>
         </div>
         
         <label>Benutzerrolle auswählen:</label>
@@ -714,9 +714,10 @@
     <input type="text" id="pop-description" placeholder="Beschreibung eingeben...">
     <span class="field-example">z.B. Bank auf Betonsockel, Rundbank auf Gestell</span>
 
-    <label for="pop-damage-description">Schadens Beschreibung:</label>
-    <input type="text" id="pop-damage-description" placeholder="Schäden beschreiben...">
-    <span class="field-example">z.B. Lehne Beschmiert Bretter Morsch</span>
+    <label for="pop-assembly-note">Montage-Hinweis:</label>
+<input type="text" id="pop-assembly-note" placeholder="Nur bei Standartabweichungen">
+<span class="field-example">z.B. Sondermaß, Spezialwerkzeug nötig, Befestigungsmittel</span>
+
 
     <label for="pop-dimensions">Maße (z.B. 180x50x45 cm):</label>
     <input type="text" id="pop-dimensions" placeholder="Länge x Breite x Höhe...">
@@ -908,7 +909,7 @@
     
     // Alle Eingabefelder leeren
     document.getElementById('pop-description').value = '';
-    document.getElementById('pop-damage-description').value = '';
+    document.getElementById('pop-assembly-note').value = '';
     document.getElementById('pop-dimensions').value = '';
     document.getElementById('pop-note').value = '';
     
@@ -1009,7 +1010,7 @@
                 logoutBtn.style.display = "block";
                 changeToggleContainer.style.display = (currentRole === 'Admin') ? 'block' : 'none';
             } else {
-                overlayTitle.innerText = "HN Bank Kataster";
+                overlayTitle.innerText = "BankRadar";
                 roleSelect.disabled = false;
                 passwordLabel.style.display = "block";
                 passwordInput.style.display = "block";
@@ -1797,7 +1798,23 @@ window.openReportsOverlay = async function(mode) {
     };
 
     if (type === 'damage') {
-        const reportsList = window.currentReportData || [];
+        // 1. Erst die rohen Daten holen
+        const rawList = window.currentReportData || [];
+        
+        // 2. 🎯 Rollenbasierte Filterung der Liste
+        const reportsList = rawList.filter(rep => {
+            if (currentRole === 'Admin') return true; // Admin sieht alles
+            if (!rep.description) return false;
+
+            const desc = rep.description;
+            if (currentRole === 'Zimmerer' && desc.includes('Bank beschädigt')) return true;
+            if (currentRole === 'Stadt Reinigung' && desc.includes('Müllproblem / Vogelkot')) return true;
+            if (currentRole === 'Grünpflege' && desc.includes('Bank zugewachsen')) return true;
+            if (currentRole === 'Gala Bau' && desc.includes('Bank Irreparabel')) return true;
+
+            return false;
+        });
+
         const currentIndex = reportsList.findIndex(r => String(r.id) === String(id));
         const rep = reportsList[currentIndex];
         
@@ -1938,7 +1955,7 @@ window.openReportsOverlay = async function(mode) {
         };
 
         checkAndAddRow('Beschreibung', 'description', '#27ae60');
-        checkAndAddRow('Schadensbeschreibung', 'damage_description', '#e74c3c');
+        checkAndAddRow('Montage Hinweis', 'assmebly_note', '#e74c3c');
         checkAndAddRow('Maße', 'dimensions', '#2980b9');
         checkAndAddRow('Letzte Wartung', 'last_maintenance', '#2980b9');
         checkAndAddRow('Notiz', 'note', '#8e44ad');
@@ -2083,7 +2100,7 @@ window.printReport = function(repId) {
             </div>
             <div style="text-align: center;">
                 <div id="print-qrcode" style="display: flex; justify-content: center;"></div>
-                <div style="font-size: 10px; color: #64748b; margin-top: 4px; font-weight: bold;">In SitzFinder öffnen</div>
+                <div style="font-size: 10px; color: #64748b; margin-top: 4px; font-weight: bold;">In BankRadar öffnen</div>
             </div>
         </div>
 
@@ -2099,8 +2116,10 @@ window.printReport = function(repId) {
                 </div>
                 <!-- Rechte Spalte -->
                 <div style="flex: 1.2;">
-                    ${b.dimensions ? `<div style="margin-bottom: 4px;"><strong style="color: #475569;">Maße:</strong> ${b.dimensions}</div>` : ''}
-                    <div><strong style="color: #475569;">Schaden:</strong> ${rep.description || 'Keine Angabe'}</div>
+                    ${b.dimensions && b.dimensions.trim() !== '' ? `<div style="margin-bottom: 4px;"><strong style="color: #475569;">Maße:</strong> ${b.dimensions}</div>` : ''}
+                    ${rep.description && rep.description.trim() !== '' ? `<div style="margin-bottom: 4px;"><strong style="color: #475569;">Schaden:</strong> ${rep.description}</div>` : ''}
+                    ${b.assembly_note && b.assembly_note.trim() !== '' ? `<div style="margin-bottom: 4px;"><strong style="color: #475569;">Montagehinweis:</strong> ${b.assembly_note}</div>` : ''}
+                    ${b.note && b.note.trim() !== '' ? `<div><strong style="color: #475569;">Notiz:</strong> ${b.note}</div>` : ''}
                 </div>
             </div>
         </div>
@@ -2123,19 +2142,18 @@ window.printReport = function(repId) {
 
         <!-- UNTERSCHRIFTENBLOCK -->
         <div style="margin-top: 12px; padding-top: 10px; border-top: 2px dashed #94a3b8;" class="print-no-break">
-            <h3 style="margin: 0 0 10px 0; font-size: 13px; color: #334155;">Erledigungsvermerk (Vor Ort auszufüllen)</h3>
             <div style="display: flex; justify-content: space-between; font-size: 12px;">
                 <div style="width: 30%;">
                     <strong>Datum Erledigt:</strong>
-                    <div style="border-bottom: 1px solid #000; margin-top: 22px;"></div>
+                    <div style="border-bottom: 1px solid #000; margin-top: 40px;"></div>
                 </div>
                 <div style="width: 30%;">
                     <strong>Bearbeitet durch:</strong>
-                    <div style="border-bottom: 1px solid #000; margin-top: 22px;"></div>
+                    <div style="border-bottom: 1px solid #000; margin-top: 40px;"></div>
                 </div>
                 <div style="width: 30%;">
                     <strong>Unterschrift:</strong>
-                    <div style="border-bottom: 1px solid #000; margin-top: 22px;"></div>
+                    <div style="border-bottom: 1px solid #000; margin-top: 40px;"></div>
                 </div>
             </div>
         </div>
@@ -2977,7 +2995,7 @@ window.closeReportDetail = function() {
             const shareText = `Sitzbank-Prüfung in ${bench.district}\nTyp: ${bench.type}\nStatus: ${status}${bench.note ? '\nNotiz: ' + bench.note : ''}\n\nAuf der Karte anzeigen:`;
             
             if (navigator.share) {
-                navigator.share({ title: 'Sitzbank-Kataster Details', text: shareText, url: shareUrl })
+                navigator.share({ title: 'BankRadar Details', text: shareText, url: shareUrl })
                 .catch((err) => { if(err.name !== "AbortError") { prompt("Link kopieren:", `${shareText} \n${shareUrl}`); } });
             } else {
                 prompt("Kopiere diesen Text zum Teilen:", `${shareText} \n${shareUrl}`);
@@ -3198,60 +3216,71 @@ window.confirmNewLocation = function() {
     if (overlay) overlay.style.display = 'block';
 };
 
-function getMarkerStyle(status, approved) {
-    let baseStyle = {};
-    
-    switch(status) {
-        case 'Ungeprüft': 
-            baseStyle = { radius: 8, fillColor: '#7f8c8d', color: '#333', weight: 2, fillOpacity: 0.6 }; 
-            break;
-        case 'Wartungsfrei': 
-            baseStyle = { radius: 9, fillColor: '#2ecc71', color: '#fff', weight: 2, fillOpacity: 0.95 }; 
-            break;
-        case 'In Bearbeitung': 
-            baseStyle = { radius: 9, fillColor: '#9b59b6', color: '#fff', weight: 2, fillOpacity: 0.95 }; 
-            break;
-        case 'Gut': 
-            baseStyle = { radius: 9, fillColor: '#27ae60', color: '#fff', weight: 2, fillOpacity: 0.95 }; 
-            break;
-        case 'Wartung empfohlen': 
-            baseStyle = { radius: 9, fillColor: '#f1c40f', color: '#fff', weight: 2, fillOpacity: 0.9 }; 
-            break;
-        
-        // 🔴 Fängt JETZT alle Varianten von "Wartung nötig / überfällig" sauber ab:
-        case 'Wartung nötig':
-        case 'Wartung nötig':
-        case 'Wartung überfällig':
-        case 'Wartung Überfällig':
-            baseStyle = { radius: 9, fillColor: '#c0392b', color: '#fff', weight: 2, fillOpacity: 0.9 }; 
-            break;
+function getMarkerStyle(status, approved, assemblyNote) {
+    // 1. STANDARD-BASIS-STYLE (Gut / Wartungsfrei)
+    let baseStyle = {
+        radius: 8,            // Standard-Größe für "Gut"
+        fillColor: '#5eb97d',
+        color: '#ffffff',
+        weight: 1.5,
+        opacity: 1,
+        fillOpacity: 0.95
+    };
 
-        case 'Beschädigt': 
-            // Nur noch für Schadensmeldungen
-            baseStyle = { radius: 14, fillColor: '#e74c3c', color: '#ffffff', weight: 4, fillOpacity: 1 }; 
-            break;
-        case 'Irreparabel': 
-            baseStyle = { radius: 11, fillColor: '#000000', color: '#ffffff', weight: 3, fillOpacity: 1 }; 
-            break;
-        case 'Verschmutzt': 
-            baseStyle = { radius: 9, fillColor: '#e67e22', color: '#ffffff', weight: 2, fillOpacity: 0.95 }; 
-            break; 
-        case 'Zugewachsen': 
-            baseStyle = { radius: 9, fillColor: '#2980b9', color: '#ffffff', weight: 2, fillOpacity: 0.95 }; 
-            break; 
-        default: 
-            baseStyle = { radius: 9, fillColor: '#7f8c8d', color: '#fff', weight: 2, fillOpacity: 0.9 };
+    const s = status ? status.toLowerCase().trim() : '';
+
+    // 2. STATUS-FARBEN UND INDIVIDUELLE GRÖSSEN (RADIUS)
+    if (s.includes('schaden') || s.includes('beschädigt')) {
+        baseStyle.fillColor = '#e35144';
+        baseStyle.radius = 14;         // 👈 Beispiel: Schadensmarker etwas größer
+    } else if (s.includes('wartung nötig')) {
+        baseStyle.fillColor = '#ba463b';
+        baseStyle.radius = 9;
+    } else if (s.includes('wartung empfohlen')) {
+        baseStyle.fillColor = '#e1b752';
+        baseStyle.radius = 9;
+    } else if (s.includes('verschmutzt')) {
+        baseStyle.fillColor = '#d98243';
+        baseStyle.radius = 8;
+    } else if (s.includes('bearbeitung')) {
+        baseStyle.fillColor = '#9b62c4';
+        baseStyle.radius = 8;
+    } else if (s.includes('zugewachsen')) {
+        baseStyle.fillColor = '#4a82b8';
+        baseStyle.radius = 8;
+    } else if (s.includes('irreparabel')) {
+        baseStyle.fillColor = '#0b0b0b';
+        baseStyle.radius = 9;         // 👈 Beispiel: Etwas kleiner
     }
 
-    // 🟢 HIER DIE ANPASSUNG FÜR UNBESTÄTIGTE BÄNKE:
-    if (approved === false) {
-        baseStyle.dashArray = '5, 5';   // Gestrichelter Rand
-        baseStyle.color = '#333333';    // Dunkler Kontur-Rand
-        baseStyle.weight = 3;           // Dickere Linie
+    // 3. UNGEPRÜFT (Sonderfall)
+    if (approved === false || s.includes('ungeprüft')) {
+        baseStyle.fillColor = '#7a8388';
+        baseStyle.color = '#333333';
+        baseStyle.weight = 2;
+        baseStyle.fillOpacity = 0.6;
+        baseStyle.radius = 8;       // 👈 Beispiel: Ungeprüfte Marker kompakter
     }
 
-    return baseStyle;
+    // 4. MONTAGEHINWEIS-IRIS (Pass sich dynamisch der Markergröße an)
+    let irisStyle = null;
+    if (assemblyNote && assemblyNote.trim() !== '') {
+        // Die Iris bekommt automatisch ~30% der Radiusgröße des Hauptmarkers
+        const irisRadius = Math.max(1.8, baseStyle.radius * 0.32);
+
+        irisStyle = {
+            radius: irisRadius,
+            fillColor: '#ffffff',
+            color: '#222222',
+            weight: 0.6,
+            fillOpacity: 1,
+            interactive: false
+        };
+    }
+
+    return { baseStyle, irisStyle };
 }
+
         function initDropdowns() {
             const dSelect = document.getElementById('filter-district');
             if(dSelect && dSelect.options.length <= 1) {
@@ -3366,69 +3395,115 @@ function getMarkerStyle(status, approved) {
             totalLiveVisible++;
 
             if (markersLayer && typeof L !== 'undefined') {
-                // Style des Markers abrufen
-                let style = getMarkerStyle(status, bench.approved);
+                // Style des Markers abrufen (mit Fallback für Montage-Hinweise)
+                // Styles abrufen (gibt jetzt baseStyle und irisStyle zurück)
+// 1. Styles abrufen (Destructuring!)
+const { baseStyle, irisStyle } = getMarkerStyle(status, bench.approved, bench.assembly_note);
 
-                // --- GESTRICHELTER SCHWARZER RAND BEI PENDING EDITS (UPDATE) ---
-                const hasPendingEdit = window.pendingBenches && window.pendingBenches.some(p => Number(p.bench_id) === Number(bench.id));
-                if (hasPendingEdit && currentRole !== 'Gast') {
-                    style = {
-                        ...style,
-                        color: '#000000',      // Schwarzer Rand
-                        weight: 3,             // Rand etwas dicker
-                        dashArray: '4, 4'      // Gestrichelte Linie!
-                    };
-                }
+// --- GESTRICHELTER SCHWARZER RAND BEI PENDING EDITS ---
+const hasPendingEdit = window.pendingBenches && window.pendingBenches.some(p => Number(p.bench_id) === Number(bench.id));
+if (hasPendingEdit && currentRole !== 'Gast') {
+    baseStyle.color = '#000000';
+    baseStyle.weight = 3;
+    baseStyle.dashArray = '4, 4';
+}
 
-                const marker = L.circleMarker([bench.lat, bench.lng], style);
+// 2. Haupt-Marker (Farbe der Bank) erstellen
+const mainMarker = L.circleMarker([bench.lat, bench.lng], baseStyle);
 
+let finalLayer = mainMarker;
+
+// 3. Wenn Montagehinweis existiert -> Inneren weißen Punkt drüberlegen
+if (irisStyle) {
+    const irisMarker = L.circleMarker([bench.lat, bench.lng], irisStyle);
+    
+    // Gruppe aus Hauptmarker und weißem Punkt erstellen
+    finalLayer = L.featureGroup([mainMarker, irisMarker]);
+}
+
+                let idHtml = '';
                 let descHtml = '';
+                let assemblyHtml = '';
                 let dmgHtml = '';
                 let dimHtml = '';
                 let noteHtml = '';
                 let timeHtml = '';
                 let workerHtml = '';
 
-                if (bench.manual_status === 'Automatisch' && bench.last_maintenance) {
-                    const maintDate = new Date(bench.last_maintenance);
-                    const nextIntervalDate = new Date(maintDate.getFullYear() + 3, maintDate.getMonth(), maintDate.getDate());
-                    const today = new Date();
-                    const diffTime = nextIntervalDate - today;
-                    const diffDaysTotal = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    
-                    if (diffDaysTotal > 0) {
-                        const years = Math.floor(diffDaysTotal / 365);
-                        const days = diffDaysTotal % 365;
-                        let timeString = "";
-                        if (years > 0) {
-                            timeString += `${years} ${years === 1 ? 'Jahr' : 'Jahre'} und `;
-                        }
-                        timeString += `${days} ${days === 1 ? 'Tag' : 'Tage'}`;
-                        timeHtml = `<br/>⏳ <b>Intervall-Restzeit:</b> ${timeString} verbleibend`;
-                    } else {
-                        const absDaysTotal = Math.abs(diffDaysTotal);
-                        const years = Math.floor(absDaysTotal / 365);
-                        const days = absDaysTotal % 365;
-                        let timeString = "";
-                        if (years > 0) {
-                            timeString += `${years} ${years === 1 ? 'Jahr' : 'Jahre'} und `;
-                        }
-                        timeString += `${days} ${days === 1 ? 'Tag' : 'Tage'}`;
-                        timeHtml = `<br/>⏳ <b>Intervall-Restzeit:</b> <span style="color:#c0392b; font-weight:bold;">Seit ${timeString} überfällig</span>`;
-                    }
-                }
+                
 
-                if (currentRole !== 'Gast') {
-                    descHtml = bench.description ? `<br/>ℹ <b>Beschreibung:</b> ${bench.description}` : '';
-                    dmgHtml = (bench.damage_description || hatSchadensmeldung) ? `<br/>⚠️ <b>Schaden:</b> <span style="color:#c0392b;">${bench.damage_description || 'Schaden gemeldet'}</span>` : '';
-                    dimHtml = bench.dimensions ? `<br/>📐 <b>Maße:</b> ${bench.dimensions}` : '';
-                    noteHtml = bench.note ? `<br/>📝 <b>Notiz:</b> ${bench.note}` : '';
-                    workerHtml = bench.worker_name ? `<br/>👷 <b>Bearbeiter:</b> ${bench.worker_name}` : '';
-                } else {
-                    if (bench.damage_description || hatSchadensmeldung) {
-                        dmgHtml = `<br/>⚠️ <b>Status:</b> <span style="color:#c0392b; font-weight:bold;">Schaden bereits erfasst</span>`;
-                    }
-                }
+if (bench.manual_status === 'Automatisch' && bench.last_maintenance) {
+    const maintDate = new Date(bench.last_maintenance);
+    const nextIntervalDate = new Date(maintDate.getFullYear() + 3, maintDate.getMonth(), maintDate.getDate());
+    const today = new Date();
+    const diffTime = nextIntervalDate - today;
+    const diffDaysTotal = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDaysTotal > 0) {
+        const years = Math.floor(diffDaysTotal / 365);
+        const days = diffDaysTotal % 365;
+        let timeString = "";
+        if (years > 0) {
+            timeString += `${years} ${years === 1 ? 'Jahr' : 'Jahre'} und `;
+        }
+        timeString += `${days} ${days === 1 ? 'Tag' : 'Tage'}`;
+        timeHtml = `<br/>⏳ <b>Intervall-Restzeit:</b> ${timeString} verbleibend`;
+    } else {
+        const absDaysTotal = Math.abs(diffDaysTotal);
+        const years = Math.floor(absDaysTotal / 365);
+        const days = absDaysTotal % 365;
+        let timeString = "";
+        if (years > 0) {
+            timeString += `${years} ${years === 1 ? 'Jahr' : 'Jahre'} und `;
+        }
+        timeString += `${days} ${days === 1 ? 'Tag' : 'Tage'}`;
+        timeHtml = `<br/>⏳ <b>Intervall-Restzeit:</b> <span style="color:#c0392b; font-weight:bold;">Seit ${timeString} überfällig</span>`;
+    }
+}
+
+if (currentRole !== 'Gast') {
+    // 🏷️ Bank-ID an oberster Stelle (ohne const)
+    idHtml = bench.id ? `<br/>🏷️ <b>Bank-ID:</b> #${bench.id}` : '';
+
+    descHtml = bench.description ? `<br/>ℹ <b>Beschreibung:</b> ${bench.description}` : '';
+    
+    // 🔧 Montage-Hinweis (Prüft assembly_note)
+    const assemblyText = bench.assembly_note;
+    assemblyHtml = assemblyText ? `<br/>🔧 <b>Montage-Hinweis:</b> <span style="color:#e67e22; font-weight:bold;">${assemblyText}</span>` : '';
+
+    // ⚠️ Schadensmeldung dynamisch auslesen & intelligent kürzen
+    const activeReport = (typeof rep !== 'undefined' && rep) 
+        ? rep 
+        : (bench.report || (typeof reports !== 'undefined' ? reports.find(r => r.bench_id === bench.id || r.bench_id === bench.bench_id) : null));
+
+    const rawDmg = activeReport?.description || bench.damage_description || (hatSchadensmeldung ? 'Schaden gemeldet' : '');
+
+    if (hatSchadensmeldung && rawDmg) {
+        let cleanDmg = rawDmg.trim();
+
+        // 1. Entferne eckige Klammern am Anfang z.B. "[Bank beschädigt] bretter gebrochen" -> "bretter gebrochen"
+        cleanDmg = cleanDmg.replace(/^\[.*?\]\s*/, '');
+
+        // 2. Falls "Bank beschädigt: bretter gebrochen" vorliegt -> schneide "Bank beschädigt: " ab
+        // Ist NUR "Bank beschädigt" eingetragen, greift dieser Regex nicht und der Text bleibt erhalten!
+        cleanDmg = cleanDmg.replace(/^(Bank beschädigt|Müllproblem \/ Vogelkot|Bank zugewachsen|Bank Irreparabel):\s*/i, '');
+
+        // 3. Sicherheits-Fallback: Falls nach dem Löschen ein leerer String bliebe
+        if (!cleanDmg) { cleanDmg = rawDmg; }
+
+        dmgHtml = `<br/>⚠️ <b>Schaden:</b> <span style="color:#c0392b; font-weight:bold;">${cleanDmg}</span>`;
+    } else {
+        dmgHtml = '';
+    }
+    
+    dimHtml = bench.dimensions ? `<br/>📐 <b>Maße:</b> ${bench.dimensions}` : '';
+    noteHtml = bench.note ? `<br/>📝 <b>Notiz:</b> ${bench.note}` : '';
+    workerHtml = bench.worker_name ? `<br/>👷 <b>Bearbeiter:</b> ${bench.worker_name}` : '';
+} else {
+    if (hatSchadensmeldung) {
+        dmgHtml = `<br/>⚠️ <b>Status:</b> <span style="color:#c0392b; font-weight:bold;">Schaden bereits erfasst</span>`;
+    }
+}
 
                 let ActionButtons = '';
                 if (currentRole === 'Gast') {
@@ -3530,25 +3605,24 @@ function getMarkerStyle(status, approved) {
                 let popupHtml = `
                     <div style="font-size:14px; line-height:1.4; min-width:240px; color:#333;">
                         <strong>${bench.type}</strong> (${bench.district}) ${hasPendingEdit && currentRole !== 'Gast' ? '<span style="color:#e67e22; font-weight:bold;">(Wartet auf Freigabe)</span>' : ''}<br/>
-                        Status: <b>${status}</b>${timeHtml}${descHtml}${dmgHtml}${dimHtml}${workerHtml}${noteHtml}
+                        Status: <b>${status}</b>${idHtml}${timeHtml}${descHtml}${assemblyHtml}${dmgHtml}${dimHtml}${workerHtml}${noteHtml}
                         <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
                             ${ActionButtons}
                         </div>
                     </div>
                 `;
-                marker.bindPopup(popupHtml); 
-                markersLayer.addLayer(marker);
-                window.markerDict[bench.id] = marker; 
+                finalLayer.bindPopup(popupHtml); 
+                markersLayer.addLayer(finalLayer);
+                window.markerDict[bench.id] = finalLayer;
             }
         }
     });
 
     // ==========================================
-    // 3. NEU: NEUE BÄNKE ZEICHNEN (PENDING INSERTS)
+    // 3. NEUE BÄNKE ZEICHNEN (PENDING INSERTS)
     // ==========================================
     if (window.pendingBenches && Array.isArray(window.pendingBenches) && currentRole !== 'Gast') {
         window.pendingBenches.forEach(pending => {
-            // Nur zeichnen, wenn diese Bank noch gar nicht in der Haupt-Tabelle 'benches' existiert
             const existsInBenches = benches.some(b => Number(b.id) === Number(pending.bench_id));
             
             if (!existsInBenches && pending.lat && pending.lng) {
@@ -3650,7 +3724,7 @@ window.triggerNewBenchCreation = function(lat, lng) {
         last_maintenance: savedDate, 
         manual_status: 'Automatisch', 
         description: '', 
-        damage_description: '', 
+        assembly_note: '', 
         dimensions: '', 
         note: '', 
         worker_name: '' 
@@ -3672,7 +3746,7 @@ function openFullscreenForm(bench, isNew) {
     document.getElementById('pop-date').value = bench.last_maintenance || '';
     document.getElementById('pop-manual').value = bench.manual_status || 'Automatisch';
     document.getElementById('pop-description').value = bench.description || '';
-    document.getElementById('pop-damage-description').value = bench.damage_description || '';
+    document.getElementById('pop-assembly-note').value = bench.assembly_note || '';
     document.getElementById('pop-dimensions').value = bench.dimensions || '';
     document.getElementById('pop-note').value = bench.note || '';
     
@@ -3942,7 +4016,7 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
                 : (document.getElementById('pop-manual') ? document.getElementById('pop-manual').value : 'In Ordnung'),
                 
             description: document.getElementById('pop-description') ? document.getElementById('pop-description').value : '', 
-            damage_description: document.getElementById('pop-damage-description') ? document.getElementById('pop-damage-description').value : '',
+            assembly_note: document.getElementById('pop-assembly-note') ? document.getElementById('pop-assembly-note').value : '',
             dimensions: document.getElementById('pop-dimensions') ? document.getElementById('pop-dimensions').value : '', 
             note: finalNote,
             worker_name: finalWorkerName
