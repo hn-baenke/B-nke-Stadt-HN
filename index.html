@@ -25,6 +25,77 @@
         .main-container { display: flex; flex: 1; width: 100%; position: relative; overflow: hidden; }
         #map { width: 100%; height: 100%; z-index: 1; background-color: #e5e9f0; }
         
+        
+        /* Vollbild-Overlay zum Blockieren der App */
+.pin-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(5px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999; /* Immer ganz oben */
+}
+
+/* Das Login-Fenster */
+.pin-modal {
+  background: #ffffff;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  text-align: center;
+  max-width: 320px;
+  width: 90%;
+}
+
+.pin-modal h2 {
+  margin-top: 0;
+  color: #2c3e50;
+}
+
+.pin-input-group input {
+  width: 120px;
+  font-size: 2rem;
+  letter-spacing: 0.5rem;
+  text-align: center;
+  padding: 8px;
+  margin: 1.5rem 0;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  outline: none;
+}
+
+.pin-input-group input:focus {
+  border-color: #2e7d32;
+}
+
+.pin-modal button {
+  width: 100%;
+  padding: 12px;
+  background-color: #2e7d32;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.pin-modal button:hover {
+  background-color: #1b5e20;
+}
+
+.pin-error {
+  color: #d32f2f;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  min-height: 1.2em;
+}
+        
         /* Modifiziertes Info-Widget - Konsistent unter dem Standort-Button platziert */
         .map-info-widget {
             position: absolute; top: 124px; left: 10px; z-index: 1000;
@@ -367,15 +438,25 @@
 </head>
 <body>
 
+    <!-- PIN Login Overlay -->
+<div id="pin-overlay" class="pin-overlay">
+  <div class="pin-modal">
+    <h2>Bank Radar Login</h2>
+    <p>Bitte gib den 4-stelligen PIN ein:</p>
+    
+    <div class="pin-input-group">
+      <input type="password" id="pin-input" maxlength="4" pattern="\d{4}" inputmode="numeric" placeholder="••••" autofocus>
+    </div>
+    
+    <button id="pin-submit-btn" onclick="checkPin()">Anmelden</button>
+    <p id="pin-error" class="pin-error"></p>
+  </div>
+</div>
+
     <header>
         <div class="header-logo">
-            <svg viewBox="0 0 100 100" style="width: 30px; height: 30px; border-radius: 7px; background: white; padding: 1px; box-shadow: 0 1px 4px rgba(0,0,0,0.3);">
-                <text x="10" y="54" font-family="Georgia, serif" font-weight="900" font-size="42" fill="#1a1a1a">H</text>
-                <rect x="47" y="22" width="6" height="16" fill="#e74c3c" rx="1"/>
-                <rect x="47" y="42" width="6" height="16" fill="#2980b9" rx="1"/>
-                <text x="56" y="54" font-family="Georgia, serif" font-weight="900" font-size="42" fill="#1a1a1a">N</text>
-                <path d="M22 66 L78 66 M18 75 L82 75 M28 66 L28 86 M72 66 L72 86" stroke="#2c3e50" stroke-width="4.5" stroke-linecap="round"/>
-            </svg>
+        <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/app-icon.png" alt="App Logo" style="width: 30px; height: 30px; border-radius: 7px; object-fit: contain; box-shadow: 0 1px 4px rgba(0,0,0,0.3);">
+    </div>
             <span>HN-SitzFinder (<span id="total-count">0</span> Bänke)</span>
             <span id="display-role" class="role-badge role-gast" onclick="openLoginOverlay()">Login</span>
         </div>
@@ -841,6 +922,67 @@
         let pendingWorkerAction = null;
         let selectedDamageCategory = ""; // Temporärer Speicher für die Schadens-Checkbox
 
+        // Prüfen, ob der User in dieser Sitzung bereits eingeloggt ist
+document.addEventListener('DOMContentLoaded', () => {
+  if (sessionStorage.getItem('isLoggedIn') === 'true') {
+    document.getElementById('pin-overlay').style.display = 'none';
+  }
+});
+
+// Event-Listener für 'Enter'-Taste im Input-Feld
+document.getElementById('pin-input')?.addEventListener('keyup', (event) => {
+  if (event.key === 'Enter') {
+    checkPin();
+  }
+});
+
+async function checkPin() {
+  const pinInput = document.getElementById('pin-input').value;
+  const errorElement = document.getElementById('pin-error');
+  
+  if (pinInput.length !== 4) {
+    errorElement.innerText = "Bitte genau 4 Zahlen eingeben.";
+    return;
+  }
+
+  errorElement.innerText = "Prüfe...";
+
+  try {
+    // Abfrage angepasst an deine Supabase-Tabelle (app_users, role, password)
+    const { data, error } = await supabaseClient
+      .from('app_users')
+      .select('password')
+      .eq('role', 'Gast')
+      .maybeSingle();
+
+    if (error) {
+      console.error("Supabase Error:", error);
+      errorElement.innerText = "Fehler bei der Verbindung.";
+      return;
+    }
+
+    if (!data) {
+      errorElement.innerText = "User 'Gast' nicht gefunden (RLS prüfen).";
+      return;
+    }
+
+    // Passenden Eintrag aus der Spalte 'password' vergleichen
+    if (String(data.password) === String(pinInput)) {
+      // Login erfolgreich
+      sessionStorage.setItem('isLoggedIn', 'true');
+      document.getElementById('pin-overlay').style.display = 'none';
+      errorElement.innerText = "";
+    } else {
+      // Falscher PIN
+      errorElement.innerText = "Falscher PIN!";
+      document.getElementById('pin-input').value = "";
+    }
+  } catch (err) {
+    console.error(err);
+    errorElement.innerText = "Unerwarteter Fehler.";
+  }
+}
+        
         window.openHelpOverlay = function() {
             if(document.getElementById('sidebar').classList.contains('open')) {
                 toggleSidebar();
@@ -3217,9 +3359,9 @@ window.confirmNewLocation = function() {
 };
 
 function getMarkerStyle(status, approved, assemblyNote) {
-    // 1. STANDARD-BASIS-STYLE (Gut / Wartungsfrei)
+    // 1. STANDARD-BASIS-STYLE (Gut)
     let baseStyle = {
-        radius: 8,            // Standard-Größe für "Gut"
+        radius: 8,           // Standard-Größe für "Gut"
         fillColor: '#5eb97d',
         color: '#ffffff',
         weight: 1.5,
@@ -3232,7 +3374,10 @@ function getMarkerStyle(status, approved, assemblyNote) {
     // 2. STATUS-FARBEN UND INDIVIDUELLE GRÖSSEN (RADIUS)
     if (s.includes('schaden') || s.includes('beschädigt')) {
         baseStyle.fillColor = '#e35144';
-        baseStyle.radius = 14;         // 👈 Beispiel: Schadensmarker etwas größer
+        baseStyle.radius = 14;         // Schadensmarker etwas größer
+    } else if (s.includes('wartungsfrei')) {
+        baseStyle.fillColor = '#2ecc71'; // 👈 Das hellere, leuchtendere Grün von früher
+        baseStyle.radius = 8;
     } else if (s.includes('wartung nötig')) {
         baseStyle.fillColor = '#ba463b';
         baseStyle.radius = 9;
@@ -3250,7 +3395,7 @@ function getMarkerStyle(status, approved, assemblyNote) {
         baseStyle.radius = 8;
     } else if (s.includes('irreparabel')) {
         baseStyle.fillColor = '#0b0b0b';
-        baseStyle.radius = 9;         // 👈 Beispiel: Etwas kleiner
+        baseStyle.radius = 9;         
     }
 
     // 3. UNGEPRÜFT (Sonderfall)
@@ -3259,13 +3404,12 @@ function getMarkerStyle(status, approved, assemblyNote) {
         baseStyle.color = '#333333';
         baseStyle.weight = 2;
         baseStyle.fillOpacity = 0.6;
-        baseStyle.radius = 8;       // 👈 Beispiel: Ungeprüfte Marker kompakter
+        baseStyle.radius = 8;       
     }
 
-    // 4. MONTAGEHINWEIS-IRIS (Pass sich dynamisch der Markergröße an)
+    // 4. MONTAGEHINWEIS-IRIS (Passt sich dynamisch der Markergröße an)
     let irisStyle = null;
     if (assemblyNote && assemblyNote.trim() !== '') {
-        // Die Iris bekommt automatisch ~30% der Radiusgröße des Hauptmarkers
         const irisRadius = Math.max(1.8, baseStyle.radius * 0.32);
 
         irisStyle = {
