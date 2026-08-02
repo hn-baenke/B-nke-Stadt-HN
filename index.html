@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BankRadar Heilbronn</title>
+    <title>SitzFinder Heilbronn</title>
     
     <!-- Plattformübergreifende Icon-Integration aus der Supabase-Datenbank -->
     <link rel="icon" type="image/png" href="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/app-icon.png">
@@ -376,7 +376,7 @@
                 <text x="56" y="54" font-family="Georgia, serif" font-weight="900" font-size="42" fill="#1a1a1a">N</text>
                 <path d="M22 66 L78 66 M18 75 L82 75 M28 66 L28 86 M72 66 L72 86" stroke="#2c3e50" stroke-width="4.5" stroke-linecap="round"/>
             </svg>
-            <span>HN-BankRadar (<span id="total-count">0</span> Bänke)</span>
+            <span>HN-SitzFinder (<span id="total-count">0</span> Bänke)</span>
             <span id="display-role" class="role-badge role-gast" onclick="openLoginOverlay()">Login</span>
         </div>
         <span id="sync-cloud-icon" class="sync-indicator sync-green" onclick="handleCloudClick()" title="Daten-Synchronisation">☁️</span>
@@ -540,7 +540,7 @@
                 <text x="56" y="54" font-family="Georgia, serif" font-weight="900" font-size="42" fill="#1a1a1a">N</text>
                 <path d="M22 66 L78 66 M18 75 L82 75 M28 66 L28 86 M72 66 L72 86" stroke="#2c3e50" stroke-width="4.5" stroke-linecap="round"/>
             </svg>
-            <h2 id="login-overlay-title" style="color: #2c3e50; margin-top: 10px;">BankRadar</h2>
+            <h2 id="login-overlay-title" style="color: #2c3e50; margin-top: 10px;">SitzFinder</h2>
         </div>
         
         <label>Benutzerrolle auswählen:</label>
@@ -1010,7 +1010,7 @@
                 logoutBtn.style.display = "block";
                 changeToggleContainer.style.display = (currentRole === 'Admin') ? 'block' : 'none';
             } else {
-                overlayTitle.innerText = "BankRadar";
+                overlayTitle.innerText = "SitzFinder";
                 roleSelect.disabled = false;
                 passwordLabel.style.display = "block";
                 passwordInput.style.display = "block";
@@ -2100,7 +2100,7 @@ window.printReport = function(repId) {
             </div>
             <div style="text-align: center;">
                 <div id="print-qrcode" style="display: flex; justify-content: center;"></div>
-                <div style="font-size: 10px; color: #64748b; margin-top: 4px; font-weight: bold;">In BankRadar öffnen</div>
+                <div style="font-size: 10px; color: #64748b; margin-top: 4px; font-weight: bold;">In SitzFinder öffnen</div>
             </div>
         </div>
 
@@ -2995,7 +2995,7 @@ window.closeReportDetail = function() {
             const shareText = `Sitzbank-Prüfung in ${bench.district}\nTyp: ${bench.type}\nStatus: ${status}${bench.note ? '\nNotiz: ' + bench.note : ''}\n\nAuf der Karte anzeigen:`;
             
             if (navigator.share) {
-                navigator.share({ title: 'BankRadar Details', text: shareText, url: shareUrl })
+                navigator.share({ title: 'SitzFinder Details', text: shareText, url: shareUrl })
                 .catch((err) => { if(err.name !== "AbortError") { prompt("Link kopieren:", `${shareText} \n${shareUrl}`); } });
             } else {
                 prompt("Kopiere diesen Text zum Teilen:", `${shareText} \n${shareUrl}`);
