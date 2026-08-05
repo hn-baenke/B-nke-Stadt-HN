@@ -1157,24 +1157,26 @@ window.executeLogin = async function() {
     if(error || !data) {
         alert(role === 'Admin' ? "Falsches Passwort für die Admin-Rolle!" : `Falsche PIN für den Trupp "${role}"!`);
     } else {
-        // Option 1: Wenn "Team Stadt Heilbronn" eingeloggt wird, intern als 'Gast' behandeln
         const effectiveRole = (role === 'Team Stadt Heilbronn') ? 'Gast' : role;
 
         currentRole = effectiveRole;
         
-        // BEIDE Speicher-Einträge setzen!
         localStorage.setItem('hn_bench_user_role', effectiveRole); 
-        localStorage.setItem('hn_bench_display_role', role); // <-- HIER IST DIE ENTSCHEIDENDE ZEILE!
+        localStorage.setItem('hn_bench_display_role', role);
 
         sessionStorage.removeItem('hn_cached_worker_name');
         sessionStorage.removeItem('hn_cached_worker_role');
         
         if(roleEl) {
-            // Im UI zeigen wir "Team Stadt Heilbronn" an
             roleEl.innerText = role; 
             roleEl.className = "role-badge role-user";
         }
-        if(infoWidget) infoWidget.style.display = "none";
+
+        // HIER IST DIE ANPASSUNG FÜR DAS INFO-WIDGET:
+        if (infoWidget) {
+            // Zeigen, wenn Team Stadt Heilbronn / Gast eingeloggt ist, sonst ausblenden
+            infoWidget.style.display = (effectiveRole === 'Gast') ? 'block' : 'none';
+        }
         
         closeLoginOverlay();
         if(typeof applyRolePermissions === 'function') applyRolePermissions();
@@ -1183,21 +1185,49 @@ window.executeLogin = async function() {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Prüfen, ob bereits eine valide Rolle im localStorage gespeichert ist
     const savedRole = localStorage.getItem('hn_bench_user_role');
+    const savedDisplayRole = localStorage.getItem('hn_bench_display_role');
     
-    if (savedRole && savedRole !== 'Gast') {
-        currentRole = savedRole;
+    // Prüfen, ob eine Rolle abgespeichert wurde
+    if (savedDisplayRole) {
+        currentRole = savedRole || 'Gast';
+
+        // 1. Rollenberechtigungen & App initialisieren
         if (typeof applyRolePermissions === 'function') applyRolePermissions();
+        if (typeof updateApp === 'function') updateApp();
+
+        // 2. Funktion zum Aktualisieren des Header-Badges
+        const updateHeaderBadge = () => {
+            const roleEl = document.getElementById('display-role');
+            if (roleEl) {
+                roleEl.innerText = savedDisplayRole;
+                roleEl.className = "role-badge role-user";
+            }
+        };
+
+        // Sofort ausführen...
+        updateHeaderBadge();
+        
+        // ...und nach 100ms nochmal absichern, falls updateApp() das Element verzögert neu gerendert hat
+        setTimeout(updateHeaderBadge, 100);
+
+        // Info-Widget nur für Gast / Team Stadt Heilbronn anzeigen, sonst ausblenden
+        const infoWidget = document.getElementById('map-info-movable-widget');
+        if (infoWidget) {
+            infoWidget.style.display = (currentRole === 'Gast') ? 'block' : 'none';
+        }
+
+        // Login-Overlay schließen
+        if (typeof closeLoginOverlay === 'function') closeLoginOverlay();
     } else {
-        // Noch nicht eingeloggt -> Sofort Login-Overlay anzeigen & sperren
+        // Noch nie eingeloggt -> PIN-Overlay erzwingen
         currentRole = null;
         if (typeof openLoginOverlay === 'function') {
             openLoginOverlay();
         }
     }
 
-    // Enter-Taste im PIN-/Passwortfeld abfangen zum Einloggen
+    // Enter-Taste im PIN-/Passwortfeld abfangen
     const passwordInput = document.getElementById('login-password');
     if (passwordInput) {
         passwordInput.addEventListener('keyup', (event) => {
