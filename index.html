@@ -1180,7 +1180,20 @@ window.executeLogin = async function() {
         
         closeLoginOverlay();
         if(typeof applyRolePermissions === 'function') applyRolePermissions();
-        if(typeof updateApp === 'function') updateApp();
+        
+        // App-Daten laden/aktualisieren und danach Deeplink-Bank öffnen
+        if(typeof updateApp === 'function') {
+            const updateResult = updateApp();
+            
+            // Falls updateApp ein Promise zurückgibt (async ist), warten wir darauf
+            if (updateResult && typeof updateResult.then === 'function') {
+                updateResult.then(() => checkAndOpenSharedBench());
+            } else {
+                setTimeout(checkAndOpenSharedBench, 400);
+            }
+        } else {
+            setTimeout(checkAndOpenSharedBench, 400);
+        }
     }
 };
 
@@ -1194,8 +1207,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 1. Rollenberechtigungen & App initialisieren
         if (typeof applyRolePermissions === 'function') applyRolePermissions();
-        if (typeof updateApp === 'function') updateApp();
-
+        
         // 2. Funktion zum Aktualisieren des Header-Badges
         const updateHeaderBadge = () => {
             const roleEl = document.getElementById('display-role');
@@ -1219,6 +1231,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Login-Overlay schließen
         if (typeof closeLoginOverlay === 'function') closeLoginOverlay();
+
+        // App-Daten laden & im Anschluss die geteilte Bank aus der URL öffnen
+        if (typeof updateApp === 'function') {
+            const updateResult = updateApp();
+            
+            // Warten, bis Bänke aus Supabase geladen sind
+            if (updateResult && typeof updateResult.then === 'function') {
+                updateResult.then(() => checkAndOpenSharedBench());
+            } else {
+                setTimeout(checkAndOpenSharedBench, 400);
+            }
+        } else {
+            setTimeout(checkAndOpenSharedBench, 400);
+        }
+
     } else {
         // Noch nie eingeloggt -> PIN-Overlay erzwingen
         currentRole = null;
@@ -3170,6 +3197,27 @@ window.closeReportDetail = function() {
             }
             pendingShareId = null; 
         };
+
+        function checkAndOpenSharedBench() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const benchId = urlParams.get('id'); // Liest ?id=... aus der URL
+
+    if (benchId && Array.isArray(benches) && benches.length > 0) {
+        // Sucht die Bank in deinem globale benches-Array
+        const bench = benches.find(b => String(b.id) === String(benchId));
+        if (bench) {
+            // HIER deine bestehende Funktion zum Zentrieren/Öffnen der Bank aufrufen:
+            // Häufig heißt diese bei dir selectBench, showBenchDetails oder ähnlich
+            if (typeof selectBench === 'function') {
+                selectBench(bench.id);
+            } else if (typeof showBenchDetails === 'function') {
+                showBenchDetails(bench.id);
+            } else if (typeof openBenchModal === 'function') {
+                openBenchModal(bench.id);
+            }
+        }
+    }
+}
 
         window.quickMaintenance = async function(id) {
     const bench = benches.find(b => b.id === id);
