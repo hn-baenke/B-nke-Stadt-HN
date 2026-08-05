@@ -1025,17 +1025,23 @@
     const changeToggleContainer = document.getElementById('admin-password-change-toggle-container');
     const cancelBtn = document.getElementById('login-cancel-btn') || document.querySelector('#login-overlay button[onclick*="closeLoginOverlay"]');
 
-    // Prüfen, ob eine ECHTE Rolle eingeloggt ist (nicht null, nicht Gast)
-    if (currentRole && currentRole !== "Gast" && currentRole !== "null") {
+    // Prüfen, ob ein Login im LocalStorage existiert
+    const savedRole = localStorage.getItem('hn_bench_user_role');
+    const savedDisplayRole = localStorage.getItem('hn_bench_display_role');
+
+    if (savedRole && savedDisplayRole) {
         // EINGELOGGT: Abmelden-Button anzeigen, Felder deaktivieren
-        overlayTitle.innerText = "Eingeloggt als " + currentRole;
-        roleSelect.value = currentRole;
+        overlayTitle.innerText = "Eingeloggt als " + savedDisplayRole;
+        roleSelect.value = savedDisplayRole; // Setzt z.B. "Team Stadt Heilbronn" im Dropdown
         roleSelect.disabled = true;
+        
         if(passwordLabel) passwordLabel.style.display = "none";
         passwordInput.style.display = "none";
         executeBtn.style.display = "none";
         logoutBtn.style.display = "block";
-        changeToggleContainer.style.display = (currentRole === 'Admin') ? 'block' : 'none';
+        
+        // Admin-Passwort-Änderung nur zeigen, wenn die ECHTE Rolle Admin ist
+        changeToggleContainer.style.display = (savedRole === 'Admin') ? 'block' : 'none';
         
         // Abbrechen-Button anzeigen, wenn man bereits eingeloggt ist
         if(cancelBtn) cancelBtn.style.display = "block";
@@ -1043,6 +1049,7 @@
         // NICHT EINGELOGGT: Login-Formular anzeigen, Abbrechen/Schließen VERSTECKEN!
         overlayTitle.innerText = "SitzFinder Login";
         roleSelect.disabled = false;
+        if(passwordLabel) passwordLabel.style.display = "block";
         passwordInput.style.display = "block";
         executeBtn.style.display = "block";
         logoutBtn.style.display = "none";
@@ -1052,7 +1059,9 @@
         if(cancelBtn) cancelBtn.style.display = "none";
 
         // Formular-Felder passend zur ersten Rolle im Dropdown initialisieren
-        handleRoleChange(roleSelect.value);
+        if(typeof handleRoleChange === 'function') {
+            handleRoleChange(roleSelect.value);
+        }
     }
     
     document.getElementById('login-overlay').style.display = "block";
@@ -1152,12 +1161,16 @@ window.executeLogin = async function() {
         const effectiveRole = (role === 'Team Stadt Heilbronn') ? 'Gast' : role;
 
         currentRole = effectiveRole;
+        
+        // BEIDE Speicher-Einträge setzen!
         localStorage.setItem('hn_bench_user_role', effectiveRole); 
+        localStorage.setItem('hn_bench_display_role', role); // <-- HIER IST DIE ENTSCHEIDENDE ZEILE!
+
         sessionStorage.removeItem('hn_cached_worker_name');
         sessionStorage.removeItem('hn_cached_worker_role');
         
         if(roleEl) {
-            // Im UI zeigen wir "Team Stadt Heilbronn" an (falls gewünscht), oder die effektive Rolle
+            // Im UI zeigen wir "Team Stadt Heilbronn" an
             roleEl.innerText = role; 
             roleEl.className = "role-badge role-user";
         }
