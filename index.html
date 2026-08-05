@@ -3801,15 +3801,27 @@ function getMarkerStyle(status, approved, assemblyNote) {
 const sharedBenchId = urlParams.get('bench');
 
 if (sharedBenchId && window.markerDict && window.markerDict[sharedBenchId]) {
-    const targetMarker = window.markerDict[sharedBenchId];
+    const targetLayer = window.markerDict[sharedBenchId];
     
-    // Karte auf die Bank zentrieren & heranzoomen
-    map.setView(targetMarker.getLatLng(), 18);
+    // Position ermitteln (unterstützt CircleMarker UND FeatureGroup)
+    const latLng = (typeof targetLayer.getLatLng === 'function') 
+        ? targetLayer.getLatLng() 
+        : targetLayer.getBounds().getCenter();
     
-    // Popup automatisch öffnen
-    targetMarker.openPopup();
+    // Karte zentrieren & heranzoomen
+    map.setView(latLng, 18);
+    
+    // Popup sicher öffnen (egal ob Marker oder FeatureGroup)
+    setTimeout(() => {
+        if (typeof targetLayer.openPopup === 'function') {
+            targetLayer.openPopup();
+        } else if (targetLayer.getLayers && targetLayer.getLayers().length > 0) {
+            // Falls es eine FeatureGroup ist, das Popup des Haupt-Markers öffnen
+            targetLayer.getLayers()[0].openPopup();
+        }
+    }, 100); // Minimaler Timeout, damit Leaflet nach setView bereit ist
 
-    // Query-Parameter aus der URL entfernen, damit beim Neuladen nicht ständig hin gesprungen wird
+    // Query-Parameter aus der URL entfernen
     window.history.replaceState({}, document.title, window.location.pathname);
 }
 }
