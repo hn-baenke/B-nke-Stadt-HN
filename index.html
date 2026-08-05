@@ -25,77 +25,41 @@
         .main-container { display: flex; flex: 1; width: 100%; position: relative; overflow: hidden; }
         #map { width: 100%; height: 100%; z-index: 1; background-color: #e5e9f0; }
         
-        
-        /* Vollbild-Overlay zum Blockieren der App */
-.pin-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(5px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999; /* Immer ganz oben */
-}
-
-/* Das Login-Fenster */
-.pin-modal {
-  background: #ffffff;
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-  text-align: center;
-  max-width: 320px;
-  width: 90%;
-}
-
-.pin-modal h2 {
-  margin-top: 0;
-  color: #2c3e50;
-}
-
-.pin-input-group input {
-  width: 120px;
-  font-size: 2rem;
-  letter-spacing: 0.5rem;
-  text-align: center;
-  padding: 8px;
-  margin: 1.5rem 0;
-  border: 2px solid #ccc;
+        /* Passwort-Change-Box & Ergänzungen für das Login-Overlay */
+.password-change-box {
+  display: none;
+  background: #f8f9fa;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  outline: none;
+  padding: 15px;
+  margin-top: 15px;
+  text-align: left;
 }
 
-.pin-input-group input:focus {
-  border-color: #2e7d32;
-}
-
-.pin-modal button {
-  width: 100%;
-  padding: 12px;
-  background-color: #2e7d32;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-weight: bold;
+.password-change-toggle {
+  color: #2980b9;
+  font-size: 0.85rem;
+  text-decoration: underline;
   cursor: pointer;
 }
 
-.pin-modal button:hover {
-  background-color: #1b5e20;
+.password-change-toggle:hover {
+  color: #3498db;
 }
 
-.pin-error {
-  color: #d32f2f;
-  margin-top: 1rem;
-  font-size: 0.9rem;
-  min-height: 1.2em;
+/* Spezieller Look für das PIN-Feld von "Team Stadt Heilbronn" */
+.pin-input-heilbronn {
+    border: 2px solid #48a259 !important;
+    border-radius: 12px !important;
+    text-align: center !important;
+    font-size: 24px !important;
+    letter-spacing: 12px !important;
+    padding: 10px !important;
+    max-width: 200px !important;
+    margin: 0 auto 15px auto !important;
+    display: block !important;
 }
-        
+
         /* Modifiziertes Info-Widget - Konsistent unter dem Standort-Button platziert */
         .map-info-widget {
             position: absolute; top: 124px; left: 10px; z-index: 1000;
@@ -367,18 +331,6 @@
     -webkit-user-drag: none;
 }
 
-/* Schließen-Button */
-.close-modal {
-    position: absolute;
-    top: 20px;
-    right: 30px;
-    color: #fff;
-    font-size: 40px;
-    font-weight: bold;
-    cursor: pointer;
-    z-index: 10000; /* Immer über dem Bild */
-}
-
     /* Schließen-Button (X) */
     .close-modal {
         position: absolute;
@@ -392,11 +344,6 @@
     }
 
     /* Im Browser unsichtbar */
-#print-section {
-    display: none;
-}
-
-/* Im Browser unsichtbar */
 #print-section {
     display: none;
 }
@@ -437,21 +384,6 @@
     </style>
 </head>
 <body>
-
-    <!-- PIN Login Overlay -->
-<div id="pin-overlay" class="pin-overlay">
-  <div class="pin-modal">
-    <h2>Bank Radar Login</h2>
-    <p>Bitte gib den 4-stelligen PIN ein:</p>
-    
-    <div class="pin-input-group">
-      <input type="password" id="pin-input" maxlength="4" pattern="\d{4}" inputmode="numeric" placeholder="••••" autofocus>
-    </div>
-    
-    <button id="pin-submit-btn" onclick="checkPin()">Anmelden</button>
-    <p id="pin-error" class="pin-error"></p>
-  </div>
-</div>
 
     <header>
         <div class="header-logo">
@@ -611,21 +543,56 @@
         <button class="btn btn-cancel" style="margin-top: 10px;" onclick="closeHelpOverlay()">Anleitung schließen</button>
     </div>
 
-    <!-- Login & Passwort-Management Overlay -->
-    <div id="login-overlay" class="fullscreen-overlay">
-        <div style="text-align: center; margin-bottom: 20px;">
-            <svg viewBox="0 0 100 100" style="width: 80px; height: 80px; border-radius: 15px; background: white; padding: 2px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
-                <text x="10" y="54" font-family="Georgia, serif" font-weight="900" font-size="42" fill="#1a1a1a">H</text>
-                <rect x="47" y="22" width="6" height="16" fill="#e74c3c" rx="1"/>
-                <rect x="47" y="42" width="6" height="16" fill="#2980b9" rx="1"/>
-                <text x="56" y="54" font-family="Georgia, serif" font-weight="900" font-size="42" fill="#1a1a1a">N</text>
-                <path d="M22 66 L78 66 M18 75 L82 75 M28 66 L28 86 M72 66 L72 86" stroke="#2c3e50" stroke-width="4.5" stroke-linecap="round"/>
-            </svg>
-            <h2 id="login-overlay-title" style="color: #2c3e50; margin-top: 10px;">SitzFinder</h2>
-        </div>
+   <!-- Login & Passwort-Management Overlay -->
+<div id="login-overlay" class="fullscreen-overlay">
+    <div style="text-align: center; margin-bottom: 20px;">
+        <!-- Neues Logo aus Supabase Storage -->
+        <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/app-icon.png" 
+             alt="SitzFinder Logo" 
+             style="width: 80px; height: 80px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); object-fit: cover;">
+        <h2 id="login-overlay-title" style="color: #2c3e50; margin-top: 10px;">SitzFinder Login</h2>
+    </div>
+    
+    <!-- 1. Konto / Abteilung Auswahl -->
+    <label for="login-role">Konto / Abteilung auswählen:</label>
+    <select id="login-role" onchange="handleRoleChange(this.value)">
+        <option value="Team Stadt Heilbronn" selected>Team Stadt Heilbronn</option>
+        <option value="Admin">Admin</option>
+        <option value="Zimmerer">Zimmerer</option>
+        <option value="Stadt Reinigung">Stadt Reinigung</option>
+        <option value="Spielplatzkontrolle">Spielplatzkontrolle</option>
+        <option value="Gala Bau">Gala Bau</option>
+        <option value="Grünpflege">Grünpflege</option>
+    </select>
+    
+    <!-- Info-Text für Wartungsteams (direkt unter der Auswahl) -->
+    <div id="login-maintenance-hint" style="margin: 8px 0 15px 0; font-size: 0.85rem; color: #666; text-align: center; line-height: 1.4;">
+        Du gehörst zum Team Wartung?<br>Wähle deine Abteilung um dich einzuloggen.
+    </div>
+
+    <!-- 2. PIN / Passwort Input -->
+    <label id="login-password-label" style="display: none;">Passwort:</label>
+    <input type="password" id="login-password" class="pin-input-heilbronn" placeholder="••••" maxlength="4">
+    
+    <!-- Dynamischer grüner Hinweis (direkt unter dem Eingabefeld) -->
+    <p id="login-instruction-text" style="font-size: 0.9rem; font-weight: 600; color: #2e7d32; text-align: center; margin: 5px 0 15px 0;">
+        Pin eingeben um Bänke zu melden.
+    </p>
+    
+    <!-- Buttons -->
+    <button id="login-execute-btn" class="btn btn-save" style="margin-top: 10px;" onclick="executeLogin()">Login</button>
+    <button id="login-logout-btn" class="btn btn-delete" style="margin-top: 10px; display: none;" onclick="executeLogout()">Abmelden</button>
+
+    <div id="admin-password-change-toggle-container" style="text-align: center; display: none; margin-top: 15px;">
+        <span class="password-change-toggle" onclick="togglePasswordChangeBox()">Passwort für einen Trupp ändern?</span>
+    </div>
+
+    <div id="password-change-box" class="password-change-box">
+        <h4 style="margin: 0 0 10px 0; color: #2c3e50;">Passwort neu vergeben</h4>
+        <p style="font-size: 12px; color: #7f8c8d; margin: 0 0 10px 0;">Wähle die Zielgruppe und gib das aktuell gültige Passwort des Trupps ein, um ein neues zu vergeben.</p>
         
-        <label>Benutzerrolle auswählen:</label>
-        <select id="login-role">
+        <label>Zielgruppe für Passwortänderung:</label>
+        <select id="change-password-target-role" style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #bdc3c7;">
             <option value="Admin">Admin</option>
             <option value="Zimmerer">Zimmerer</option>
             <option value="Stadt Reinigung">Stadt Reinigung</option>
@@ -633,45 +600,21 @@
             <option value="Gala Bau">Gala Bau</option>
             <option value="Grünpflege">Grünpflege</option>
         </select>
+
+        <label style="margin-top: 5px;">Aktuelles Passwort des Trupps:</label>
+        <input type="password" id="change-old-password" placeholder="Altes Passwort...">
         
-        <label id="login-password-label">Passwort:</label>
-        <input type="password" id="login-password" placeholder="Passwort eingeben...">
+        <label style="margin-top: 10px;">Neues Passwort:</label>
+        <input type="password" id="change-new-password" placeholder="Neues Passwort...">
+
+        <label style="margin-top: 10px;">Neues Passwort wiederholen:</label>
+        <input type="password" id="change-new-password-confirm" placeholder="Neues Passwort wiederholen...">
         
-        <button id="login-execute-btn" class="btn btn-save" style="margin-top: 20px;" onclick="executeLogin()">Login</button>
-        <button id="login-logout-btn" class="btn btn-delete" style="margin-top: 10px; display: none;" onclick="executeLogout()">Abmelden</button>
-        
-        <div id="admin-password-change-toggle-container" style="text-align: center; display: none;">
-            <span class="password-change-toggle" onclick="togglePasswordChangeBox()">Passwort für einen Trupp ändern?</span>
-        </div>
-
-        <div id="password-change-box" class="password-change-box">
-            <h4 style="margin: 0 0 10px 0; color: #2c3e50;">Passwort neu vergeben</h4>
-            <p style="font-size: 12px; color: #7f8c8d; margin: 0 0 10px 0;">Wähle die Zielgruppe und gib das aktuell gültige Passwort des Trupps ein, um ein neues zu vergeben.</p>
-            
-            <label>Zielgruppe für Passwortänderung:</label>
-            <select id="change-password-target-role" style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #bdc3c7;">
-                <option value="Admin">Admin</option>
-                <option value="Zimmerer">Zimmerer</option>
-                <option value="Stadt Reinigung">Stadt Reinigung</option>
-                <option value="Spielplatzkontrolle">Spielplatzkontrolle</option>
-                <option value="Gala Bau">Gala Bau</option>
-                <option value="Grünpflege">Grünpflege</option>
-            </select>
-
-            <label style="margin-top: 5px;">Aktuelles Passwort des Trupps:</label>
-            <input type="password" id="change-old-password" placeholder="Altes Passwort...">
-            
-            <label style="margin-top: 10px;">Neues Passwort:</label>
-            <input type="password" id="change-new-password" placeholder="Neues Passwort...">
-
-            <label style="margin-top: 10px;">Neues Passwort wiederholen:</label>
-            <input type="password" id="change-new-password-confirm" placeholder="Neues Passwort wiederholen...">
-            
-            <button class="btn" style="margin-top: 15px; background: #34495e; font-size: 14px; padding: 10px;" onclick="executePasswordChange()">Passwort aktualisieren</button>
-        </div>
-
-        <button class="btn btn-cancel" style="margin-top: 15px;" onclick="closeLoginOverlay()">Abbrechen</button>
+        <button class="btn" style="margin-top: 15px; background: #34495e; font-size: 14px; padding: 10px;" onclick="executePasswordChange()">Passwort aktualisieren</button>
     </div>
+
+    <button class="btn btn-cancel" style="margin-top: 15px;" onclick="closeLoginOverlay()">Abbrechen</button>
+</div>
 
     <!-- Schadensmeldung Absenden Overlay (Für Gast & Trupps) -->
 <div id="damage-reports-overlay" class="fullscreen-overlay">
@@ -909,7 +852,7 @@
         let isTakingPhoto = false; 
         let pendingShareId = null;
 
-        let currentRole = "Gast";
+        let currentRole = localStorage.getItem('hn_bench_user_role') || null;
         let activeGuestFile = null;
         let selectedDamageBenchId = null;
         let selectedDamageCoords = null; 
@@ -921,67 +864,6 @@
         
         let pendingWorkerAction = null;
         let selectedDamageCategory = ""; // Temporärer Speicher für die Schadens-Checkbox
-
-        // Prüfen, ob der User in dieser Sitzung bereits eingeloggt ist
-document.addEventListener('DOMContentLoaded', () => {
-  if (sessionStorage.getItem('isLoggedIn') === 'true') {
-    document.getElementById('pin-overlay').style.display = 'none';
-  }
-});
-
-// Event-Listener für 'Enter'-Taste im Input-Feld
-document.getElementById('pin-input')?.addEventListener('keyup', (event) => {
-  if (event.key === 'Enter') {
-    checkPin();
-  }
-});
-
-async function checkPin() {
-  const pinInput = document.getElementById('pin-input').value;
-  const errorElement = document.getElementById('pin-error');
-  
-  if (pinInput.length !== 4) {
-    errorElement.innerText = "Bitte genau 4 Zahlen eingeben.";
-    return;
-  }
-
-  errorElement.innerText = "Prüfe...";
-
-  try {
-    // Abfrage angepasst an deine Supabase-Tabelle (app_users, role, password)
-    const { data, error } = await supabaseClient
-      .from('app_users')
-      .select('password')
-      .eq('role', 'Gast')
-      .maybeSingle();
-
-    if (error) {
-      console.error("Supabase Error:", error);
-      errorElement.innerText = "Fehler bei der Verbindung.";
-      return;
-    }
-
-    if (!data) {
-      errorElement.innerText = "User 'Gast' nicht gefunden (RLS prüfen).";
-      return;
-    }
-
-    // Passenden Eintrag aus der Spalte 'password' vergleichen
-    if (String(data.password) === String(pinInput)) {
-      // Login erfolgreich
-      sessionStorage.setItem('isLoggedIn', 'true');
-      document.getElementById('pin-overlay').style.display = 'none';
-      errorElement.innerText = "";
-    } else {
-      // Falscher PIN
-      errorElement.innerText = "Falscher PIN!";
-      document.getElementById('pin-input').value = "";
-    }
-  } catch (err) {
-    console.error(err);
-    errorElement.innerText = "Unerwarteter Fehler.";
-  }
-}
         
         window.openHelpOverlay = function() {
             if(document.getElementById('sidebar').classList.contains('open')) {
@@ -1130,127 +1012,227 @@ async function checkPin() {
             }
         }
 
-        window.openLoginOverlay = function() {
-            document.getElementById('login-password').value = "";
-            document.getElementById('password-change-box').style.display = "none";
-            
-            const overlayTitle = document.getElementById('login-overlay-title');
-            const roleSelect = document.getElementById('login-role');
-            const passwordLabel = document.getElementById('login-password-label');
-            const passwordInput = document.getElementById('login-password');
-            const executeBtn = document.getElementById('login-execute-btn');
-            const logoutBtn = document.getElementById('login-logout-btn');
-            const changeToggleContainer = document.getElementById('admin-password-change-toggle-container');
+       window.openLoginOverlay = function() {
+    document.getElementById('login-password').value = "";
+    document.getElementById('password-change-box').style.display = "none";
+    
+    const overlayTitle = document.getElementById('login-overlay-title');
+    const roleSelect = document.getElementById('login-role');
+    const passwordLabel = document.getElementById('login-password-label');
+    const passwordInput = document.getElementById('login-password');
+    const executeBtn = document.getElementById('login-execute-btn');
+    const logoutBtn = document.getElementById('login-logout-btn');
+    const changeToggleContainer = document.getElementById('admin-password-change-toggle-container');
+    const cancelBtn = document.getElementById('login-cancel-btn') || document.querySelector('#login-overlay button[onclick*="closeLoginOverlay"]');
 
-            if (currentRole !== "Gast") {
-                overlayTitle.innerText = "Eingeloggt als " + currentRole;
-                roleSelect.value = currentRole;
-                roleSelect.disabled = true;
-                passwordLabel.style.display = "none";
-                passwordInput.style.display = "none";
-                executeBtn.style.display = "none";
-                logoutBtn.style.display = "block";
-                changeToggleContainer.style.display = (currentRole === 'Admin') ? 'block' : 'none';
-            } else {
-                overlayTitle.innerText = "SitzFinder";
-                roleSelect.disabled = false;
-                passwordLabel.style.display = "block";
-                passwordInput.style.display = "block";
-                executeBtn.style.display = "block";
-                logoutBtn.style.display = "none";
-                changeToggleContainer.style.display = "none";
+    // Prüfen, ob eine ECHTE Rolle eingeloggt ist (nicht null, nicht Gast)
+    if (currentRole && currentRole !== "Gast" && currentRole !== "null") {
+        // EINGELOGGT: Abmelden-Button anzeigen, Felder deaktivieren
+        overlayTitle.innerText = "Eingeloggt als " + currentRole;
+        roleSelect.value = currentRole;
+        roleSelect.disabled = true;
+        if(passwordLabel) passwordLabel.style.display = "none";
+        passwordInput.style.display = "none";
+        executeBtn.style.display = "none";
+        logoutBtn.style.display = "block";
+        changeToggleContainer.style.display = (currentRole === 'Admin') ? 'block' : 'none';
+        
+        // Abbrechen-Button anzeigen, wenn man bereits eingeloggt ist
+        if(cancelBtn) cancelBtn.style.display = "block";
+    } else {
+        // NICHT EINGELOGGT: Login-Formular anzeigen, Abbrechen/Schließen VERSTECKEN!
+        overlayTitle.innerText = "SitzFinder Login";
+        roleSelect.disabled = false;
+        passwordInput.style.display = "block";
+        executeBtn.style.display = "block";
+        logoutBtn.style.display = "none";
+        changeToggleContainer.style.display = "none";
+        
+        // Abbrechen-Button komplett verstecken, damit man das Overlay nicht wegklicken kann!
+        if(cancelBtn) cancelBtn.style.display = "none";
+
+        // Formular-Felder passend zur ersten Rolle im Dropdown initialisieren
+        handleRoleChange(roleSelect.value);
+    }
+    
+    document.getElementById('login-overlay').style.display = "block";
+};
+
+window.closeLoginOverlay = function() {
+    const overlay = document.getElementById('login-overlay');
+    if (overlay) {
+        overlay.style.display = "none";
+    }
+};
+
+
+window.handleRoleChange = function(selectedRole) {
+    const passwordLabel = document.getElementById('login-password-label');
+    const passwordInput = document.getElementById('login-password');
+    const greenHint = document.getElementById('login-instruction-text');
+    const maintenanceHint = document.getElementById('login-maintenance-hint');
+    
+    if (!passwordInput) return;
+
+    if (selectedRole === 'Team Stadt Heilbronn') {
+        // Spezial-Look: 4-stellige PIN
+        passwordInput.classList.add('pin-input-heilbronn');
+        passwordInput.placeholder = '••••';
+        passwordInput.maxLength = 4;
+        
+        if (passwordLabel) passwordLabel.style.display = "none";
+        if (greenHint) greenHint.style.display = "block";
+        
+        // Hinweis für Bürger / Standard-User
+        if (maintenanceHint) {
+            maintenanceHint.innerHTML = 'Du gehörst zum Team Wartung?<br>Wähle deine Abteilung um dich einzuloggen.';
+            maintenanceHint.style.display = "block";
+        }
+
+    } else {
+        // Passwort-Look für Admin UND alle Wartungstrupps
+        passwordInput.classList.remove('pin-input-heilbronn');
+        passwordInput.placeholder = 'Passwort eingeben...';
+        passwordInput.removeAttribute('maxlength');
+        
+        if (passwordLabel) {
+            passwordLabel.innerText = 'Passwort:';
+            passwordLabel.style.display = "block";
+        }
+        if (greenHint) greenHint.style.display = "none";
+        
+        // Hinweis für Admin und alle Wartungsabteilungen
+        if (maintenanceHint) {
+            maintenanceHint.innerHTML = 'Du gehörst nicht zur Wartung?<br>Benutze den Account <strong>Team Stadt Heilbronn</strong>.';
+            maintenanceHint.style.display = "block";
+        }
+    }
+};
+
+window.executeLogout = function() {
+    // 1. Rolle & Sitzung im Speicher komplett löschen
+    currentRole = null;
+    localStorage.removeItem('hn_bench_user_role');
+    sessionStorage.clear();
+    
+    // 2. Seite neu laden, damit der ungeloggte Zustand sofort die Login-Maske erzwingt
+    location.reload();
+};
+
+window.ginOverlay = function() {
+    document.getElementById('login-overlay').style.display = "none";
+};
+
+window.executeLogin = async function() {
+    const role = document.getElementById('login-role').value;
+    const password = document.getElementById('login-password').value.trim();
+    const roleEl = document.getElementById('display-role');
+    const infoWidget = document.getElementById('map-info-movable-widget');
+
+    if(!password) {
+        alert(role === 'Admin' ? "Bitte Passwort eingeben!" : "Bitte PIN eingeben!");
+        return;
+    }
+
+    if(!supabaseClient) { alert("Supabase ist nicht verbunden!"); return; }
+
+    // 1. Abfrage in Supabase gegen die ausgewählte Rolle und PIN/Passwort
+    const { data, error } = await supabaseClient
+        .from('app_users')
+        .select('*')
+        .eq('role', role)
+        .eq('password', password)
+        .maybeSingle();
+
+    if(error || !data) {
+        alert(role === 'Admin' ? "Falsches Passwort für die Admin-Rolle!" : `Falsche PIN für den Trupp "${role}"!`);
+    } else {
+        // Option 1: Wenn "Team Stadt Heilbronn" eingeloggt wird, intern als 'Gast' behandeln
+        const effectiveRole = (role === 'Team Stadt Heilbronn') ? 'Gast' : role;
+
+        currentRole = effectiveRole;
+        localStorage.setItem('hn_bench_user_role', effectiveRole); 
+        sessionStorage.removeItem('hn_cached_worker_name');
+        sessionStorage.removeItem('hn_cached_worker_role');
+        
+        if(roleEl) {
+            // Im UI zeigen wir "Team Stadt Heilbronn" an (falls gewünscht), oder die effektive Rolle
+            roleEl.innerText = role; 
+            roleEl.className = "role-badge role-user";
+        }
+        if(infoWidget) infoWidget.style.display = "none";
+        
+        closeLoginOverlay();
+        if(typeof applyRolePermissions === 'function') applyRolePermissions();
+        if(typeof updateApp === 'function') updateApp();
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Prüfen, ob bereits eine valide Rolle im localStorage gespeichert ist
+    const savedRole = localStorage.getItem('hn_bench_user_role');
+    
+    if (savedRole && savedRole !== 'Gast') {
+        currentRole = savedRole;
+        if (typeof applyRolePermissions === 'function') applyRolePermissions();
+    } else {
+        // Noch nicht eingeloggt -> Sofort Login-Overlay anzeigen & sperren
+        currentRole = null;
+        if (typeof openLoginOverlay === 'function') {
+            openLoginOverlay();
+        }
+    }
+
+    // Enter-Taste im PIN-/Passwortfeld abfangen zum Einloggen
+    const passwordInput = document.getElementById('login-password');
+    if (passwordInput) {
+        passwordInput.addEventListener('keyup', (event) => {
+            if (event.key === 'Enter') {
+                executeLogin();
             }
-            
-            document.getElementById('login-overlay').style.display = "block";
-        };
+        });
+    }
+});
 
-        window.executeLogout = function() {
-            const roleEl = document.getElementById('display-role');
-            const infoWidget = document.getElementById('map-info-movable-widget');
-            
-            currentRole = "Gast";
-            localStorage.setItem('hn_bench_user_role', "Gast"); 
-            sessionStorage.removeItem('hn_cached_worker_name');
-            sessionStorage.removeItem('hn_cached_worker_role');
-            
-            roleEl.innerText = "Login";
-            roleEl.className = "role-badge role-gast";
-            if(infoWidget) infoWidget.style.display = "block";
-            
-            closeLoginOverlay();
-            applyRolePermissions();
-            updateApp();
-        };
+window.executePasswordChange = async function() {
+    if (currentRole !== 'Admin') {
+        alert("Nur Administratoren haben die Berechtigung, Gruppenpasswörter oder PINs zu ändern.");
+        return;
+    }
 
-        window.closeLoginOverlay = function() {
-            document.getElementById('login-overlay').style.display = "none";
-        };
+    const targetRole = document.getElementById('change-password-target-role').value;
+    const oldPassword = document.getElementById('change-old-password').value;
+    const newPassword = document.getElementById('change-new-password').value.trim();
+    const confirmPassword = document.getElementById('change-new-password-confirm').value.trim();
 
-        window.executeLogin = async function() {
-            const role = document.getElementById('login-role').value;
-            const password = document.getElementById('login-password').value;
-            const roleEl = document.getElementById('display-role');
-            const infoWidget = document.getElementById('map-info-movable-widget');
+    if (!oldPassword || !newPassword || !confirmPassword) {
+        alert("Bitte fülle alle Passwort- bzw. PIN-Felder aus.");
+        return;
+    }
 
-            if(!supabaseClient) { alert("Supabase ist nicht verbunden!"); return; }
+    if (newPassword !== confirmPassword) {
+        alert("Die Eingaben stimmen nicht überein.");
+        return;
+    }
 
-            const { data, error } = await supabaseClient.from('app_users').select('*').eq('role', role).eq('password', password).single();
+    if (!supabaseClient) { alert("Supabase ist nicht verbunden!"); return; }
 
-            if(error || !data) {
-                alert("Falsches Passwort für die ausgewählte Rolle!");
-            } else {
-                currentRole = role;
-                localStorage.setItem('hn_bench_user_role', role); 
-                sessionStorage.removeItem('hn_cached_worker_name');
-                sessionStorage.removeItem('hn_cached_worker_role');
-                roleEl.innerText = role;
-                roleEl.className = "role-badge role-user";
-                if(infoWidget) infoWidget.style.display = "none";
-                closeLoginOverlay();
-                applyRolePermissions();
-                updateApp();
-            }
-        };
+    const { data, error } = await supabaseClient.from('app_users').select('*').eq('role', targetRole).eq('password', oldPassword).maybeSingle();
 
-        window.executePasswordChange = async function() {
-            if (currentRole !== 'Admin') {
-                alert("Nur Administratoren haben die Berechtigung, Gruppenpasswörter zu ändern.");
-                return;
-            }
+    if (error || !data) {
+        alert("Das aktuelle Passwort bzw. die PIN der Zielgruppe ist nicht korrekt.");
+        return;
+    }
 
-            const targetRole = document.getElementById('change-password-target-role').value;
-            const oldPassword = document.getElementById('change-old-password').value;
-            const newPassword = document.getElementById('change-new-password').value.trim();
-            const confirmPassword = document.getElementById('change-new-password-confirm').value.trim();
+    const { error: updateError } = await supabaseClient.from('app_users').update({ password: newPassword }).eq('role', targetRole);
 
-            if (!oldPassword || !newPassword || !confirmPassword) {
-                alert("Bitte fülle alle Passwortfelder aus.");
-                return;
-            }
-
-            if (newPassword !== confirmPassword) {
-                alert("Die Passwörter stimmen nicht überein.");
-                return;
-            }
-
-            if (!supabaseClient) { alert("Supabase ist nicht verbunden!"); return; }
-
-            const { data, error } = await supabaseClient.from('app_users').select('*').eq('role', targetRole).eq('password', oldPassword).single();
-
-            if (error || !data) {
-                alert("Das aktuelle Passwort der Zielgruppe ist nicht korrekt.");
-                return;
-            }
-
-            const { error: updateError } = await supabaseClient.from('app_users').update({ password: newPassword }).eq('role', targetRole);
-
-            if (updateError) {
-                alert("Fehler beim Aktualisieren: " + updateError.message);
-            } else {
-                alert(`Das Passwort für den Trupp "${targetRole}" wurde erfolgreich geändert!`);
-                document.getElementById('password-change-box').style.display = "none";
-            }
-        };
+    if (updateError) {
+        alert("Fehler beim Aktualisieren: " + updateError.message);
+    } else {
+        alert(`Die PIN / Das Passwort für "${targetRole}" wurde erfolgreich geändert!`);
+        document.getElementById('password-change-box').style.display = "none";
+    }
+};
 
         async function updateBadgeCounters() {
     if(!supabaseClient) return;
@@ -3539,31 +3521,23 @@ function getMarkerStyle(status, approved, assemblyNote) {
             totalLiveVisible++;
 
             if (markersLayer && typeof L !== 'undefined') {
-                // Style des Markers abrufen (mit Fallback für Montage-Hinweise)
-                // Styles abrufen (gibt jetzt baseStyle und irisStyle zurück)
-// 1. Styles abrufen (Destructuring!)
-const { baseStyle, irisStyle } = getMarkerStyle(status, bench.approved, bench.assembly_note);
+                const { baseStyle, irisStyle } = getMarkerStyle(status, bench.approved, bench.assembly_note);
 
-// --- GESTRICHELTER SCHWARZER RAND BEI PENDING EDITS ---
-const hasPendingEdit = window.pendingBenches && window.pendingBenches.some(p => Number(p.bench_id) === Number(bench.id));
-if (hasPendingEdit && currentRole !== 'Gast') {
-    baseStyle.color = '#000000';
-    baseStyle.weight = 3;
-    baseStyle.dashArray = '4, 4';
-}
+                // --- GESTRICHELTER SCHWARZER RAND BEI PENDING EDITS ---
+                const hasPendingEdit = window.pendingBenches && window.pendingBenches.some(p => Number(p.bench_id) === Number(bench.id));
+                if (hasPendingEdit && currentRole !== 'Gast') {
+                    baseStyle.color = '#000000';
+                    baseStyle.weight = 3;
+                    baseStyle.dashArray = '4, 4';
+                }
 
-// 2. Haupt-Marker (Farbe der Bank) erstellen
-const mainMarker = L.circleMarker([bench.lat, bench.lng], baseStyle);
+                const mainMarker = L.circleMarker([bench.lat, bench.lng], baseStyle);
+                let finalLayer = mainMarker;
 
-let finalLayer = mainMarker;
-
-// 3. Wenn Montagehinweis existiert -> Inneren weißen Punkt drüberlegen
-if (irisStyle) {
-    const irisMarker = L.circleMarker([bench.lat, bench.lng], irisStyle);
-    
-    // Gruppe aus Hauptmarker und weißem Punkt erstellen
-    finalLayer = L.featureGroup([mainMarker, irisMarker]);
-}
+                if (irisStyle) {
+                    const irisMarker = L.circleMarker([bench.lat, bench.lng], irisStyle);
+                    finalLayer = L.featureGroup([mainMarker, irisMarker]);
+                }
 
                 let idHtml = '';
                 let descHtml = '';
@@ -3574,88 +3548,84 @@ if (irisStyle) {
                 let timeHtml = '';
                 let workerHtml = '';
 
-                
+                // Intervall nur für Nutzer anzeigen, die NICHT Gast sind
+                if (currentRole !== 'Gast' && bench.manual_status === 'Automatisch' && bench.last_maintenance) {
+                    const maintDate = new Date(bench.last_maintenance);
+                    const nextIntervalDate = new Date(maintDate.getFullYear() + 3, maintDate.getMonth(), maintDate.getDate());
+                    const today = new Date();
+                    const diffTime = nextIntervalDate - today;
+                    const diffDaysTotal = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    
+                    if (diffDaysTotal > 0) {
+                        const years = Math.floor(diffDaysTotal / 365);
+                        const days = diffDaysTotal % 365;
+                        let timeString = "";
+                        if (years > 0) {
+                            timeString += `${years} ${years === 1 ? 'Jahr' : 'Jahre'} und `;
+                        }
+                        timeString += `${days} ${days === 1 ? 'Tag' : 'Tage'}`;
+                        timeHtml = `<br/>⏳ <b>Intervall-Restzeit:</b> ${timeString} verbleibend`;
+                    } else {
+                        const absDaysTotal = Math.abs(diffDaysTotal);
+                        const years = Math.floor(absDaysTotal / 365);
+                        const days = absDaysTotal % 365;
+                        let timeString = "";
+                        if (years > 0) {
+                            timeString += `${years} ${years === 1 ? 'Jahr' : 'Jahre'} und `;
+                        }
+                        timeString += `${days} ${days === 1 ? 'Tag' : 'Tage'}`;
+                        timeHtml = `<br/>⏳ <b>Intervall-Restzeit:</b> <span style="color:#c0392b; font-weight:bold;">Seit ${timeString} überfällig</span>`;
+                    }
+                }
 
-if (bench.manual_status === 'Automatisch' && bench.last_maintenance) {
-    const maintDate = new Date(bench.last_maintenance);
-    const nextIntervalDate = new Date(maintDate.getFullYear() + 3, maintDate.getMonth(), maintDate.getDate());
-    const today = new Date();
-    const diffTime = nextIntervalDate - today;
-    const diffDaysTotal = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDaysTotal > 0) {
-        const years = Math.floor(diffDaysTotal / 365);
-        const days = diffDaysTotal % 365;
-        let timeString = "";
-        if (years > 0) {
-            timeString += `${years} ${years === 1 ? 'Jahr' : 'Jahre'} und `;
-        }
-        timeString += `${days} ${days === 1 ? 'Tag' : 'Tage'}`;
-        timeHtml = `<br/>⏳ <b>Intervall-Restzeit:</b> ${timeString} verbleibend`;
-    } else {
-        const absDaysTotal = Math.abs(diffDaysTotal);
-        const years = Math.floor(absDaysTotal / 365);
-        const days = absDaysTotal % 365;
-        let timeString = "";
-        if (years > 0) {
-            timeString += `${years} ${years === 1 ? 'Jahr' : 'Jahre'} und `;
-        }
-        timeString += `${days} ${days === 1 ? 'Tag' : 'Tage'}`;
-        timeHtml = `<br/>⏳ <b>Intervall-Restzeit:</b> <span style="color:#c0392b; font-weight:bold;">Seit ${timeString} überfällig</span>`;
-    }
-}
+                if (currentRole !== 'Gast') {
+                    idHtml = bench.id ? `<br/>🏷️ <b>Bank-ID:</b> #${bench.id}` : '';
+                    descHtml = bench.description ? `<br/>ℹ <b>Beschreibung:</b> ${bench.description}` : '';
+                    
+                    const assemblyText = bench.assembly_note;
+                    assemblyHtml = assemblyText ? `<br/>🔧 <b>Montage-Hinweis:</b> <span style="color:#e67e22; font-weight:bold;">${assemblyText}</span>` : '';
 
-if (currentRole !== 'Gast') {
-    // 🏷️ Bank-ID an oberster Stelle (ohne const)
-    idHtml = bench.id ? `<br/>🏷️ <b>Bank-ID:</b> #${bench.id}` : '';
+                    const activeReport = (typeof rep !== 'undefined' && rep) 
+                        ? rep 
+                        : (bench.report || (typeof reports !== 'undefined' ? reports.find(r => r.bench_id === bench.id || r.bench_id === bench.bench_id) : null));
 
-    descHtml = bench.description ? `<br/>ℹ <b>Beschreibung:</b> ${bench.description}` : '';
-    
-    // 🔧 Montage-Hinweis (Prüft assembly_note)
-    const assemblyText = bench.assembly_note;
-    assemblyHtml = assemblyText ? `<br/>🔧 <b>Montage-Hinweis:</b> <span style="color:#e67e22; font-weight:bold;">${assemblyText}</span>` : '';
+                    const rawDmg = activeReport?.description || bench.damage_description || (hatSchadensmeldung ? 'Schaden gemeldet' : '');
 
-    // ⚠️ Schadensmeldung dynamisch auslesen & intelligent kürzen
-    const activeReport = (typeof rep !== 'undefined' && rep) 
-        ? rep 
-        : (bench.report || (typeof reports !== 'undefined' ? reports.find(r => r.bench_id === bench.id || r.bench_id === bench.bench_id) : null));
+                    if (hatSchadensmeldung && rawDmg) {
+                        let cleanDmg = rawDmg.trim();
+                        cleanDmg = cleanDmg.replace(/^\[.*?\]\s*/, '');
+                        cleanDmg = cleanDmg.replace(/^(Bank beschädigt|Müllproblem \/ Vogelkot|Bank zugewachsen|Bank Irreparabel):\s*/i, '');
+                        if (!cleanDmg) { cleanDmg = rawDmg; }
 
-    const rawDmg = activeReport?.description || bench.damage_description || (hatSchadensmeldung ? 'Schaden gemeldet' : '');
-
-    if (hatSchadensmeldung && rawDmg) {
-        let cleanDmg = rawDmg.trim();
-
-        // 1. Entferne eckige Klammern am Anfang z.B. "[Bank beschädigt] bretter gebrochen" -> "bretter gebrochen"
-        cleanDmg = cleanDmg.replace(/^\[.*?\]\s*/, '');
-
-        // 2. Falls "Bank beschädigt: bretter gebrochen" vorliegt -> schneide "Bank beschädigt: " ab
-        // Ist NUR "Bank beschädigt" eingetragen, greift dieser Regex nicht und der Text bleibt erhalten!
-        cleanDmg = cleanDmg.replace(/^(Bank beschädigt|Müllproblem \/ Vogelkot|Bank zugewachsen|Bank Irreparabel):\s*/i, '');
-
-        // 3. Sicherheits-Fallback: Falls nach dem Löschen ein leerer String bliebe
-        if (!cleanDmg) { cleanDmg = rawDmg; }
-
-        dmgHtml = `<br/>⚠️ <b>Schaden:</b> <span style="color:#c0392b; font-weight:bold;">${cleanDmg}</span>`;
-    } else {
-        dmgHtml = '';
-    }
-    
-    dimHtml = bench.dimensions ? `<br/>📐 <b>Maße:</b> ${bench.dimensions}` : '';
-    noteHtml = bench.note ? `<br/>📝 <b>Notiz:</b> ${bench.note}` : '';
-    workerHtml = bench.worker_name ? `<br/>👷 <b>Bearbeiter:</b> ${bench.worker_name}` : '';
-} else {
-    if (hatSchadensmeldung) {
-        dmgHtml = `<br/>⚠️ <b>Status:</b> <span style="color:#c0392b; font-weight:bold;">Schaden bereits erfasst</span>`;
-    }
-}
+                        dmgHtml = `<br/>⚠️ <b>Schaden:</b> <span style="color:#c0392b; font-weight:bold;">${cleanDmg}</span>`;
+                    } else {
+                        dmgHtml = '';
+                    }
+                    
+                    dimHtml = bench.dimensions ? `<br/>📐 <b>Maße:</b> ${bench.dimensions}` : '';
+                    noteHtml = bench.note ? `<br/>📝 <b>Notiz:</b> ${bench.note}` : '';
+                    workerHtml = bench.worker_name ? `<br/>👷 <b>Bearbeiter:</b> ${bench.worker_name}` : '';
+                } else {
+                    if (hatSchadensmeldung) {
+                        dmgHtml = `<br/>⚠️ <b>Status:</b> <span style="color:#c0392b; font-weight:bold;">Schaden bereits erfasst</span>`;
+                    }
+                }
 
                 let ActionButtons = '';
                 if (currentRole === 'Gast') {
+                    let reportButtonHtml = '';
                     if (status === 'Beschädigt' || hatSchadensmeldung) {
-                        ActionButtons = `<div style="color:#8B0000; font-weight:bold; text-align:center; padding:8px; background:rgba(139,0,0,0.1); border:1px solid #8B0000; border-radius:4px; font-size:12px;">⚠️ Schaden bereits gemeldet</div>`;
+                        reportButtonHtml = `<div style="flex:1; color:#8B0000; font-weight:bold; text-align:center; padding:6px; background:rgba(139,0,0,0.1); border:1px solid #8B0000; border-radius:4px; font-size:12px;">⚠️ Schaden bereits gemeldet</div>`;
                     } else {
-                        ActionButtons = `<button onclick="window.openDamageReportsOverlay(${bench.id})" class="btn" style="padding:6px; font-size:12px; background:#e74c3c;">⚠️ Schaden melden</button>`;
+                        reportButtonHtml = `<button onclick="window.openDamageReportsOverlay(${bench.id})" class="btn" style="flex:1; padding:6px; font-size:12px; background:#e74c3c;">⚠️ Schaden melden</button>`;
                     }
+
+                    ActionButtons = `
+                        <div style="display: flex; gap: 4px; width: 100%;">
+                            ${reportButtonHtml}
+                            <button onclick="window.shareBench(${bench.id})" class="btn" style="padding:6px; font-size:12px; background:#9b59b6; width:70px;">🔗 Teilen</button>
+                        </div>
+                    `;
                 } else {
                     if (currentRole === 'Admin') {
                         ActionButtons += `<button onclick="window.quickMaintenance(${bench.id})" class="btn" style="padding:6px; font-size:12px; background: #27ae60; font-weight: bold; margin-bottom:5px;">🟢 Wartung heute</button>`;
@@ -3826,6 +3796,22 @@ if (currentRole !== 'Gast') {
             widgetDetails.innerHTML = '<li style="list-style:none; margin-left:-15px; color:#7f8c8d; font-style:italic;">Alles wird angezeigt</li>';
         }
     }
+
+    const urlParams = new URLSearchParams(window.location.search);
+const sharedBenchId = urlParams.get('bench');
+
+if (sharedBenchId && window.markerDict && window.markerDict[sharedBenchId]) {
+    const targetMarker = window.markerDict[sharedBenchId];
+    
+    // Karte auf die Bank zentrieren & heranzoomen
+    map.setView(targetMarker.getLatLng(), 18);
+    
+    // Popup automatisch öffnen
+    targetMarker.openPopup();
+
+    // Query-Parameter aus der URL entfernen, damit beim Neuladen nicht ständig hin gesprungen wird
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
 }
 
 // Hilfsfunktionen für Inline-Buttons (Popup & Formular)
