@@ -1110,12 +1110,13 @@ window.handleRoleChange = function(selectedRole) {
 };
 
 window.executeLogout = function() {
-    // 1. Rolle & Sitzung im Speicher komplett löschen
+    // 1. Rolle & Sitzung im Local- und SessionStorage komplett löschen
     currentRole = null;
     localStorage.removeItem('hn_bench_user_role');
+    localStorage.removeItem('hn_bench_display_role');
     sessionStorage.clear();
     
-    // 2. Seite neu laden, damit der ungeloggte Zustand sofort die Login-Maske erzwingt
+    // 2. Seite neu laden, damit der nicht eingeloggte Zustand sofort die Login-Maske erzwingt
     location.reload();
 };
 
