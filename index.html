@@ -1897,28 +1897,24 @@ window.openReportsOverlay = async function(mode) {
         window.showBenchOnMap = function(benchId) {
     const marker = window.markerDict[benchId];
     if (marker) {
-        // 1. Erst BEIDE Modals schließe (Übersicht + Detailansicht)
+        // 1. Modals & Sidebar schließen
         closeReportsOverlay();
         if (typeof window.closeReportDetail === 'function') {
             window.closeReportDetail();
-        } else {
-            const detailOverlay = document.getElementById('report-detail-overlay');
-            if (detailOverlay) detailOverlay.style.display = 'none';
         }
 
-        // 2. Sidebar schließen, falls offen
         const sidebar = document.getElementById('sidebar');
         if (sidebar && sidebar.classList.contains('open')) {
             toggleSidebar();
         }
 
-        // 3. Auf der Karte auf den Marker zentrieren & Popup öffnen
+        // 2. Erst Karte zentrieren...
         map.setView(marker.getLatLng(), 18);
+        
+        // 3. ...und ERST NACH dem Zentrieren (z.B. nach 300ms) das Popup öffnen!
         setTimeout(() => {
             marker.openPopup();
-        }, 400);
-    } else {
-        alert("Bank konnte auf der Karte nicht gefunden werden.");
+        }, 300);
     }
 };
 
@@ -3208,13 +3204,16 @@ window.closeReportDetail = function() {
 
     if (!benchId) return;
 
-    // Prüfen, ob die Marker auf der Karte (window.markerDict) schon geladen sind
     if (window.markerDict && window.markerDict[benchId]) {
         console.log("[SitzFinder] Deeplink-Marker gefunden, öffne Bank:", benchId);
-        window.showBenchOnMap(benchId);
+        
+        // 500ms Warten, damit updateApp() / Leaflet das Zeichnen der Karte 
+        // und aller Marker vollständig abgeschlossen hat!
+        setTimeout(() => {
+            window.showBenchOnMap(benchId);
+        }, 500);
+
     } else if (retries > 0) {
-        // Falls Supabase/Leaflet noch lädt: 10 Versuche alle 300ms
-        console.log(`[SitzFinder] Marker noch nicht bereit, warte... (${retries} Versuche übrig)`);
         setTimeout(() => checkAndOpenSharedBench(retries - 1), 300);
     } else {
         console.warn(`[SitzFinder] Marker mit ID ${benchId} konnte nicht auf der Karte gefunden werden.`);
