@@ -1184,6 +1184,8 @@ window.executeLogin = async function() {
         // App-Daten laden/aktualisieren und danach Deeplink-Bank öffnen
         if(typeof updateApp === 'function') {
             const updateResult = updateApp();
+
+        checkAndOpenSharedBench();
             
             // Falls updateApp ein Promise zurückgibt (async ist), warten wir darauf
             if (updateResult && typeof updateResult.then === 'function') {
@@ -1231,6 +1233,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Login-Overlay schließen
         if (typeof closeLoginOverlay === 'function') closeLoginOverlay();
+        
+        checkAndOpenSharedBench();
 
         // App-Daten laden & im Anschluss die geteilte Bank aus der URL öffnen
         if (typeof updateApp === 'function') {
@@ -3198,24 +3202,22 @@ window.closeReportDetail = function() {
             pendingShareId = null; 
         };
 
-        function checkAndOpenSharedBench() {
+        function checkAndOpenSharedBench(retries = 10) {
     const urlParams = new URLSearchParams(window.location.search);
-    const benchId = urlParams.get('id'); // Liest ?id=... aus der URL
+    const benchId = urlParams.get('id');
 
-    if (benchId && Array.isArray(benches) && benches.length > 0) {
-        // Sucht die Bank in deinem globale benches-Array
-        const bench = benches.find(b => String(b.id) === String(benchId));
-        if (bench) {
-            // HIER deine bestehende Funktion zum Zentrieren/Öffnen der Bank aufrufen:
-            // Häufig heißt diese bei dir selectBench, showBenchDetails oder ähnlich
-            if (typeof selectBench === 'function') {
-                selectBench(bench.id);
-            } else if (typeof showBenchDetails === 'function') {
-                showBenchDetails(bench.id);
-            } else if (typeof openBenchModal === 'function') {
-                openBenchModal(bench.id);
-            }
-        }
+    if (!benchId) return;
+
+    // Prüfen, ob die Marker auf der Karte (window.markerDict) schon geladen sind
+    if (window.markerDict && window.markerDict[benchId]) {
+        console.log("[SitzFinder] Deeplink-Marker gefunden, öffne Bank:", benchId);
+        window.showBenchOnMap(benchId);
+    } else if (retries > 0) {
+        // Falls Supabase/Leaflet noch lädt: 10 Versuche alle 300ms
+        console.log(`[SitzFinder] Marker noch nicht bereit, warte... (${retries} Versuche übrig)`);
+        setTimeout(() => checkAndOpenSharedBench(retries - 1), 300);
+    } else {
+        console.warn(`[SitzFinder] Marker mit ID ${benchId} konnte nicht auf der Karte gefunden werden.`);
     }
 }
 
