@@ -4503,39 +4503,37 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
     markersLayer = L.layerGroup().addTo(map);
 
     // Karten-Klick Event Handler für freie Flächen
-    map.on('click', function(e) {
-        // Ignorieren, wenn auf einen Marker, ein Feature oder ein offenes Popup geklickt wurde
-        if (e.originalEvent && (e.originalEvent._stopped || e.originalEvent.target.closest('.leaflet-popup-pane'))) {
-            return;
-        }
+map.on('click', function(e) {
+    // 1. Ignorieren, wenn direkt auf das bestehende Popup oder dessen Inhalte geklickt wurde
+    if (e.originalEvent && (e.originalEvent._stopped || e.originalEvent.target.closest('.leaflet-popup-pane'))) {
+        return;
+    }
 
-        // Falls bereits ein Marker-Popup offen ist, kein freies Klick-Popup drüberlegen
-        if (map._popup && map._popup._source) {
-            return;
-        }
+    // 2. Falls noch ein altes Bank-Popup offen war: Erst einklappen, damit der Klick verarbeitet werden kann
+    map.closePopup();
 
-        const lat = e.latlng.lat;
-        const lng = e.latlng.lng;
+    const lat = e.latlng.lat;
+    const lng = e.latlng.lng;
 
-        const allowedRolesForFreeClick = ['Gast', 'Gala Bau', 'Stadt Reinigung', 'Grünpflege'];
+    const allowedRolesForFreeClick = ['Gast', 'Gala Bau', 'Stadt Reinigung', 'Grünpflege'];
 
-        if (allowedRolesForFreeClick.includes(currentRole)) {
-            L.popup()
-                .setLatLng(e.latlng)
-                .setContent(`
-                    <div style="text-align:center; padding: 5px;">
-                        <strong style="display:block; margin-bottom:8px;">Neuer Fundort</strong>
-                        <button onclick="window.openDamageReportsOverlay(null, true, ${lat}, ${lng})" class="btn" style="padding:8px 12px; font-size:12px; background:#e74c3c;">⚠️ Schaden/Fundort melden</button>
-                    </div>
-                `)
-                .openOn(map);
-        } else if (currentRole !== 'Gast') {
-            L.popup()
-                .setLatLng(e.latlng)
-                .setContent(`<button onclick="window.triggerNewBenchCreation(${lat}, ${lng})" class="btn" style="padding:8px; font-size:12px; background-color: #27ae60;">➕ Neue Bank anlegen</button>`)
-                .openOn(map);
-        }
-    });
+    if (allowedRolesForFreeClick.includes(currentRole)) {
+        L.popup()
+            .setLatLng(e.latlng)
+            .setContent(`
+                <div style="text-align:center; padding: 5px;">
+                    <strong style="display:block; margin-bottom:8px;">Neuer Fundort</strong>
+                    <button onclick="window.openDamageReportsOverlay(null, true, ${lat}, ${lng})" class="btn" style="padding:8px 12px; font-size:12px; background:#e74c3c;">⚠️ Schaden/Fundort melden</button>
+                </div>
+            `)
+            .openOn(map);
+    } else if (currentRole !== 'Gast') {
+        L.popup()
+            .setLatLng(e.latlng)
+            .setContent(`<button onclick="window.triggerNewBenchCreation(${lat}, ${lng})" class="btn" style="padding:8px; font-size:12px; background-color: #27ae60;">➕ Neue Bank anlegen</button>`)
+            .openOn(map);
+    }
+});
 
     checkPersistentLogin();
 
