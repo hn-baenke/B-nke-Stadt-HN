@@ -828,6 +828,13 @@
             debugDiv.innerText = `FEHLER: ${message} (Zeile: ${lineno})`;
             document.body.appendChild(debugDiv);
         };
+
+        // 💡 DEEP-LINK IN SESSIONSTORAGE MERKEN
+        const initialUrlParams = new URLSearchParams(window.location.search);
+        const initialSharedId = initialUrlParams.get('id');
+        if (initialSharedId) {
+            sessionStorage.setItem('pending_shared_bench', initialSharedId);
+        }
       
         const SUPABASE_URL = "https://aqownulwmwdtrgzmsgqn.supabase.co"; 
         const SUPABASE_ANON_KEY = "sb_publishable_a_CXe4OWZN0vdnUPPF_Avg_AY55SFMN";
@@ -1172,30 +1179,27 @@ window.executeLogin = async function() {
             roleEl.className = "role-badge role-user";
         }
 
-        // HIER IST DIE ANPASSUNG FÜR DAS INFO-WIDGET:
         if (infoWidget) {
-            // Zeigen, wenn Team Stadt Heilbronn / Gast eingeloggt ist, sonst ausblenden
             infoWidget.style.display = (effectiveRole === 'Gast') ? 'block' : 'none';
         }
         
         closeLoginOverlay();
         if(typeof applyRolePermissions === 'function') applyRolePermissions();
         
-        // App-Daten laden/aktualisieren und danach Deeplink-Bank öffnen
         if(typeof updateApp === 'function') {
-            const updateResult = updateApp();
-
-        checkAndOpenSharedBench();
-            
-            // Falls updateApp ein Promise zurückgibt (async ist), warten wir darauf
-            if (updateResult && typeof updateResult.then === 'function') {
-                updateResult.then(() => checkAndOpenSharedBench());
-            } else {
-                setTimeout(checkAndOpenSharedBench, 400);
-            }
-        } else {
-            setTimeout(checkAndOpenSharedBench, 400);
+            await updateApp();
         }
+
+        // 💡 DEEPLINK-CHECK ERST HIER AUSFÜHREN (nachdem Karte sichtbar ist und Marker stehen)
+        if (map) {
+            map.invalidateSize();
+        }
+
+        setTimeout(() => {
+            if (typeof window.checkAndOpenSharedBench === 'function') {
+                window.checkAndOpenSharedBench();
+            }
+        }, 300);
     }
 };
 
@@ -1895,26 +1899,34 @@ window.openReportsOverlay = async function(mode) {
 };
 
         window.showBenchOnMap = function(benchId) {
-    const marker = window.markerDict[benchId];
-    if (marker) {
-        // 1. Modals & Sidebar schließen
-        closeReportsOverlay();
-        if (typeof window.closeReportDetail === 'function') {
-            window.closeReportDetail();
-        }
+    if (!window.markerDict) return;
 
-        const sidebar = document.getElementById('sidebar');
-        if (sidebar && sidebar.classList.contains('open')) {
-            toggleSidebar();
-        }
+    const layer = window.markerDict[benchId] || window.markerDict[Number(benchId)];
+    if (!layer) return;
 
-        // 2. Erst Karte zentrieren...
-        map.setView(marker.getLatLng(), 18);
-        
-        // 3. ...und ERST NACH dem Zentrieren (z.B. nach 300ms) das Popup öffnen!
+    let latLng = null;
+    if (typeof layer.getLatLng === 'function') {
+        latLng = layer.getLatLng();
+    } else if (typeof layer.getBounds === 'function') {
+        latLng = layer.getBounds().getCenter();
+    }
+
+    if (latLng && map) {
+        // 1. Zwingend alle alten Geister-Popups schließen
+        map.closePopup();
+
+        // 2. Kartenlayout auffrischen & zentrieren
+        map.invalidateSize();
+        map.setView(latLng, 17, { animate: false });
+
+        // 3. Popup stabil auf dem Zielmarker öffnen
         setTimeout(() => {
-            marker.openPopup();
-        }, 300);
+            if (typeof layer.openPopup === 'function') {
+                layer.openPopup();
+            } else if (layer.getLayers && typeof layer.getLayers === 'function' && layer.getLayers().length > 0) {
+                layer.getLayers()[0].openPopup();
+            }
+        }, 150);
     }
 };
 
@@ -3198,27 +3210,63 @@ window.closeReportDetail = function() {
             pendingShareId = null; 
         };
 
-        function checkAndOpenSharedBench(retries = 10) {
-    const urlParams = new URLSearchParams(window.location.search);
-    const benchId = urlParams.get('id');
-
+        window.checkAndOpenSharedBench = function() {
+    const benchId = sessionStorage.getItem('pending_shared_bench');
     if (!benchId) return;
 
-    if (window.markerDict && window.markerDict[benchId]) {
-        console.log("[SitzFinder] Deeplink-Marker gefunden, öffne Bank:", benchId);
-        
-        // 500ms Warten, damit updateApp() / Leaflet das Zeichnen der Karte 
-        // und aller Marker vollständig abgeschlossen hat!
-        setTimeout(() => {
-            window.showBenchOnMap(benchId);
-        }, 500);
+    console.log(`[SitzFinder Deeplink] Prüfe ID #${benchId}...`);
 
-    } else if (retries > 0) {
-        setTimeout(() => checkAndOpenSharedBench(retries - 1), 300);
-    } else {
-        console.warn(`[SitzFinder] Marker mit ID ${benchId} konnte nicht auf der Karte gefunden werden.`);
+    if (!window.markerDict) {
+        console.warn("[SitzFinder Deeplink] markerDict existiert noch nicht.");
+        return;
     }
-}
+
+    const layer = window.markerDict[benchId] || window.markerDict[Number(benchId)];
+
+    if (layer) {
+        console.log(`[SitzFinder Deeplink] Marker für #${benchId} gefunden! Öffne Popup...`);
+        // Erst löschen, WENN der Marker wirklich gefunden wurde:
+        sessionStorage.removeItem('pending_shared_bench');
+        window.showBenchOnMap(benchId);
+    } else {
+        console.warn(`[SitzFinder Deeplink] Marker #${benchId} ist noch nicht in markerDict (wird geladen oder gefiltert).`);
+    }
+};
+
+window.showBenchOnMap = function(benchId) {
+    if (!window.markerDict) return;
+
+    const layer = window.markerDict[benchId] || window.markerDict[Number(benchId)];
+    if (!layer) return;
+
+    let latLng = null;
+    if (typeof layer.getLatLng === 'function') {
+        latLng = layer.getLatLng();
+    } else if (typeof layer.getBounds === 'function') {
+        latLng = layer.getBounds().getCenter();
+    }
+
+    if (latLng && map) {
+        // 1. Zuerst alte Popups schließen
+        map.closePopup();
+
+        // 2. Map-Größe neu berechnen (extrem wichtig nach dem Ausblenden des Login-Overlays)
+        map.invalidateSize();
+
+        // 3. Karte auf Koordinaten setzen
+        map.setView(latLng, 17, { animate: false });
+
+        // 4. Popup mit kurzem Timeout öffnen, damit Leaflet den DOM-Reflow abschließen kann
+        setTimeout(() => {
+            if (typeof layer.openPopup === 'function') {
+                layer.openPopup();
+            } else if (layer.getLayers && typeof layer.getLayers === 'function' && layer.getLayers().length > 0) {
+                layer.getLayers()[0].openPopup();
+            }
+            console.log(`[SitzFinder Deeplink] Popup für #${benchId} erfolgreich geöffnet.`);
+        }, 200);
+    }
+};
 
         window.quickMaintenance = async function(id) {
     const bench = benches.find(b => b.id === id);
@@ -3541,7 +3589,7 @@ function getMarkerStyle(status, approved, assemblyNote) {
             imgTestJpg.src = jpgUrl;
         }
 
-        function updateApp() {
+       function updateApp() {
     document.getElementById('total-count').innerText = benches.length;
     const filterDistrict = document.getElementById('filter-district').value || 'Alle';
     const filterType = document.getElementById('filter-type').value || 'Alle';
@@ -3553,6 +3601,24 @@ function getMarkerStyle(status, approved, assemblyNote) {
     let liveFilteredStats = {}; types.forEach(t => liveFilteredStats[t] = 0);
     let totalLiveVisible = 0;
     
+    // 💡 FIX 1: Prüfen, ob aktuell bereits ein Popup geöffnet ist und ID merken
+    let currentlyOpenBenchId = null;
+    if (window.markerDict) {
+        for (const [id, layer] of Object.entries(window.markerDict)) {
+            if (layer && typeof layer.isPopupOpen === 'function' && layer.isPopupOpen()) {
+                currentlyOpenBenchId = id;
+                break;
+            } else if (layer && layer.getLayers) {
+                // Falls FeatureGroup
+                const subLayers = layer.getLayers();
+                if (subLayers.some(l => l.isPopupOpen && l.isPopupOpen())) {
+                    currentlyOpenBenchId = id;
+                    break;
+                }
+            }
+        }
+    }
+
     if (markersLayer) { markersLayer.clearLayers(); }
     window.markerDict = {}; 
 
@@ -3818,7 +3884,9 @@ function getMarkerStyle(status, approved, assemblyNote) {
                         </div>
                     </div>
                 `;
-                finalLayer.bindPopup(popupHtml); 
+                
+                // NEU: Nimmt das Standardverhalten von Leaflet (altes Popup schließt bei neuem Klick)
+                finalLayer.bindPopup(popupHtml);
                 markersLayer.addLayer(finalLayer);
                 window.markerDict[bench.id] = finalLayer;
             }
@@ -3862,7 +3930,7 @@ function getMarkerStyle(status, approved, assemblyNote) {
                         </div>
                     `;
 
-                    pendingMarker.bindPopup(popupHtml);
+                    pendingMarker.bindPopup(popupHtml, { autoClose: false, closeOnClick: false });
                     markersLayer.addLayer(pendingMarker);
                 }
             }
@@ -3890,33 +3958,29 @@ function getMarkerStyle(status, approved, assemblyNote) {
         }
     }
 
-    const urlParams = new URLSearchParams(window.location.search);
-const sharedBenchId = urlParams.get('bench');
-
-if (sharedBenchId && window.markerDict && window.markerDict[sharedBenchId]) {
-    const targetLayer = window.markerDict[sharedBenchId];
-    
-    // Position ermitteln (unterstützt CircleMarker UND FeatureGroup)
-    const latLng = (typeof targetLayer.getLatLng === 'function') 
-        ? targetLayer.getLatLng() 
-        : targetLayer.getBounds().getCenter();
-    
-    // Karte zentrieren & heranzoomen
-    map.setView(latLng, 18);
-    
-    // Popup sicher öffnen (egal ob Marker oder FeatureGroup)
+    // ==========================================
+    // 5. DEEPLINK ODER OFFENES POPUP WIEDERHERSTELLEN
+    // ==========================================
     setTimeout(() => {
-        if (typeof targetLayer.openPopup === 'function') {
-            targetLayer.openPopup();
-        } else if (targetLayer.getLayers && targetLayer.getLayers().length > 0) {
-            // Falls es eine FeatureGroup ist, das Popup des Haupt-Markers öffnen
-            targetLayer.getLayers()[0].openPopup();
+        if (typeof map !== 'undefined' && map && typeof map.invalidateSize === 'function') {
+            map.invalidateSize();
         }
-    }, 100); // Minimaler Timeout, damit Leaflet nach setView bereit ist
 
-    // Query-Parameter aus der URL entfernen
-    window.history.replaceState({}, document.title, window.location.pathname);
-}
+        // 💡 FIX 3: Falls vor dem Redraw ein Popup offen war, öffnen wir es wieder
+        if (currentlyOpenBenchId && window.markerDict && window.markerDict[currentlyOpenBenchId]) {
+            const restoredLayer = window.markerDict[currentlyOpenBenchId];
+            if (typeof restoredLayer.openPopup === 'function') {
+                restoredLayer.openPopup();
+            } else if (restoredLayer.getLayers && restoredLayer.getLayers().length > 0) {
+                restoredLayer.getLayers()[0].openPopup();
+            }
+        } 
+        // Andernfalls prüfen wir auf einen geparkten Deeplink (Shared Bench)
+        else if (typeof checkAndOpenSharedBench === 'function') {
+            checkAndOpenSharedBench();
+        }
+    }, 300); 
+
 }
 
 // Hilfsfunktionen für Inline-Buttons (Popup & Formular)
@@ -4397,89 +4461,96 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
         function forceMapUpdate() { if(map) { map.invalidateSize(); } }
 
         window.onload = async function() {
-            initDropdowns();
-            const supabaseLoaded = initSupabase();
-            // 1. Koordinaten-Grenzen für Heilbronn (Südwest- und Nordost-Ecke) definieren
-const heilbronnBounds = [
-    [49.0600, 9.0400], // Süd-Westen (deckt auch Klingenberg/Horkheim ab)
-    [49.2400, 9.3500]  // Nord-Osten (deckt auch Biberach/Kirchhausen ab)
-];
+    // 💡 URL-Parameter (?id=...) sofort abfangen und im sessionStorage speichern
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedId = urlParams.get('id');
+    if (sharedId) {
+        sessionStorage.setItem('pending_shared_bench', sharedId);
+    }
 
-// 2. Karte mit den Begrenzungen initialisieren
-map = L.map('map', {
-    maxBounds: heilbronnBounds,
-    maxBoundsViscosity: 1.0, // Verhindert das Hinausziehen über die Ränder (1.0 = hartes Limit)
-    minZoom: 12              // Verhindert, dass Nutzer zu weit herauszoomen
-}).setView([49.1427, 9.2000], 12); // Zentrum von Heilbronn
+    initDropdowns();
+    const supabaseLoaded = initSupabase();
+
+    // 1. Koordinaten-Grenzen für Heilbronn definieren
+    const heilbronnBounds = [
+        [49.0600, 9.0400], // Süd-Westen
+        [49.2400, 9.3500]  // Nord-Osten
+    ];
+
+    // 2. Karte initialisieren
+    // 💡 WICHTIG: closePopupOnClick WURDE ENTFERNT, damit Leaflet alte Popups beim Klick auf neue Marker wieder sauber aufräumt!
+    map = L.map('map', {
+        maxBounds: heilbronnBounds,
+        maxBoundsViscosity: 1.0,
+        minZoom: 12
+    }).setView([49.1427, 9.2000], 12);
             
-            const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
-            const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles © Esri' });
+    const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+    const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles © Esri' });
             
-            osm.addTo(map);
-            L.control.zoom({ position: 'topright' }).addTo(map);
+    osm.addTo(map);
+    L.control.zoom({ position: 'topright' }).addTo(map);
 
-            const baseMaps = { "Karte": osm, "Satellitenbild": satellite };
-            L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+    const baseMaps = { "Karte": osm, "Satellitenbild": satellite };
+    L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
-            markersLayer = L.layerGroup().addTo(map);
+    markersLayer = L.layerGroup().addTo(map);
 
-            // Karten-Klick Event Handler
-            map.on('click', function(e) {
-                const lat = e.latlng.lat;
-                const lng = e.latlng.lng;
+    // Karten-Klick Event Handler für freie Flächen
+    map.on('click', function(e) {
+        // Ignorieren, wenn auf einen Marker, ein Feature oder ein offenes Popup geklickt wurde
+        if (e.originalEvent && (e.originalEvent._stopped || e.originalEvent.target.closest('.leaflet-popup-pane'))) {
+            return;
+        }
 
-                // Bei freien Bereichen haben Bürger ("Gast"), Galabau, Stadtreinigung und Grünpflege Zugriff auf denselben Button im Popup
-                const allowedRolesForFreeClick = ['Gast', 'Gala Bau', 'Stadt Reinigung', 'Grünpflege'];
+        // Falls bereits ein Marker-Popup offen ist, kein freies Klick-Popup drüberlegen
+        if (map._popup && map._popup._source) {
+            return;
+        }
 
-                if (allowedRolesForFreeClick.includes(currentRole)) {
-                    L.popup()
-                    .setLatLng(e.latlng)
-                    .setContent(`
-                        <div style="text-align:center; padding: 5px;">
-                            <strong style="display:block; margin-bottom:8px;">Neuer Fundort</strong>
-                            <button onclick="window.openDamageReportsOverlay(null, true, ${lat}, ${lng})" class="btn" style="padding:8px 12px; font-size:12px; background:#e74c3c;">⚠️ Schaden/Fundort melden</button>
-                        </div>
-                    `)
-                    .openOn(map);
-                } else if (currentRole !== 'Gast') {
-                    L.popup()
-                    .setLatLng(e.latlng)
-                    .setContent(`<button onclick="window.triggerNewBenchCreation(${lat}, ${lng})" class="btn" style="padding:8px; font-size:12px; background-color: #27ae60;"">➕ Neue Bank anlegen</button>`)
-                    .openOn(map);
-                }
-            });
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
 
-            checkPersistentLogin();
+        const allowedRolesForFreeClick = ['Gast', 'Gala Bau', 'Stadt Reinigung', 'Grünpflege'];
 
-            if (supabaseLoaded) {
-                await fetchTypesFromCloud();
-                await fetchBenchesFromCloud();
-                subscribeToRealtime();
-            } else {
-                updateApp();
-            }
+        if (allowedRolesForFreeClick.includes(currentRole)) {
+            L.popup()
+                .setLatLng(e.latlng)
+                .setContent(`
+                    <div style="text-align:center; padding: 5px;">
+                        <strong style="display:block; margin-bottom:8px;">Neuer Fundort</strong>
+                        <button onclick="window.openDamageReportsOverlay(null, true, ${lat}, ${lng})" class="btn" style="padding:8px 12px; font-size:12px; background:#e74c3c;">⚠️ Schaden/Fundort melden</button>
+                    </div>
+                `)
+                .openOn(map);
+        } else if (currentRole !== 'Gast') {
+            L.popup()
+                .setLatLng(e.latlng)
+                .setContent(`<button onclick="window.triggerNewBenchCreation(${lat}, ${lng})" class="btn" style="padding:8px; font-size:12px; background-color: #27ae60;">➕ Neue Bank anlegen</button>`)
+                .openOn(map);
+        }
+    });
 
-            document.getElementById('filter-district').onchange = () => { updateApp(); };
-            document.getElementById('filter-type').onchange = () => { updateApp(); };
-            document.getElementById('status-checkboxes-container').querySelectorAll('input').forEach(cb => {
-                cb.onchange = () => { updateApp(); };
-            });
+    checkPersistentLogin();
 
-            const savedWidgetMin = localStorage.getItem('hn_widget_minimized');
-            if (savedWidgetMin === 'false') { toggleWidget(); }
-            updateSyncIndicator();
-        };
-        // Variablen für Zoom und Verschiebung (Außerhalb der Funktion)
-let zoomScale = 1;
-let touchStartDist = 0;
-const MIN_SCALE = 1;
-const MAX_SCALE = 7;
+    if (supabaseLoaded) {
+        await fetchTypesFromCloud();
+        await fetchBenchesFromCloud(); 
+        subscribeToRealtime();
+    } else {
+        updateApp();
+    }
 
-// Variablen für das Verschieben (Pan)
-let isDragging = false;
-let startX = 0, startY = 0;
-let translateX = 0, translateY = 0;
-let currentTranslateX = 0, currentTranslateY = 0;
+    document.getElementById('filter-district').onchange = () => { updateApp(); };
+    document.getElementById('filter-type').onchange = () => { updateApp(); };
+    document.getElementById('status-checkboxes-container').querySelectorAll('input').forEach(cb => {
+        cb.onchange = () => { updateApp(); };
+    });
+
+    const savedWidgetMin = localStorage.getItem('hn_widget_minimized');
+    if (savedWidgetMin === 'false') { toggleWidget(); }
+    updateSyncIndicator();
+};
 
 function openModal(imgSrc) {
     const modal = document.getElementById("imageModal");
