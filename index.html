@@ -1898,6 +1898,12 @@ window.openReportsOverlay = async function(mode) {
     }
 };
 
+        window.closeAllOverlays = function() {
+    document.querySelectorAll('.modal, .overlay, [id$="-overlay"], [id$="-modal"]').forEach(el => {
+        el.style.display = 'none';
+    });
+};
+
         window.showBenchOnMap = function(benchId) {
     if (!window.markerDict) return;
 
@@ -2063,7 +2069,7 @@ window.openReportsOverlay = async function(mode) {
                 ${rep.image_url ? `<div class="report-image-wrapper" style="cursor: pointer;" onclick="openModal('${rep.image_url}')"><img src="${rep.image_url}" style="max-width:100%; border-radius:8px; margin: 10px 0;" /></div>` : ''}
                 
                 <div id="report-minimap-container" class="report-minimap" 
-                     onclick="showBenchOnMap(${rep.bench_id})" 
+                     onclick="window.closeAllOverlays(); window.showBenchOnMap(${rep.bench_id});"
                      style="cursor: pointer; height: 180px; width: 100%; margin: 10px 0; border-radius: 8px; border: 1px solid #ccc;" 
                      title="Auf der Hauptkarte anzeigen">
                 </div>
@@ -2220,7 +2226,7 @@ window.openReportsOverlay = async function(mode) {
                 </div>
 
                 <div id="report-minimap-container" class="report-minimap" 
-                     onclick="showBenchOnMap(${b.bench_id || b.id})" 
+                     onclick="window.closeAllOverlays(); window.showBenchOnMap(${b.bench_id || b.id});"
                      style="cursor: pointer; height: 180px; width: 100%; margin: 10px 0; border-radius: 8px; border: 1px solid #ccc;" 
                      title="Klicken, um zur Bank auf der Karte zu springen">
                 </div>
@@ -4551,6 +4557,24 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
     if (savedWidgetMin === 'false') { toggleWidget(); }
     updateSyncIndicator();
 };
+
+
+    // ==========================================
+// GLOBALE ZUSTANDSVARIABLE FÜR BILD-ZOOM & DRAG
+// ==========================================
+let zoomScale = 1;
+let translateX = 0;
+let translateY = 0;
+let currentTranslateX = 0;
+let currentTranslateY = 0;
+
+let isDragging = false;
+let startX = 0;
+let startY = 0;
+let touchStartDist = 0;
+
+const MIN_SCALE = 1;
+const MAX_SCALE = 5;
 
 function openModal(imgSrc) {
     const modal = document.getElementById("imageModal");
