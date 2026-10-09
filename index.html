@@ -348,6 +348,28 @@
     display: none;
 }
 
+.btn-reset-filters {
+    width: 100%;
+    padding: 10px 14px;
+    margin-top: 15px;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.btn-reset-filters:hover {
+    background-color: #5a6268;
+}
+
+.btn-reset-filters:active {
+    transform: scale(0.98);
+}
+
 /* Regeln für den A4-Ein-Seiten-Ausdruck */
 @media print {
     @page {
@@ -444,28 +466,33 @@
             <button id="menu-new-entries-btn" class="btn btn-admin-menu" onclick="openReportsOverlay('entries')" style="display:none;">🔍 Neue Eintragungen (0)</button>
 
             <div class="filter-group">
-                <label>📍 Stadtteil / Park</label>
-                <select id="filter-district"><option value="Alle">Ganz Heilbronn (Alle)</option></select>
-            </div>
-            <div class="filter-group">
-                <label>🔍 Bautyp filtern</label>
-                <select id="filter-type"><option value="Alle">Alle Bautypen</option></select>
-            </div>
-            <div class="filter-group">
-                <label>🚦 Status filtern (Keine Auswahl = Alle anzeigen)</label>
-                <div class="status-checkbox-container" id="status-checkboxes-container">
-                    <label class="status-checkbox-item"><input type="checkbox" value="Wartung empfohlen"> 🟡 Wartung empfohlen (~3J)</label>
-                    <label class="status-checkbox-item"><input type="checkbox" value="Wartung nötig"> 🔴 Wartung nötig (&gt;5J)</label>
-                    <label class="status-checkbox-item"><input type="checkbox" value="Beschädigt"> 🔴⚪ Beschädigt</label>
-                    <label class="status-checkbox-item"><input type="checkbox" value="In Bearbeitung"> 🟣 In Bearbeitung</label>
-                    <label class="status-checkbox-item"><input type="checkbox" value="Irreparabel"> ⚫ Irreparabel</label>
-                    <label class="status-checkbox-item"><input type="checkbox" value="Verschmutzt"> 🟠 Verschmutzt</label>
-                    <label class="status-checkbox-item"><input type="checkbox" value="Zugewachsen"> 🔵 Zugewachsen</label>
-                    <label class="status-checkbox-item"><input type="checkbox" value="Ungeprüft"> ⚪ Ungeprüft</label>
-                    <label class="status-checkbox-item"><input type="checkbox" value="Wartungsfrei"> 🟢✨ Wartungsfrei (Dauerhaft)</label>
-                    <label class="status-checkbox-item"><input type="checkbox" value="Gut"> 🟢 Gut</label>
-                </div>
-            </div>
+    <label>📍 Stadtteil / Park</label>
+    <select id="filter-district"><option value="Alle">Ganz Heilbronn (Alle)</option></select>
+</div>
+<div class="filter-group">
+    <label>🔍 Bautyp filtern</label>
+    <select id="filter-type"><option value="Alle">Alle Bautypen</option></select>
+</div>
+<div class="filter-group">
+    <label>🚦 Status filtern (Keine Auswahl = Alle anzeigen)</label>
+    <div class="status-checkbox-container" id="status-checkboxes-container">
+        <label class="status-checkbox-item"><input type="checkbox" value="Wartung empfohlen"> 🟡 Wartung empfohlen (~3J)</label>
+        <label class="status-checkbox-item"><input type="checkbox" value="Wartung nötig"> 🔴 Wartung nötig (>5J)</label>
+        <label class="status-checkbox-item"><input type="checkbox" value="Beschädigt"> 🔴⚪ Beschädigt</label>
+        <label class="status-checkbox-item"><input type="checkbox" value="In Bearbeitung"> 🟣 In Bearbeitung</label>
+        <label class="status-checkbox-item"><input type="checkbox" value="Irreparabel"> ⚫ Irreparabel</label>
+        <label class="status-checkbox-item"><input type="checkbox" value="Verschmutzt"> 🟠 Verschmutzt</label>
+        <label class="status-checkbox-item"><input type="checkbox" value="Zugewachsen"> 🔵 Zugewachsen</label>
+        <label class="status-checkbox-item"><input type="checkbox" value="Ungeprüft"> ⚪ Ungeprüft</label>
+        <label class="status-checkbox-item"><input type="checkbox" value="Wartungsfrei"> 🟢✨ Wartungsfrei (Dauerhaft)</label>
+        <label class="status-checkbox-item"><input type="checkbox" value="Gut"> 🟢 Gut</label>
+    </div>
+    
+    <!-- 🔄 Button zum Zurücksetzen aller Filter -->
+    <button type="button" class="btn-reset-filters" onclick="resetAllFilters()">
+        🔄 Filter zurücksetzen
+    </button>
+</div>
             <div class="stats-box">
                 <strong id="stats-title">Auswertung</strong>
                 <ul id="stats-list"></ul>
@@ -701,7 +728,7 @@
     </div>
 </div>
 
-    <!-- Hauptformular (Sitzbank eintragen / bearbeiten) -->
+   <!-- Hauptformular (Sitzbank eintragen / bearbeiten) -->
 <div id="fullscreen-overlay" class="fullscreen-overlay">
     <h3 id="form-title">Sitzbank eintragen</h3>
     
@@ -739,15 +766,63 @@
     <span class="field-example">z.B. Bank auf Betonsockel, Rundbank auf Gestell</span>
 
     <label for="pop-assembly-note">Montage-Hinweis:</label>
-<input type="text" id="pop-assembly-note" placeholder="Nur bei Standartabweichungen">
-<span class="field-example">z.B. Sondermaß, Spezialwerkzeug nötig, Befestigungsmittel</span>
-
+    <input type="text" id="pop-assembly-note" placeholder="Nur bei Standartabweichungen">
+    <span class="field-example">z.B. Sondermaß, Spezialwerkzeug nötig, Befestigungsmittel</span>
 
     <label for="pop-dimensions">Maße (z.B. 180x50x45 cm):</label>
     <input type="text" id="pop-dimensions" placeholder="Länge x Breite x Höhe...">
 
     <label for="pop-note">Notiz:</label>
     <input type="text" id="pop-note" placeholder="Notiz eingeben...">
+
+    <!-- ⚠️ Direkt eine Schadensmeldung anhängen? -->
+<div style="margin-top: 15px; margin-bottom: 15px;">
+    <label style="display: flex; align-items: center; gap: 8px; font-weight: bold; cursor: pointer;">
+        <input type="checkbox" id="pop-has-damage-checkbox" onchange="toggleInlineDamageFields()">
+        ⚠️ Direkt eine Schadensmeldung anhängen?
+    </label>
+    
+    <!-- Aufklappbarer Schadensbereich mit orangem Rahmen -->
+    <div id="inline-damage-container" style="display: none; background-color: #fff9f5; border: 1px solid #f39c12; border-radius: 8px; padding: 15px; margin-top: 10px;">
+        
+        <label style="font-weight: bold; display: block; margin-bottom: 10px;">Schadenskategorie auswählen:</label>
+        
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="inline-damage-cat" value="Stadtreinigung"> 🧹 Müllproblem / Vogelkot (Stadtreinigung)
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="inline-damage-cat" value="Grünpflege"> 🌿 Bank zugewachsen (Grünpflege)
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="inline-damage-cat" value="Zimmerer"> 🔨 Bank beschädigt (Zimmerer)
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="inline-damage-cat" value="Galabau"> 💣 Bank Irreparabel (Galabau)
+            </label>
+        </div>
+
+        <label for="pop-damage-desc" style="font-weight: bold; display: block; margin-bottom: 5px;">Schadensbeschreibung / Details:</label>
+        <input type="text" id="pop-damage-desc" placeholder="z.B. 2 Latten gebrochen..." style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 15px; font-size: 14px;">
+
+        <label style="font-weight: bold; display: block; margin-bottom: 8px;">Foto des Schadens:</label>
+        
+        <!-- Unsichtbare File-Inputs für Kamera & Galerie -->
+        <input type="file" id="inline-camera-input" accept="image/*" capture="environment" style="display: none;" onchange="handleInlineImageSelect(this)">
+        <input type="file" id="inline-gallery-input" accept="image/*" style="display: none;" onchange="handleInlineImageSelect(this)">
+
+        <div style="display: flex; gap: 10px;">
+            <button type="button" class="btn" style="flex: 1; background-color: #e67e22; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="document.getElementById('inline-camera-input').click()">
+                📷 Kamera
+            </button>
+            <button type="button" class="btn" style="flex: 1; background-color: #34495e; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="document.getElementById('inline-gallery-input').click()">
+                🖼️ Galerie
+            </button>
+        </div>
+        
+        <div id="inline-photo-status" style="font-size: 12px; color: #7f8c8d; margin-top: 6px;">Kein Schadensfoto ausgewählt</div>
+    </div>
+</div>
 
     <label>Standort:</label>
     <button type="button" class="btn" style="background-color: #34495e; color: #fff; margin-bottom: 12px; width: 100%;" onclick="startLocationPicker()">
@@ -1611,6 +1686,23 @@ window.submitDamageReport = async function() {
         return; 
     }
 
+    // 💡 1. Button sofort sperren & Lade-Status anzeigen (verhindert Mehrfachklicks)
+    const submitBtn = document.querySelector('#damage-reports-overlay .btn-save');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = "0.6";
+        submitBtn.innerText = "⏳ Speichere Meldung...";
+    }
+
+    // Hilfsfunktion zum Zurücksetzen des Buttons bei Fehlern oder Abbruch
+    const resetSubmitBtn = () => {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = "1";
+            submitBtn.innerText = "Meldung abschicken";
+        }
+    };
+
     let imageUrl = null;
     if(activeGuestFile && supabaseClient) {
         const fileName = `${Date.now()}_damage.jpg`;
@@ -1634,6 +1726,7 @@ window.submitDamageReport = async function() {
             else if (catUpper.includes("IRREPARABEL")) initialStatus = "Irreparabel";
 
             const { data: newBench, error: benchError } = await supabaseClient.from('benches').insert([{
+                client_id: generateClientId(), // 💡 client_id für Bänke
                 lat: selectedDamageCoords.lat,
                 lng: selectedDamageCoords.lng,
                 type: "Sonstige",
@@ -1648,6 +1741,7 @@ window.submitDamageReport = async function() {
                 targetBenchId = newBench.id;
             } else {
                 alert("Fehler beim Erstellen der temporären Bank: " + (benchError ? benchError.message : "Unbekannt"));
+                resetSubmitBtn();
                 return;
             }
 
@@ -1655,6 +1749,7 @@ window.submitDamageReport = async function() {
             if (isNewBenchOnly) {
                 alert("Vielen Dank! Die neue Bank wurde zur Prüfung eingereicht.");
                 closeDamageReportsOverlay();
+                resetSubmitBtn();
                 await updateBadgeCounters();
                 await fetchBenchesFromCloud();
                 return; // Beendet den Vorgang, OHNE ein Schadens-Ticket zu erzeugen!
@@ -1682,26 +1777,32 @@ window.submitDamageReport = async function() {
         // 2. Trupp-Kürzel direkt aus dem 3. Zeichen ziehen
         const deptCode = newTicketNumber ? newTicketNumber.charAt(2) : 'H';
 
-        // 3. In Supabase-Tabelle "damage_reports" einfügen
-        const { error } = await supabaseClient.from('damage_reports').insert([{
+        // 3. In Supabase-Tabelle "damage_reports" einfügen (mit client_id & upsert abgesichert)
+        const reportClientId = generateClientId();
+
+        const { error } = await supabaseClient.from('damage_reports').upsert([{
+            client_id: reportClientId, // 💡 NEU: Eindeutige Client-ID für Schadensmeldungen
             bench_id: targetBenchId,
             description: selectedDamageCategory ? `[${selectedDamageCategory}] ${desc}` : desc,
             image_url: imageUrl,
             category: selectedDamageCategory || 'Sonstige',
             ticket_number: newTicketNumber,
             dept_code: deptCode
-        }]);
+        }], { onConflict: 'client_id' });
         
         if(!error) {
             alert(`Vielen Dank für die Meldung! (Ticketnummer: ${newTicketNumber || 'Erstellt'})`);
             closeDamageReportsOverlay();
+            resetSubmitBtn();
             await updateBadgeCounters();
             await fetchBenchesFromCloud();
         } else {
             alert("Fehler beim Absenden der Meldung: " + error.message);
+            resetSubmitBtn();
         }
     } else {
         alert("Keine Verbindung zur Cloud vorhanden. Meldungen können nur online eingesendet werden.");
+        resetSubmitBtn();
     }
 };
 
@@ -2785,8 +2886,9 @@ window.closeReportDetail = function() {
         ? `${currentRole} (${workerName})` 
         : `Galabau (${workerName})`;
 
-    // Datenobjekt für PENDING_BENCHES aufbauen
+    // Datenobjekt für PENDING_BENCHES aufbauen (inklusive client_id)
     const pendingData = { 
+        client_id: generateClientId(),       // 💡 NEU: Eindeutige Client-ID für Upsert
         bench_id: selectedDamageBenchId,
         pending_action: "update",           
         type: selectedType,                 // Der NEUE Modelltyp
@@ -2794,7 +2896,6 @@ window.closeReportDetail = function() {
         lat: targetBench.lat || null,
         lng: targetBench.lng || null,
         
-        // HIER DIE ANPASSUNGEN:
         last_maintenance: todayISO,         // Aktuelles Datum (YYYY-MM-DD)
         manual_status: null,                // Auf null setzen -> schaltet auf automatische Statusberechnung um
         damage_description: null,           // Schaden ist behoben
@@ -2806,10 +2907,10 @@ window.closeReportDetail = function() {
     closeGalaModelOverlay();
 
     if (supabaseClient) {
-        // HIER DIE KORREKTUR: In 'pending_benches' einfügen statt 'benches' zu updaten!
+        // 💡 NEU: Per upsert auf client_id absichern
         const { error } = await supabaseClient
             .from('pending_benches')
-            .insert([pendingData]);
+            .upsert([pendingData], { onConflict: 'client_id' });
         
         if (!error) {
             // Schadensmeldung/Bilder automatisch aufräumen
@@ -2855,6 +2956,14 @@ window.closeReportDetail = function() {
         // OFFLINE-SPEICHER & SYNCHRONISATION
         // ==========================================
 
+        // Hilfsfunktion zur Erzeugung einer eindeutigen Client-ID (UUID)
+        function generateClientId() {
+            if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+                return crypto.randomUUID();
+            }
+            return 'client-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+        }
+
         function updateSyncIndicator() {
             const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
             const icon = document.getElementById('sync-cloud-icon');
@@ -2871,7 +2980,11 @@ window.closeReportDetail = function() {
             }
         }
 
+        let isSyncing = false; // Sperre gegen parallele Syncs
+
         window.handleCloudClick = async function() {
+            if (isSyncing) return;
+
             const icon = document.getElementById('sync-cloud-icon');
             if (icon) icon.innerText = "⏳";
             
@@ -2881,16 +2994,25 @@ window.closeReportDetail = function() {
                 return;
             }
 
-            const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
-            if (queue.length > 0) {
-                await syncOfflineQueue();
-            }
+            isSyncing = true;
 
-            await fetchBenchesFromCloud();
-            await fetchTypesFromCloud();
-            
-            alert("Datenbank erfolgreich aktualisiert!");
-            updateSyncIndicator();
+            try {
+                const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
+                if (queue.length > 0) {
+                    await syncOfflineQueue();
+                }
+
+                await fetchBenchesFromCloud();
+                await fetchTypesFromCloud();
+                
+                alert("Datenbank erfolgreich aktualisiert!");
+            } catch (err) {
+                console.error("Fehler beim Cloud-Sync:", err);
+                alert("Fehler bei der Synchronisation: " + err.message);
+            } finally {
+                isSyncing = false;
+                updateSyncIndicator();
+            }
         };
 
         async function fetchTypesFromCloud() {
@@ -2990,12 +3112,15 @@ window.closeReportDetail = function() {
                 
                 try {
                     let result;
-                    // Falls targetTable nicht gesetzt ist, anhand der action erraten:
                     const targetTable = item.targetTable || (item.action === 'insert_pending' ? 'pending_benches' : 'benches');
                     const realAction = item.action === 'insert_pending' ? 'insert' : item.action;
 
                     if (realAction === 'insert') {
-                        result = await supabaseClient.from(targetTable).insert([item.data]).select();
+                        // UPSERT statt insert, um doppelte Uploads via client_id abzufangen
+                        result = await supabaseClient
+                            .from(targetTable)
+                            .upsert([item.data], { onConflict: 'client_id' })
+                            .select();
                     } else if (realAction === 'update') {
                         result = await supabaseClient.from(targetTable).update(item.data).eq('id', item.id);
                     } else if (realAction === 'delete') {
@@ -3018,33 +3143,41 @@ window.closeReportDetail = function() {
         }
 
         function saveOfflineAction(action, data, id = null, tempId = null, targetTable = 'benches') {
-            const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
-            queue.push({ action, data, id, tempId, targetTable, timestamp: Date.now() });
-            localStorage.setItem('offline_sync_queue', JSON.stringify(queue));
-            
-            if (targetTable === 'pending_benches') {
-                // Bei Pending-Bänken in den lokalen Pending-Cache schreiben
-                window.pendingBenches = window.pendingBenches || [];
-                const mockId = tempId || Math.floor(Math.random() * -100000);
-                window.pendingBenches.push({ id: mockId, ...data });
-                localStorage.setItem('pending_benches_cache', JSON.stringify(window.pendingBenches));
-            } else {
-                // Direkte Aktionen auf der Haupttabelle
-                if (action === 'insert') {
-                    const mockId = tempId || Math.floor(Math.random() * -100000); 
-                    benches.push({ id: mockId, ...data });
-                } else if (action === 'update') {
-                    const index = benches.findIndex(b => b.id === id);
-                    if (index !== -1) benches[index] = { ...benches[index], ...data };
-                } else if (action === 'delete') {
-                    benches = benches.filter(b => b.id !== id);
-                }
-                localStorage.setItem('benches_cache', JSON.stringify(benches));
-            }
-
-            updateSyncIndicator();
-            updateApp();
+    const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
+    
+    // 💡 Absicherung: Sobald Daten übergeben werden, garantieren wir eine client_id
+    if (data && typeof data === 'object') {
+        if (!data.client_id) {
+            data.client_id = generateClientId();
         }
+    }
+
+    queue.push({ action, data, id, tempId, targetTable, timestamp: Date.now() });
+    localStorage.setItem('offline_sync_queue', JSON.stringify(queue));
+    
+    if (targetTable === 'pending_benches') {
+        // Bei Pending-Bänken in den lokalen Pending-Cache schreiben
+        window.pendingBenches = window.pendingBenches || [];
+        const mockId = tempId || Math.floor(Math.random() * -100000);
+        window.pendingBenches.push({ id: mockId, ...data });
+        localStorage.setItem('pending_benches_cache', JSON.stringify(window.pendingBenches));
+    } else {
+        // Direkte Aktionen auf der Haupttabelle
+        if (action === 'insert') {
+            const mockId = tempId || Math.floor(Math.random() * -100000); 
+            benches.push({ id: mockId, ...data });
+        } else if (action === 'update') {
+            const index = benches.findIndex(b => b.id === id);
+            if (index !== -1) benches[index] = { ...benches[index], ...data };
+        } else if (action === 'delete') {
+            benches = benches.filter(b => b.id !== id);
+        }
+        localStorage.setItem('benches_cache', JSON.stringify(benches));
+    }
+
+    updateSyncIndicator();
+    updateApp();
+}
 
         function subscribeToRealtime() {
             if (!supabaseClient) return;
@@ -4220,13 +4353,12 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
         const benchId = selectedDamageBenchId || (currentEditingBench ? currentEditingBench.id : null);
         const targetBench = benches.find(b => b.id === benchId) || currentEditingBench || {};
 
-        // Richtigen Bearbeiternamen festlegen
         const calculatedWorkerName = workerName 
             ? `${currentRole} (${workerName})` 
             : (finalWorkerName || currentRole || 'Galabau');
 
-        // Datensatz für pending_benches vorbereiten
         const pendingData = {
+            client_id: generateClientId(),
             bench_id: benchId,
             pending_action: 'delete',
             type: targetBench.type || lastSelectedType || 'Unbekannt',
@@ -4238,7 +4370,6 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
             note: finalNote || 'Antrag auf Abbau/Entfernung durch Galabau'
         };
 
-        // 1. ZUERST BILDER & SCHADENSMELDUNGEN LÖSCHEN
         if (supabaseClient) {
             try {
                 const { data: reports } = await supabaseClient
@@ -4273,19 +4404,17 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
             }
         }
 
-        // 2. OVERLAYS SCHLIESSEN & UI AKTUALISIEREN
         if (map) map.closePopup();
         
         const nameOverlay = document.getElementById('worker-name-overlay') || document.getElementById('gala-model-overlay');
         if (nameOverlay) nameOverlay.style.display = "none";
         if (typeof closeWorkerNameOverlay === 'function') closeWorkerNameOverlay();
 
-        // 3. ANTRAG IN PENDING_BENCHES SPEICHERN (STATT BENCHES ZU ÜBERSCHREIBEN)
         if (supabaseClient) {
             try {
                 const { error } = await supabaseClient
                     .from('pending_benches')
-                    .insert([pendingData]);
+                    .upsert([pendingData], { onConflict: 'client_id' });
 
                 if (error) throw error;
 
@@ -4305,21 +4434,40 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
 
     // --- FALL 2: SPEICHERN / BEARBEITEN ---
     if (actionType === 'save') {
-        // Prüfen, ob für die aktuelle Bank eine Schadensmeldung vorliegt
-        const hasDamage = currentEditingBench && damagereports.some(d => d.bench_id === currentEditingBench.id);
+        // 💡 FILTER-RÜCKSETZUNG bei neuen Bänken
+        if (typeof isNewBenchMode !== 'undefined' && isNewBenchMode) {
+            if (typeof resetAllFilters === 'function') {
+                resetAllFilters();
+            }
+        }
+
+        // 💡 Prüfen, ob eine Schadensmeldung im Erstell-Formular direkt angehakt wurde
+        const hasInlineDamage = document.getElementById('pop-has-damage-checkbox') ? document.getElementById('pop-has-damage-checkbox').checked : false;
+        
+        // 💡 Schadenskategorie aus den Radio-Buttons auslesen
+        const selectedRadio = document.querySelector('input[name="inline-damage-cat"]:checked');
+        const inlineCategory = selectedRadio ? selectedRadio.value : '';
+        const inlineDesc = document.getElementById('pop-damage-desc') ? document.getElementById('pop-damage-desc').value.trim() : '';
+
+        // Status bestimmen
+        let determinedStatus = document.getElementById('pop-manual') ? document.getElementById('pop-manual').value : 'In Ordnung';
+        if (hasInlineDamage && inlineCategory) {
+            if (inlineCategory === 'Stadtreinigung') determinedStatus = 'Verschmutzt';
+            else if (inlineCategory === 'Grünpflege') determinedStatus = 'Zugewachsen';
+            else if (inlineCategory === 'Zimmerer') determinedStatus = 'Beschädigt';
+            else if (inlineCategory === 'Galabau') determinedStatus = 'Irreparabel';
+        } else if (currentEditingBench && damagereports.some(d => d.bench_id === currentEditingBench.id)) {
+            determinedStatus = currentEditingBench.manual_status || 'Beschädigt';
+        }
 
         const baseData = {
+            client_id: (currentEditingBench && currentEditingBench.client_id) ? currentEditingBench.client_id : generateClientId(),
             lat: currentEditingBench.lat, 
             lng: currentEditingBench.lng, 
             type: lastSelectedType, 
             district: lastSelectedDistrict,
             last_maintenance: selectedDate, 
-            
-            // Status-Schutz: Bei Schadensmeldung bisherigen Status behalten, sonst Dropdown-Wert nehmen
-            manual_status: hasDamage && currentEditingBench.manual_status 
-                ? currentEditingBench.manual_status 
-                : (document.getElementById('pop-manual') ? document.getElementById('pop-manual').value : 'In Ordnung'),
-                
+            manual_status: determinedStatus,
             description: document.getElementById('pop-description') ? document.getElementById('pop-description').value : '', 
             assembly_note: document.getElementById('pop-assembly-note') ? document.getElementById('pop-assembly-note').value : '',
             dimensions: document.getElementById('pop-dimensions') ? document.getElementById('pop-dimensions').value : '', 
@@ -4328,9 +4476,9 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
         };
 
         const tempId = currentEditingBench.id || Math.floor(Math.random() * -100000);
+        let savedBenchId = currentEditingBench.id;
 
         if (isAdmin) {
-            // Admin speichert direkt in der Haupttabelle
             const rowData = { ...baseData, approved: true, pending_action: null };
 
             if (isNewBenchMode) { 
@@ -4346,13 +4494,13 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
 
             if (supabaseClient) {
                 try {
-                    if (isNewBenchMode) { 
-                        const { error } = await supabaseClient.from('benches').insert([rowData]);
-                        if (error) throw error;
-                    } else { 
-                        const { error } = await supabaseClient.from('benches').update(rowData).eq('id', currentEditingBench.id);
-                        if (error) throw error;
-                    }
+                    const { data: dbBench, error } = await supabaseClient
+                        .from('benches')
+                        .upsert([rowData], { onConflict: 'client_id' })
+                        .select().single();
+
+                    if (error) throw error;
+                    if (dbBench) savedBenchId = dbBench.id;
                     await fetchBenchesFromCloud();
                 } catch(e) {
                     saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id, tempId, 'benches');
@@ -4374,7 +4522,9 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
             if (supabaseClient) {
                 try {
                     const { error } = await Promise.race([
-                        supabaseClient.from('pending_benches').insert([pendingData]),
+                        supabaseClient
+                            .from('pending_benches')
+                            .upsert([pendingData], { onConflict: 'client_id' }),
                         new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
                     ]);
                     
@@ -4389,6 +4539,58 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
             } else {
                 saveOfflineAction('insert', pendingData, currentEditingBench.id, tempId, 'pending_benches');
             }
+        }
+
+        // 💡 NEU: Automatische Schadensmeldung + Bild-Upload anlegen, falls Checkbox aktiv war
+        if (hasInlineDamage && savedBenchId && supabaseClient) {
+            try {
+                const categoryToUse = inlineCategory || 'Zimmerer';
+                const newTicketNumber = await getNextTicketNumber(categoryToUse);
+                const deptCode = newTicketNumber ? newTicketNumber.charAt(2) : 'H';
+
+                let uploadedImageUrl = null;
+
+                // Bild-Upload in Supabase Storage (falls ein Foto aufgenommen/ausgewählt wurde)
+                if (typeof inlineSelectedImageFile !== 'undefined' && inlineSelectedImageFile) {
+                    const fileExt = inlineSelectedImageFile.name.split('.').pop();
+                    const fileName = `${savedBenchId}_${Date.now()}.${fileExt}`;
+                    const filePath = `damages/${fileName}`;
+
+                    const { error: uploadErr } = await supabaseClient.storage
+                        .from('bench-images')
+                        .upload(filePath, inlineSelectedImageFile);
+
+                    if (!uploadErr) {
+                        const { data: pubUrlData } = supabaseClient.storage
+                            .from('bench-images')
+                            .getPublicUrl(filePath);
+                        if (pubUrlData) uploadedImageUrl = pubUrlData.publicUrl;
+                    } else {
+                        console.error("Fehler beim Schadensbild-Upload:", uploadErr);
+                    }
+                }
+
+                // Schadens-Ticket in DB schreiben
+                await supabaseClient.from('damage_reports').upsert([{
+                    client_id: generateClientId(),
+                    bench_id: savedBenchId,
+                    description: inlineDesc ? `[${categoryToUse}] ${inlineDesc}` : `[${categoryToUse}] Erstaufnahme mit Schaden`,
+                    category: categoryToUse,
+                    ticket_number: newTicketNumber,
+                    dept_code: deptCode,
+                    image_url: uploadedImageUrl
+                }], { onConflict: 'client_id' });
+
+                if (typeof updateBadgeCounters === 'function') await updateBadgeCounters();
+                await fetchBenchesFromCloud();
+            } catch (err) {
+                console.error("Fehler beim Erstellen der verknüpften Schadensmeldung:", err);
+            }
+        }
+
+        // Schadens-Felder & Bildauswahl für das nächste Mal zurücksetzen
+        if (typeof resetInlineDamageFields === 'function') {
+            resetInlineDamageFields();
         }
 
     // --- FALL 3: DIREKTES LÖSCHEN ---
@@ -4704,6 +4906,74 @@ function closeModal() {
     const modal = document.getElementById("imageModal");
     modal.style.display = "none";
     isDragging = false;
+}
+
+function resetAllFilters() {
+    // 1. Stadtteil-Dropdown auf "Ganz Heilbronn (Alle)" zurücksetzen
+    const districtSelect = document.getElementById('filter-district');
+    if (districtSelect) districtSelect.value = 'Alle';
+
+    // 2. Typ-Dropdown auf "Alle Bautypen" zurücksetzen
+    const typeSelect = document.getElementById('filter-type');
+    if (typeSelect) typeSelect.value = 'Alle';
+
+    // 3. Status-Checkboxen zurücksetzen (alle Haken entfernen)
+    const statusCheckboxes = document.querySelectorAll('.status-checkbox-item input[type="checkbox"]');
+    statusCheckboxes.forEach(cb => cb.checked = false);
+
+    // 4. Globale Filter-Variablen zurücksetzen
+    if (typeof selectedTypeFilter !== 'undefined') selectedTypeFilter = 'Alle';
+    if (typeof selectedDistrictFilter !== 'undefined') selectedDistrictFilter = 'Alle';
+    if (typeof selectedStatusFilters !== 'undefined') selectedStatusFilters = [];
+
+    // 5. App/Karte mit den zurückgesetzten Filtern aktualisieren
+    if (typeof updateApp === 'function') {
+        updateApp();
+    }
+}
+
+let inlineSelectedImageFile = null;
+
+// Hilfsfunktion zum Ein-/Ausblenden
+function toggleInlineDamageFields() {
+    const cb = document.getElementById('pop-has-damage-checkbox');
+    const container = document.getElementById('inline-damage-container');
+    if (container) {
+        container.style.display = (cb && cb.checked) ? 'block' : 'none';
+    }
+}
+
+// Bildauswahl verarbeiten
+function handleInlineImageSelect(input) {
+    if (input.files && input.files[0]) {
+        inlineSelectedImageFile = input.files[0];
+        const statusDiv = document.getElementById('inline-photo-status');
+        if (statusDiv) {
+            statusDiv.innerText = `📸 Foto ausgewählt: ${inlineSelectedImageFile.name}`;
+            statusDiv.style.color = '#27ae60';
+        }
+    }
+}
+
+// Formular zurücksetzen
+function resetInlineDamageFields() {
+    const cb = document.getElementById('pop-has-damage-checkbox');
+    if (cb) cb.checked = false;
+
+    const radios = document.querySelectorAll('input[name="inline-damage-cat"]');
+    radios.forEach(r => r.checked = false);
+
+    const desc = document.getElementById('pop-damage-desc');
+    if (desc) desc.value = '';
+
+    inlineSelectedImageFile = null;
+    const statusDiv = document.getElementById('inline-photo-status');
+    if (statusDiv) {
+        statusDiv.innerText = 'Kein Schadensfoto ausgewählt';
+        statusDiv.style.color = '#7f8c8d';
+    }
+
+    toggleInlineDamageFields();
 }
 
 // Schließen mit Escape
