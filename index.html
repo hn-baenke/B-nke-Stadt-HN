@@ -403,6 +403,58 @@
     }
 }
 
+/* Container für die Schadensmeldung */
+.damage-box-wrapper {
+    margin-top: 15px;
+    margin-bottom: 15px;
+    background-color: #fff9f5 !important;
+    border: 1px solid #f39c12 !important;
+    border-radius: 8px;
+    padding: 15px;
+    box-sizing: border-box;
+    text-align: left !important;
+}
+
+/* Haupt-Checkbox Label */
+.damage-box-wrapper .damage-main-label {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    font-weight: bold !important;
+    cursor: pointer;
+    color: #2c3e50 !important;
+    font-size: 15px !important;
+    text-align: left !important;
+    margin: 0 !important;
+}
+
+/* Radio-Optionen Zeilen */
+.damage-box-wrapper .damage-option {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    cursor: pointer;
+    font-size: 14px !important;
+    text-align: left !important;
+    margin-bottom: 10px !important;
+}
+
+/* Inputs (Checkbox & Radios) explizit steuern */
+.damage-box-wrapper input[type="checkbox"],
+.damage-box-wrapper input[type="radio"] {
+    flex-shrink: 0 !important;
+    width: 18px !important;
+    height: 18px !important;
+    margin: 0 !important;
+    accent-color: #e67e22 !important;
+}
+
+/* Beschriftungs-Texte links zwingen */
+.damage-box-wrapper span,
+.damage-box-wrapper div {
+    text-align: left !important;
+}
+
     </style>
 </head>
 <body>
@@ -775,52 +827,58 @@
     <label for="pop-note">Notiz:</label>
     <input type="text" id="pop-note" placeholder="Notiz eingeben...">
 
-    <!-- ⚠️ Direkt eine Schadensmeldung anhängen? -->
-<div style="margin-top: 15px; margin-bottom: 15px;">
-    <label style="display: flex; align-items: center; gap: 8px; font-weight: bold; cursor: pointer;">
+    <!-- ⚠️ Schadensmeldungs-Container mit integrierter Checkbox -->
+<div class="damage-box-wrapper">
+    
+    <!-- Checkbox oben im Rahmen -->
+    <label class="damage-main-label">
         <input type="checkbox" id="pop-has-damage-checkbox" onchange="toggleInlineDamageFields()">
-        ⚠️ Direkt eine Schadensmeldung anhängen?
+        <span>⚠️ Direkt eine Schadensmeldung anhängen?</span>
     </label>
     
-    <!-- Aufklappbarer Schadensbereich mit orangem Rahmen -->
-    <div id="inline-damage-container" style="display: none; background-color: #fff9f5; border: 1px solid #f39c12; border-radius: 8px; padding: 15px; margin-top: 10px;">
+    <!-- Aufklappbarer Bereich -->
+    <div id="inline-damage-container" style="display: none; margin-top: 15px; border-top: 1px solid #f3d2b5; padding-top: 12px;">
         
-        <label style="font-weight: bold; display: block; margin-bottom: 10px;">Schadenskategorie auswählen:</label>
+        <div style="font-weight: bold; margin-bottom: 10px; font-size: 14px;">Schadenskategorie auswählen:</div>
         
-        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="radio" name="inline-damage-cat" value="Stadtreinigung"> 🧹 Müllproblem / Vogelkot (Stadtreinigung)
+        <div style="display: flex; flex-direction: column; margin-bottom: 15px;">
+            <label class="damage-option">
+                <input type="radio" name="inline-damage-cat" value="Stadtreinigung"> 
+                <span>🧹 Müllproblem / Vogelkot (Stadtreinigung)</span>
             </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="radio" name="inline-damage-cat" value="Grünpflege"> 🌿 Bank zugewachsen (Grünpflege)
+            <label class="damage-option">
+                <input type="radio" name="inline-damage-cat" value="Grünpflege"> 
+                <span>🌿 Bank zugewachsen (Grünpflege)</span>
             </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="radio" name="inline-damage-cat" value="Zimmerer"> 🔨 Bank beschädigt (Zimmerer)
+            <label class="damage-option">
+                <input type="radio" name="inline-damage-cat" value="Zimmerer"> 
+                <span>🔨 Bank beschädigt (Zimmerer)</span>
             </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="radio" name="inline-damage-cat" value="Galabau"> 💣 Bank Irreparabel (Galabau)
+            <label class="damage-option">
+                <input type="radio" name="inline-damage-cat" value="Galabau"> 
+                <span>💣 Bank Irreparabel (Galabau)</span>
             </label>
         </div>
 
-        <label for="pop-damage-desc" style="font-weight: bold; display: block; margin-bottom: 5px;">Schadensbeschreibung / Details:</label>
-        <input type="text" id="pop-damage-desc" placeholder="z.B. 2 Latten gebrochen..." style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 15px; font-size: 14px;">
+        <label for="pop-damage-desc" style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px;">Schadensbeschreibung / Details:</label>
+        <input type="text" id="pop-damage-desc" placeholder="z.B. 2 Latten gebrochen..." style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 15px; font-size: 14px; box-sizing: border-box;">
 
-        <label style="font-weight: bold; display: block; margin-bottom: 8px;">Foto des Schadens:</label>
+        <div style="font-weight: bold; margin-bottom: 8px; font-size: 14px;">Foto des Schadens:</div>
         
-        <!-- Unsichtbare File-Inputs für Kamera & Galerie -->
+        <!-- Unsichtbare File-Inputs -->
         <input type="file" id="inline-camera-input" accept="image/*" capture="environment" style="display: none;" onchange="handleInlineImageSelect(this)">
         <input type="file" id="inline-gallery-input" accept="image/*" style="display: none;" onchange="handleInlineImageSelect(this)">
 
         <div style="display: flex; gap: 10px;">
-            <button type="button" class="btn" style="flex: 1; background-color: #e67e22; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="document.getElementById('inline-camera-input').click()">
+            <button type="button" class="btn" style="flex: 1; background-color: #e67e22; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px;" onclick="document.getElementById('inline-camera-input').click()">
                 📷 Kamera
             </button>
-            <button type="button" class="btn" style="flex: 1; background-color: #34495e; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="document.getElementById('inline-gallery-input').click()">
+            <button type="button" class="btn" style="flex: 1; background-color: #34495e; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px;" onclick="document.getElementById('inline-gallery-input').click()">
                 🖼️ Galerie
             </button>
         </div>
         
-        <div id="inline-photo-status" style="font-size: 12px; color: #7f8c8d; margin-top: 6px;">Kein Schadensfoto ausgewählt</div>
+        <div id="inline-photo-status" style="font-size: 12px; color: #7f8c8d; margin-top: 8px;">Kein Schadensfoto ausgewählt</div>
     </div>
 </div>
 
