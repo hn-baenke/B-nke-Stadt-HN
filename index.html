@@ -493,15 +493,23 @@
         <div id="map"></div>
 
         <div id="live-stats-widget" class="minimized">
-            <div class="widget-header" onclick="toggleWidget()">
-                <span>📊 Filter-Ansicht</span>
-                <span id="widget-toggle-icon">➕</span>
-            </div>
-            <div class="widget-content">
-                <div>Angezeigte Bänke: <strong id="widget-total">0</strong></div>
-                <ul id="widget-details"></ul>
-            </div>
+    <div class="widget-header" onclick="toggleWidget()">
+        <span>📊 Filter-Ansicht</span>
+        <span id="widget-toggle-icon">➕</span>
+    </div>
+    <div class="widget-content">
+        <div>Angezeigte Bänke: <strong id="widget-total">0</strong></div>
+        <ul id="widget-details"></ul>
+
+        <!-- 🟢 Lasso-Wartungsbutton (wird automatisch angezeigt, sobald ein Lasso aktiv ist) -->
+        <div id="lasso-action-wrapper" style="display: none; margin-top: 15px; padding: 10px; background: #e8f8f5; border: 1px solid #27ae60; border-radius: 6px; text-align: center;">
+            <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: bold; color: #27ae60;">📍 Lasso-Bereich aktiv</p>
+            <button type="button" class="btn" onclick="applyLassoMaintenanceToday()" style="background: #27ae60; color: white; width: 100%; font-weight: bold; padding: 8px; cursor: pointer;">
+                🟢 Wartung heute für markierte Bänke
+            </button>
         </div>
+    </div>
+</div>
 
         <!-- Info-Banner auf der Karte (anfangs versteckt) -->
     <div id="drag-info-banner" style="display: none; position: fixed; top: 120px; left: 50%; transform: translateX(-50%); z-index: 2000; background: #2c3e50; color: white; padding: 12px 18px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 14px; text-align: center;">
@@ -544,6 +552,9 @@
     <button type="button" class="btn-reset-filters" onclick="resetAllFilters()">
         🔄 Filter zurücksetzen
     </button>
+    <button class="btn" onclick="activateLassoFromMenu()" title="Gebiet mit Lasso auf der Karte umkreisen">
+    ✏️ Gebiet mit Lasso markieren
+</button>
 </div>
             <div class="stats-box">
                 <strong id="stats-title">Auswertung</strong>
@@ -814,15 +825,18 @@
     </select>
     
     <label for="pop-description">Bank Beschreibung:</label>
-    <input type="text" id="pop-description" placeholder="Beschreibung eingeben...">
-    <span class="field-example">z.B. Bank auf Betonsockel, Rundbank auf Gestell</span>
+<input type="text" id="pop-description" list="description-suggestions" placeholder="Beschreibung eingeben...">
+<datalist id="description-suggestions"></datalist>
+<span class="field-example">z.B. Bank auf Betonsockel, Rundbank auf Gestell</span>
 
-    <label for="pop-assembly-note">Montage-Hinweis:</label>
-    <input type="text" id="pop-assembly-note" placeholder="Nur bei Standartabweichungen">
-    <span class="field-example">z.B. Sondermaß, Spezialwerkzeug nötig, Befestigungsmittel</span>
+<label for="pop-assembly-note">Montage-Hinweis:</label>
+<input type="text" id="pop-assembly-note" list="assembly-suggestions" placeholder="Nur bei Standartabweichungen">
+<datalist id="assembly-suggestions"></datalist>
+<span class="field-example">z.B. Sondermaß, Spezialwerkzeug nötig, Befestigungsmittel</span>
 
-    <label for="pop-dimensions">Maße (z.B. 180x50x45 cm):</label>
-    <input type="text" id="pop-dimensions" placeholder="Länge x Breite x Höhe...">
+<label for="pop-dimensions">Maße (z.B. 180x50x45 cm):</label>
+<input type="text" id="pop-dimensions" list="dimensions-suggestions" placeholder="Länge x Breite x Höhe...">
+<datalist id="dimensions-suggestions"></datalist>
 
     <label for="pop-note">Notiz:</label>
     <input type="text" id="pop-note" placeholder="Notiz eingeben...">
@@ -2095,6 +2109,61 @@ window.openReportsOverlay = async function(mode) {
     }
 };
 
+// ERstellt zweiten button für schnelles Bank anlegen.
+// Speichert die Parameter der zuletzt angelegten Bank (für den Schnell-Button)
+let lastBenchTemplate = JSON.parse(localStorage.getItem('lastBenchTemplate')) || null;
+
+// Funktion zum direkten Duplizieren der letzten Bank an den Koordinaten
+async function quickDuplicateBench(lat, lng) {
+    if (!lastBenchTemplate) {
+        alert("Keine Vorlage vorhanden. Bitte lege zuerst eine Bank regulär an.");
+        return;
+    }
+
+    if (typeof map !== 'undefined') {
+        map.closePopup();
+    }
+
+    // Nutzt das Datum aus dem Template oder fällt auf heute zurück
+    const targetDate = lastBenchTemplate.last_maintenance || new Date().toISOString().split('T')[0];
+
+    const newBenchData = {
+        ...lastBenchTemplate,
+        lat: lat,
+        lng: lng,
+        last_maintenance: targetDate, // 👈 Hier wird das übernommene Datum gesetzt
+        created_at: new Date().toISOString()
+    };
+
+    try {
+        if (typeof supabaseClient !== 'undefined') {
+            const { data, error } = await supabaseClient
+                .from('benches')
+                .insert([newBenchData])
+                .select();
+
+            if (error) {
+                console.error("Fehler beim Schnell-Anlegen:", error);
+                alert("Fehler beim Speichern: " + error.message);
+                return;
+            }
+
+            if (data && data[0]) {
+                benches.push(data[0]);
+            }
+        } else {
+            benches.push(newBenchData);
+        }
+
+        if (typeof updateApp === 'function') {
+            updateApp();
+        }
+
+    } catch (err) {
+        console.error("Unerwarteter Fehler beim Duplizieren:", err);
+    }
+}
+
         window.showDirectApprovalFromMap = function(benchId) {
     if (currentRole !== 'Admin') return;
     if (map) map.closePopup();
@@ -2724,14 +2793,18 @@ window.closeReportDetail = function() {
             // 👤 FALL A: GAST-EINTRAG (Direkt in 'benches')
             // ==========================================
             if (status) {
-                // Freigeben: Status in der benches-Tabelle aktivieren
+                // Freigeben: Den tatsächlichen manual_status beibehalten (statt hart auf 'In Ordnung' zu setzen)
+                const targetStatus = pendingItem.manual_status && pendingItem.manual_status !== 'In Ordnung' 
+                    ? pendingItem.manual_status 
+                    : 'In Ordnung';
+
                 const { error: guestApproveErr } = await supabaseClient
                     .from('benches')
                     .update({ 
-                    manual_status: 'In Ordnung',
-                    approved: true 
-             })
-                .eq('id', pendingItem.id);
+                        manual_status: targetStatus,
+                        approved: true 
+                    })
+                    .eq('id', pendingItem.id);
 
                 if (guestApproveErr) throw guestApproveErr;
             } else {
@@ -2768,6 +2841,11 @@ window.closeReportDetail = function() {
                     const { id, pending_action, bench_id, created_at, worker_name, is_direct_bench, ...updatedData } = pendingItem;
                     updatedData.approved = true;
 
+                    // Sicherstellen, dass ein vorhandener Schadensstatus nicht versehentlich verloren geht
+                    if (!updatedData.manual_status || updatedData.manual_status === 'In Ordnung') {
+                        // Falls in pendingItem kein Status stand, behalten wir den aus der DB oder lassen ihn
+                    }
+
                     const { error: updateErr } = await supabaseClient.from('benches').update(updatedData).eq('id', pendingItem.bench_id);
                     if (updateErr) throw updateErr;
                 }
@@ -2777,7 +2855,6 @@ window.closeReportDetail = function() {
 
             } else {
                 // --- ABLEHNEN / ÄNDERUNG VERWERFEN ---
-                // Antrag einfach ersatzlos aus pending_benches löschen
                 await supabaseClient.from('pending_benches').delete().eq('id', pendingId);
             }
         }
@@ -2822,6 +2899,7 @@ window.closeReportDetail = function() {
         if (detailContainer) detailContainer.innerHTML = '';
     }
 };
+
 // =================================================================
         // NEUE HILFSFUNKTION: Löscht bestehende Schadensmeldungen automatisch
         // =================================================================
@@ -3855,6 +3933,13 @@ function getMarkerStyle(status, approved, assemblyNote) {
     // ==========================================
     benches.forEach(bench => {
         if (!bench || !bench.type) return;
+
+        // ✏️ LASSO-FILTER: Wenn ein aktives Lasso-Polygon existiert, Bänke außerhalb direkt überspringen
+        if (typeof activeLassoPolygonPoints !== 'undefined' && activeLassoPolygonPoints && activeLassoPolygonPoints.length > 0) {
+            if (!bench.lat || !bench.lng || !checkIfPointInPolygon({ lat: bench.lat, lng: bench.lng }, activeLassoPolygonPoints)) {
+                return;
+            }
+        }
         
         let status = calculateStatus(bench);
         const hatSchadensmeldung = damagereports.some(r => r.bench_id === bench.id);
@@ -4155,6 +4240,16 @@ function getMarkerStyle(status, approved, assemblyNote) {
         }
     }
 
+    // 🟢 Lasso-Wartungsbutton in der Sidebar ein-/ausblenden
+    const lassoWrapper = document.getElementById('lasso-action-wrapper');
+    if (lassoWrapper) {
+        if (typeof activeLassoPolygonPoints !== 'undefined' && activeLassoPolygonPoints && activeLassoPolygonPoints.length > 0) {
+            lassoWrapper.style.display = 'block';
+        } else {
+            lassoWrapper.style.display = 'none';
+        }
+    }
+
     // ==========================================
     // 5. DEEPLINK ODER OFFENES POPUP WIEDERHERSTELLEN
     // ==========================================
@@ -4259,6 +4354,10 @@ function openFullscreenForm(bench, isNew) {
         };
     }
     
+    // 💡 Vorschläge für die Datalists/Dropdowns frisch befüllen:
+    if (typeof updateTextSuggestions === 'function') updateTextSuggestions();
+    if (typeof updateDimensionSuggestions === 'function') updateDimensionSuggestions();
+
     document.getElementById('fullscreen-overlay').style.display = 'block';
     handleTypeChange(); 
 }
@@ -4388,6 +4487,11 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
     lastSelectedDistrict = document.getElementById('pop-district') ? document.getElementById('pop-district').value : null;
     const selectedDate = document.getElementById('pop-date') ? document.getElementById('pop-date').value : null;
     
+const currentDim = document.getElementById('pop-dimensions') ? document.getElementById('pop-dimensions').value : '';
+    if (currentDim) {
+        saveDimensionToLocalHistory(currentDim);
+    }
+
     if (selectedDate) {
         localStorage.setItem('last_used_maintenance_date', selectedDate);
     }
@@ -4492,6 +4596,17 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
 
     // --- FALL 2: SPEICHERN / BEARBEITEN ---
     if (actionType === 'save') {
+        // 💡 TEMPLATE FÜR SCHNELL-DUPLIZIEREN MERKEN (inkl. Datum)
+        lastBenchTemplate = {
+            type: lastSelectedType,
+            district: lastSelectedDistrict,
+            dimensions: document.getElementById('pop-dimensions') ? document.getElementById('pop-dimensions').value : '',
+            assembly_note: document.getElementById('pop-assembly-note') ? document.getElementById('pop-assembly-note').value : '',
+            description: document.getElementById('pop-description') ? document.getElementById('pop-description').value : '',
+            manual_status: document.getElementById('pop-manual') ? document.getElementById('pop-manual').value : 'Automatisch',
+            last_maintenance: selectedDate // 👈 Das gewählte Datum hier mitschicken
+        };
+
         // 💡 FILTER-RÜCKSETZUNG bei neuen Bänken
         if (typeof isNewBenchMode !== 'undefined' && isNewBenchMode) {
             if (typeof resetAllFilters === 'function') {
@@ -4499,23 +4614,40 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
             }
         }
 
-        // 💡 Prüfen, ob eine Schadensmeldung im Erstell-Formular direkt angehakt wurde
         const hasInlineDamage = document.getElementById('pop-has-damage-checkbox') ? document.getElementById('pop-has-damage-checkbox').checked : false;
-        
-        // 💡 Schadenskategorie aus den Radio-Buttons auslesen
         const selectedRadio = document.querySelector('input[name="inline-damage-cat"]:checked');
         const inlineCategory = selectedRadio ? selectedRadio.value : '';
         const inlineDesc = document.getElementById('pop-damage-desc') ? document.getElementById('pop-damage-desc').value.trim() : '';
 
-        // Status bestimmen
-        let determinedStatus = document.getElementById('pop-manual') ? document.getElementById('pop-manual').value : 'In Ordnung';
+        // 🛡️ ULTRA-SICHERE STATUS-BESTIMMUNG (Verhindert das Zurückfallen auf 'In Ordnung')
+        let determinedStatus = null;
+        const targetBenchId = currentEditingBench ? currentEditingBench.id : null;
+        
+        const existingReports = (typeof damagereports !== 'undefined' && targetBenchId !== null) 
+            ? damagereports.filter(d => String(d.bench_id) === String(targetBenchId)) 
+            : [];
+
         if (hasInlineDamage && inlineCategory) {
             if (inlineCategory === 'Stadtreinigung') determinedStatus = 'Verschmutzt';
             else if (inlineCategory === 'Grünpflege') determinedStatus = 'Zugewachsen';
             else if (inlineCategory === 'Zimmerer') determinedStatus = 'Beschädigt';
             else if (inlineCategory === 'Galabau') determinedStatus = 'Irreparabel';
-        } else if (currentEditingBench && damagereports.some(d => d.bench_id === currentEditingBench.id)) {
-            determinedStatus = currentEditingBench.manual_status || 'Beschädigt';
+        } else if (existingReports.length > 0) {
+            const reportCat = existingReports[0].category;
+            if (reportCat === 'Stadtreinigung') determinedStatus = 'Verschmutzt';
+            else if (reportCat === 'Grünpflege') determinedStatus = 'Zugewachsen';
+            else if (reportCat === 'Zimmerer') determinedStatus = 'Beschädigt';
+            else if (reportCat === 'Galabau') determinedStatus = 'Irreparabel';
+            else determinedStatus = 'Beschädigt';
+        } else if (currentEditingBench && currentEditingBench.manual_status && currentEditingBench.manual_status !== 'In Ordnung') {
+            // Wenn die Bank vorher schon einen Schadensstatus hatte, behalten wir ihn bei!
+            determinedStatus = currentEditingBench.manual_status;
+        }
+
+        // Falls immer noch kein Status ermittelt wurde, prüfen wir das Dropdown – ABER nur wenn kein Report da ist
+        if (!determinedStatus) {
+            const manualEl = document.getElementById('pop-manual');
+            determinedStatus = manualEl ? manualEl.value : 'In Ordnung';
         }
 
         const baseData = {
@@ -4539,6 +4671,10 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
         if (isAdmin) {
             const rowData = { ...baseData, approved: true, pending_action: null };
 
+            if (!isNewBenchMode && currentEditingBench && currentEditingBench.id) {
+                rowData.id = currentEditingBench.id;
+            }
+
             if (isNewBenchMode) { 
                 benches.push({ id: tempId, ...rowData }); 
             } else {
@@ -4552,15 +4688,18 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
 
             if (supabaseClient) {
                 try {
+                    const conflictKey = (!isNewBenchMode && currentEditingBench && currentEditingBench.id) ? 'id' : 'client_id';
+
                     const { data: dbBench, error } = await supabaseClient
                         .from('benches')
-                        .upsert([rowData], { onConflict: 'client_id' })
+                        .upsert([rowData], { onConflict: conflictKey })
                         .select().single();
 
                     if (error) throw error;
                     if (dbBench) savedBenchId = dbBench.id;
                     await fetchBenchesFromCloud();
                 } catch(e) {
+                    console.error("Fehler beim Cloud-Speichern:", e);
                     saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id, tempId, 'benches');
                 }
             } else {
@@ -4599,7 +4738,7 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
             }
         }
 
-        // 💡 NEU: Automatische Schadensmeldung + Bild-Upload anlegen, falls Checkbox aktiv war
+        // 💡 Automatische Schadensmeldung + Bild-Upload anlegen, falls Checkbox aktiv war
         if (hasInlineDamage && savedBenchId && supabaseClient) {
             try {
                 const categoryToUse = inlineCategory || 'Zimmerer';
@@ -4608,7 +4747,6 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
 
                 let uploadedImageUrl = null;
 
-                // Bild-Upload in Supabase Storage (falls ein Foto aufgenommen/ausgewählt wurde)
                 if (typeof inlineSelectedImageFile !== 'undefined' && inlineSelectedImageFile) {
                     const fileExt = inlineSelectedImageFile.name.split('.').pop();
                     const fileName = `${savedBenchId}_${Date.now()}.${fileExt}`;
@@ -4628,7 +4766,6 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
                     }
                 }
 
-                // Schadens-Ticket in DB schreiben
                 await supabaseClient.from('damage_reports').upsert([{
                     client_id: generateClientId(),
                     bench_id: savedBenchId,
@@ -4646,7 +4783,6 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
             }
         }
 
-        // Schadens-Felder & Bildauswahl für das nächste Mal zurücksetzen
         if (typeof resetInlineDamageFields === 'function') {
             resetInlineDamageFields();
         }
@@ -4763,37 +4899,52 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
     markersLayer = L.layerGroup().addTo(map);
 
     // Karten-Klick Event Handler für freie Flächen
-map.on('click', function(e) {
-    // 1. Ignorieren, wenn direkt auf das bestehende Popup oder dessen Inhalte geklickt wurde
-    if (e.originalEvent && (e.originalEvent._stopped || e.originalEvent.target.closest('.leaflet-popup-pane'))) {
-        return;
-    }
+    map.on('click', function(e) {
+        // 1. Ignorieren, wenn direkt auf das bestehende Popup oder dessen Inhalte geklickt wurde
+        if (e.originalEvent && (e.originalEvent._stopped || e.originalEvent.target.closest('.leaflet-popup-pane'))) {
+            return;
+        }
 
-    // 2. Falls noch ein altes Bank-Popup offen war: Erst einklappen, damit der Klick verarbeitet werden kann
-    map.closePopup();
+        // 2. Falls noch ein altes Bank-Popup offen war: Erst einklappen, damit der Klick verarbeitet werden kann
+        map.closePopup();
 
-    const lat = e.latlng.lat;
-    const lng = e.latlng.lng;
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
 
-    const allowedRolesForFreeClick = ['Gast', 'Gala Bau', 'Stadt Reinigung', 'Grünpflege'];
+        const allowedRolesForFreeClick = ['Gast', 'Gala Bau', 'Stadt Reinigung', 'Grünpflege'];
 
-    if (allowedRolesForFreeClick.includes(currentRole)) {
-        L.popup()
-            .setLatLng(e.latlng)
-            .setContent(`
-                <div style="text-align:center; padding: 5px;">
-                    <strong style="display:block; margin-bottom:8px;">Neuer Fundort</strong>
-                    <button onclick="window.openDamageReportsOverlay(null, true, ${lat}, ${lng})" class="btn" style="padding:8px 12px; font-size:12px; background:#e74c3c;">⚠️ Schaden/Fundort melden</button>
-                </div>
-            `)
-            .openOn(map);
-    } else if (currentRole !== 'Gast') {
-        L.popup()
-            .setLatLng(e.latlng)
-            .setContent(`<button onclick="window.triggerNewBenchCreation(${lat}, ${lng})" class="btn" style="padding:8px; font-size:12px; background-color: #27ae60;">➕ Neue Bank anlegen</button>`)
-            .openOn(map);
-    }
-});
+        if (allowedRolesForFreeClick.includes(currentRole)) {
+            L.popup()
+                .setLatLng(e.latlng)
+                .setContent(`
+                    <div style="text-align:center; padding: 5px;">
+                        <strong style="display:block; margin-bottom:8px;">Neuer Fundort</strong>
+                        <button onclick="window.openDamageReportsOverlay(null, true, ${lat}, ${lng})" class="btn" style="padding:8px 12px; font-size:12px; background:#e74c3c;">⚠️ Schaden/Fundort melden</button>
+                    </div>
+                `)
+                .openOn(map);
+        } else if (currentRole !== 'Gast') {
+            // Optionaler Duplizieren-Button, falls eine Vorlage existiert
+            let duplicateBtnHtml = '';
+            if (lastBenchTemplate && lastBenchTemplate.type) {
+                duplicateBtnHtml = `
+                    <button onclick="quickDuplicateBench(${lat}, ${lng})" class="btn" style="padding:8px; font-size:12px; background-color: #2980b9; color: white; width: 100%; margin-top: 5px; font-weight: bold;">
+                        ⚡ Letzte Bank hier setzen (${lastBenchTemplate.type})
+                    </button>
+                `;
+            }
+
+            L.popup()
+                .setLatLng(e.latlng)
+                .setContent(`
+                    <div style="text-align: center;">
+                        <button onclick="window.triggerNewBenchCreation(${lat}, ${lng})" class="btn" style="padding:8px; font-size:12px; background-color: #27ae60; width: 100%;">➕ Neue Bank anlegen</button>
+                        ${duplicateBtnHtml}
+                    </div>
+                `)
+                .openOn(map);
+        }
+    });
 
     checkPersistentLogin();
 
@@ -4984,10 +5135,389 @@ function resetAllFilters() {
     if (typeof selectedDistrictFilter !== 'undefined') selectedDistrictFilter = 'Alle';
     if (typeof selectedStatusFilters !== 'undefined') selectedStatusFilters = [];
 
-    // 5. App/Karte mit den zurückgesetzten Filtern aktualisieren
+    // 🔄 5. Lasso-Filter & gezeichnetes Polygon auf der Karte zurücksetzen
+    activeLassoPolygonPoints = null;
+    if (typeof lassoPolygonLayer !== 'undefined' && lassoPolygonLayer && map) {
+        map.removeLayer(lassoPolygonLayer);
+        lassoPolygonLayer = null;
+    }
+
+    // 6. App/Karte mit den zurückgesetzten Filtern aktualisieren
     if (typeof updateApp === 'function') {
         updateApp();
     }
+}
+
+    // ==========================================
+    // Markierungs Filter
+    // ==========================================
+
+let isDrawingLasso = false;
+let lassoPoints = [];
+let lassoPolyline = null;
+let lassoPolygonLayer = null;
+let activeLassoPolygonPoints = null; // Speichert das aktive Polygon für den Filter
+
+// 1. Aus dem Menü heraus starten
+function activateLassoFromMenu() {
+    // Falls deine App eine globale Funktion zum Schließen hat, nutzen wir diese bevorzugt:
+    if (typeof closeAllOverlays === 'function') {
+        closeAllOverlays();
+    }
+
+    // Menüs über ihre typischen CSS-Klassen schließen (statt hart display:none zu erzwingen)
+    const possibleMenuSelectors = ['#side-menu', '#menu', '#sidebar', '#filter-menu', '#main-menu', '.side-menu', '.sidebar', '.menu'];
+    possibleMenuSelectors.forEach(selector => {
+        const el = document.querySelector(selector);
+        if (el) {
+            el.classList.remove('open', 'active', 'show');
+            // Falls es rein über display läuft, setzen wir es kontrolliert zurück:
+            if (el.style.display === 'block' || el.style.display === 'flex') {
+                el.style.display = 'none';
+            }
+        }
+    });
+
+    // Lasso-Modus aktivieren
+    if (!isDrawingLasso) {
+        toggleLassoMode();
+    }
+}
+
+// 2. Modus umschalten
+function toggleLassoMode() {
+    isDrawingLasso = !isDrawingLasso;
+
+    if (isDrawingLasso) {
+        if (map) {
+            map.dragging.disable();
+            map.scrollWheelZoom.disable();
+            map.boxZoom.disable();
+            map.doubleClickZoom.disable();
+        }
+        
+        // Vollflächiges Overlay über den Bildschirm legen
+        if (!document.getElementById('lasso-overlay-pane')) {
+            const overlay = document.createElement('div');
+            overlay.id = 'lasso-overlay-pane';
+            overlay.style.position = 'fixed';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100vw';
+            overlay.style.height = '100vh';
+            overlay.style.zIndex = '999999';
+            overlay.style.cursor = 'crosshair';
+            overlay.style.background = 'rgba(0, 123, 255, 0.03)';
+            
+            overlay.addEventListener('mousedown', startLassoDraw);
+            overlay.addEventListener('mousemove', drawLassoMove);
+            window.addEventListener('mouseup', endLassoDraw);
+            
+            overlay.addEventListener('touchstart', startLassoDrawTouch, { passive: false });
+            overlay.addEventListener('touchmove', drawLassoMoveTouch, { passive: false });
+            window.addEventListener('touchend', endLassoDraw);
+
+            document.body.appendChild(overlay);
+        }
+        
+        console.log("✏️ Lasso-Modus aktiv: Zeichne deinen Bereich.");
+    } else {
+        deactivateLassoMode();
+    }
+}
+
+function deactivateLassoMode() {
+    isDrawingLasso = false;
+    if (map) {
+        map.dragging.enable();
+        map.scrollWheelZoom.enable();
+        map.boxZoom.enable();
+        map.doubleClickZoom.enable();
+    }
+    
+    // Overlay ABSOLUT SICHER entfernen, damit das Menü wieder klickbar ist
+    const overlay = document.getElementById('lasso-overlay-pane');
+    if (overlay) overlay.remove();
+
+    window.removeEventListener('mouseup', endLassoDraw);
+    window.removeEventListener('touchend', endLassoDraw);
+}
+
+function startLassoDraw(e) {
+    if (!isDrawingLasso || !map) return;
+    if (e.cancelable) e.preventDefault();
+    
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    
+    if (clientX === undefined || clientY === undefined) return;
+
+    const mapContainer = map.getContainer();
+    const rect = mapContainer.getBoundingClientRect();
+    
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    
+    const latlng = map.containerPointToLatLng([x, y]);
+    lassoPoints = [latlng];
+    
+    if (lassoPolyline) map.removeLayer(lassoPolyline);
+    
+    lassoPolyline = L.polyline(lassoPoints, { color: '#e74c3c', weight: 4 }).addTo(map);
+}
+
+function drawLassoMove(e) {
+    if (!isDrawingLasso || !lassoPoints.length || !map) return;
+    if (e.cancelable) e.preventDefault();
+
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    
+    if (clientX === undefined || clientY === undefined) return;
+
+    const mapContainer = map.getContainer();
+    const rect = mapContainer.getBoundingClientRect();
+
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+
+    const latlng = map.containerPointToLatLng([x, y]);
+    lassoPoints.push(latlng);
+    if (lassoPolyline) {
+        lassoPolyline.setLatLngs(lassoPoints);
+    }
+}
+
+function endLassoDraw(e) {
+    if (!isDrawingLasso) return;
+    
+    if (lassoPoints.length < 3) {
+        if (lassoPolyline) map.removeLayer(lassoPolyline);
+        deactivateLassoMode();
+        return;
+    }
+    
+    if (lassoPolyline) map.removeLayer(lassoPolyline);
+    
+    // Polygon dauerhaft auf der Karte anzeigen
+    lassoPolygonLayer = L.polygon(lassoPoints, { color: '#3498db', fillColor: '#3498db', fillOpacity: 0.3 }).addTo(map);
+    
+    // Aktiv-Polygon für den Filter speichern
+    activeLassoPolygonPoints = [...lassoPoints];
+
+    // Direkt auf den Bereich zoomen
+    map.fitBounds(lassoPolygonLayer.getBounds(), { padding: [50, 50] });
+
+    // Filter anwenden, sodass nur noch die Bänke in diesem Bereich angezeigt werden
+    applyLassoFilter(lassoPoints);
+    
+    deactivateLassoMode();
+}
+
+function startLassoDrawTouch(e) {
+    if (!isDrawingLasso || !e.touches || !e.touches[0]) return;
+    startLassoDraw(e);
+}
+
+function drawLassoMoveTouch(e) {
+    if (!isDrawingLasso || !e.touches || !e.touches[0]) return;
+    drawLassoMove(e);
+}
+
+// Punkt-in-Polygon Prüfung
+function checkIfPointInPolygon(point, polygon) {
+    let x = point.lat, y = point.lng;
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        let xi = polygon[i].lat, yi = polygon[i].lng;
+        let xj = polygon[j].lat, yj = polygon[j].lng;
+        let intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+
+// Bänke auf den markierten Bereich filtern
+function applyLassoFilter(polygonPoints) {
+    const selectedBenches = benches.filter(b => {
+        if (!b.lat || !b.lng) return false;
+        return checkIfPointInPolygon({ lat: b.lat, lng: b.lng }, polygonPoints);
+    });
+
+    if (selectedBenches.length === 0) {
+        alert("Keine Bänke in diesem markierten Bereich gefunden.");
+        if (lassoPolygonLayer) {
+            map.removeLayer(lassoPolygonLayer);
+            lassoPolygonLayer = null;
+        }
+        activeLassoPolygonPoints = null;
+        return;
+    }
+
+    console.log(`Lasso-Filter aktiv: ${selectedBenches.length} Bänke im Bereich.`);
+    
+    // App aktualisieren, damit die Filteransicht und die Marker auf die selektierten Bänke greifen
+    if (typeof updateApp === 'function') {
+        updateApp();
+    }
+}
+
+// Funktion: Setzt das Wartungsdatum aller im Lasso befindlichen Bänke auf heute
+async function applyLassoMaintenanceToday() {
+    if (!activeLassoPolygonPoints || activeLassoPolygonPoints.length === 0) {
+        alert("Es ist aktuell kein Lasso-Bereich aktiv.");
+        return;
+    }
+
+    // 1. Aktuelle Filter aus der Benutzeroberfläche auslesen
+    const filterDistrict = document.getElementById('filter-district') ? document.getElementById('filter-district').value : 'Alle';
+    const filterType = document.getElementById('filter-type') ? document.getElementById('filter-type').value : 'Alle';
+    const selectedStatuses = Array.from(document.querySelectorAll('#status-checkboxes-container input:checked')).map(cb => cb.value);
+
+    // 2. Nur Bänke filtern, die im Lasso liegen UND den aktiven Filtern entsprechen
+    const selectedBenches = benches.filter(b => {
+        if (!b || !b.type || !b.lat || !b.lng) return false;
+
+        const inLasso = checkIfPointInPolygon({ lat: b.lat, lng: b.lng }, activeLassoPolygonPoints);
+        if (!inLasso) return false;
+
+        let status = calculateStatus(b);
+        const hatSchadensmeldung = typeof damagereports !== 'undefined' && damagereports.some(r => r.bench_id === b.id);
+        if (typeof currentRole !== 'undefined' && currentRole === 'Gast' && (status === 'Beschädigt' || hatSchadensmeldung)) {
+            status = 'Beschädigt';
+        }
+
+        const matchDistrict = filterDistrict === 'Alle' || b.district === filterDistrict;
+        const matchType = filterType === 'Alle' || b.type === filterType;
+        const matchStatus = (selectedStatuses.length === 0) || selectedStatuses.includes(status);
+
+        return matchDistrict && matchType && matchStatus;
+    });
+
+    if (selectedBenches.length === 0) {
+        alert("Keine aktuell sichtbaren Bänke in diesem markierten Bereich gefunden.");
+        return;
+    }
+
+    const count = selectedBenches.length;
+    const todayStr = new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
+    
+    const action = confirm(`Möchtest du für alle ${count} aktuell angezeigten Bänke in diesem markierten Bereich das Wartungsdatum auf heute (${todayStr}) setzen und in der Datenbank speichern?`);
+    
+    if (action) {
+        try {
+            // IDs aller gefilterten Bänke sammeln
+            const benchIds = selectedBenches.map(b => b.id);
+
+            // 💾 Direkt in Supabase aktualisieren mit supabaseClient
+            if (typeof supabaseClient !== 'undefined') {
+                const { error } = await supabaseClient
+                    .from('benches')
+                    .update({ last_maintenance: todayStr })
+                    .in('id', benchIds);
+
+                if (error) {
+                    console.error("Supabase Fehler beim Massen-Update:", error);
+                    alert("Fehler beim Speichern in der Datenbank: " + error.message);
+                    return;
+                }
+            } else {
+                console.warn("supabaseClient ist nicht definiert!");
+            }
+
+            // Lokales Array ebenfalls aktualisieren
+            selectedBenches.forEach(b => {
+                b.last_maintenance = todayStr;
+            });
+
+            alert(`Wartungsdatum für ${count} Bänke erfolgreich in der Datenbank aktualisiert!`);
+            
+            // App / Filter neu laden
+            if (typeof updateApp === 'function') {
+                updateApp();
+            }
+        } catch (err) {
+            console.error("Unerwarteter Fehler:", err);
+            alert("Ein unerwarteter Fehler ist aufgetreten.");
+        }
+    }
+}
+
+//Funktionen für Textfeld Dropdown
+// ==========================================
+// 1. TEXT-VORSCHLÄGE (AUS DER CLOUD / SUPABASE)
+// ==========================================
+function updateTextSuggestions() {
+    const descList = document.getElementById('description-suggestions');
+    const assemblyList = document.getElementById('assembly-suggestions');
+    
+    if (!descList || !assemblyList) return;
+
+    // Sinnvolle Standard-Vorschläge, falls die Datenbank leer ist
+    const uniqueDescs = new Set([
+    ]);
+    
+    const uniqueAssembly = new Set([
+    ]);
+
+    // Alle vorhandenen Texte aus den Cloud-Bänken auslesen
+    if (typeof benches !== 'undefined' && benches.length > 0) {
+        benches.forEach(b => {
+            if (b.description && b.description.trim() !== "") {
+                uniqueDescs.add(b.description.trim());
+            }
+            if (b.assembly_note && b.assembly_note.trim() !== "") {
+                uniqueAssembly.add(b.assembly_note.trim());
+            }
+        });
+    }
+
+    // In HTML-Optionen umwandeln und in die Datalists schreiben
+    descList.innerHTML = Array.from(uniqueDescs).map(item => `<option value="${item}">`).join('');
+    assemblyList.innerHTML = Array.from(uniqueAssembly).map(item => `<option value="${item}">`).join('');
+}
+
+
+// ==========================================
+// 2. LOKALE MAßE-HISTORIE (LOCALSTORAGE)
+// ==========================================
+// 1. Maße-Historie laden
+function updateDimensionSuggestions() {
+    const listEl = document.getElementById('dimensions-suggestions');
+    if (!listEl) return;
+
+    const recentDims = JSON.parse(localStorage.getItem('local_recent_dimensions')) || [
+        "180 x 50 x 45 cm",
+        "200 x 50 x 45 cm",
+        "150 x 45 x 45 cm"
+    ];
+
+    listEl.innerHTML = recentDims.map(item => `<option value="${item}">`).join('');
+}
+
+// 2. Maß beim Speichern in den LocalStorage schreiben
+function saveDimensionToLocalHistory(dimText) {
+    if (!dimText || dimText.trim() === "") return;
+    
+    // Aktuelle Liste aus dem LocalStorage holen
+    let current = JSON.parse(localStorage.getItem('local_recent_dimensions')) || [];
+    
+    // Trimmen
+    const trimmed = dimText.trim();
+    
+    // Bereits vorhandene Einträge dieses Wertes rausfiltern (damit er nach vorne wandert)
+    current = current.filter(item => item !== trimmed);
+    
+    // Ganz nach vorne stellen (neuester Eintrag zuerst)
+    current.unshift(trimmed);
+    
+    // Maximal 10 Einträge behalten
+    if (current.length > 10) {
+        current = current.slice(0, 10);
+    }
+    
+    // Wieder abspeichern
+    localStorage.setItem('local_recent_dimensions', JSON.stringify(current));
 }
 
 let inlineSelectedImageFile = null;
