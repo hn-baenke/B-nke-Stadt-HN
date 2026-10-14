@@ -455,6 +455,40 @@
     text-align: left !important;
 }
 
+@media print {
+    /* 1. Alles auf der Seite unsichtbar machen */
+    body * {
+        visibility: hidden !important;
+    }
+    
+    /* 2. Nur das aktive Modal (egal ob offen oder Archiv) und dessen Kinder sichtbar machen */
+    #active-wood-list-modal, #active-wood-list-modal *,
+    #saved-detail-wood-modal, #saved-detail-wood-modal * {
+        visibility: visible !important;
+    }
+    
+    /* 3. Das Modal für den Druck sauber oben links positionieren und skalieren */
+    #active-wood-list-modal, #saved-detail-wood-modal {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        background: white !important;
+        z-index: 999999 !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    /* Schließen-Buttons oder unnötige UI-Elemente im Modal beim Drucken ausblenden */
+    #active-wood-list-modal button, #active-wood-list-modal .close-btn,
+    #saved-detail-wood-modal button, #saved-detail-wood-modal .close-btn {
+        display: none !important;
+    }
+}
+
+
     </style>
 </head>
 <body>
@@ -554,6 +588,12 @@
     </button>
     <button class="btn" onclick="activateLassoFromMenu()" title="Gebiet mit Lasso auf der Karte umkreisen">
     ✏️ Gebiet mit Lasso markieren
+</button>
+<button class="btn" onclick="toggleWoodSelectionMode()" style="background: #8E44AD; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+    🪵 Zuschnitt-Modus starten
+</button>
+<button class="btn" onclick="openWoodProjectsArchive()" style="background: #2980b9; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+    📂 Holz-Archiv öffnen
 </button>
 </div>
             <div class="stats-box">
@@ -825,76 +865,80 @@
     </select>
     
     <label for="pop-description">Bank Beschreibung:</label>
-<input type="text" id="pop-description" list="description-suggestions" placeholder="Beschreibung eingeben...">
-<datalist id="description-suggestions"></datalist>
-<span class="field-example">z.B. Bank auf Betonsockel, Rundbank auf Gestell</span>
+    <input type="text" id="pop-description" list="description-suggestions" placeholder="Beschreibung eingeben...">
+    <datalist id="description-suggestions"></datalist>
+    <span class="field-example">z.B. Bank auf Betonsockel, Rundbank auf Gestell</span>
 
-<label for="pop-assembly-note">Montage-Hinweis:</label>
-<input type="text" id="pop-assembly-note" list="assembly-suggestions" placeholder="Nur bei Standartabweichungen">
-<datalist id="assembly-suggestions"></datalist>
-<span class="field-example">z.B. Sondermaß, Spezialwerkzeug nötig, Befestigungsmittel</span>
+    <label for="pop-assembly-note">Montage-Hinweis:</label>
+    <input type="text" id="pop-assembly-note" list="assembly-suggestions" placeholder="Nur bei Standartabweichungen">
+    <datalist id="assembly-suggestions"></datalist>
+    <span class="field-example">z.B. Sondermaß, Spezialwerkzeug nötig, Befestigungsmittel</span>
 
-<label for="pop-dimensions">Maße (z.B. 180x50x45 cm):</label>
-<input type="text" id="pop-dimensions" list="dimensions-suggestions" placeholder="Länge x Breite x Höhe...">
-<datalist id="dimensions-suggestions"></datalist>
+    <!-- 🪵 NEU: Dynamische Maße & Stückzahlen -->
+    <label>Zuschnitt-Maße & Stückzahlen:</label>
+    <div id="dimensions-container" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px;">
+        <!-- Hier werden die Zeilen per JavaScript eingefügt -->
+    </div>
+    <button type="button" class="btn btn-sm" style="background-color: #27ae60; color: white; padding: 6px 12px; font-size: 13px; margin-bottom: 15px; width: 100%; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;" onclick="addDimensionRow()">➕ Weiteres Maß hinzufügen</button>
+    <datalist id="dimensions-suggestions"></datalist>
 
     <label for="pop-note">Notiz:</label>
     <input type="text" id="pop-note" placeholder="Notiz eingeben...">
 
     <!-- ⚠️ Schadensmeldungs-Container mit integrierter Checkbox -->
-<div class="damage-box-wrapper">
-    
-    <!-- Checkbox oben im Rahmen -->
-    <label class="damage-main-label">
-        <input type="checkbox" id="pop-has-damage-checkbox" onchange="toggleInlineDamageFields()">
-        <span>⚠️ Direkt eine Schadensmeldung anhängen?</span>
-    </label>
-    
-    <!-- Aufklappbarer Bereich -->
-    <div id="inline-damage-container" style="display: none; margin-top: 15px; border-top: 1px solid #f3d2b5; padding-top: 12px;">
+    <div class="damage-box-wrapper">
         
-        <div style="font-weight: bold; margin-bottom: 10px; font-size: 14px;">Schadenskategorie auswählen:</div>
+        <!-- Checkbox oben im Rahmen -->
+        <label class="damage-main-label">
+            <input type="checkbox" id="pop-has-damage-checkbox" onchange="toggleInlineDamageFields()">
+            <span>⚠️ Direkt eine Schadensmeldung anhängen?</span>
+        </label>
         
-        <div style="display: flex; flex-direction: column; margin-bottom: 15px;">
-            <label class="damage-option">
-                <input type="radio" name="inline-damage-cat" value="Stadtreinigung"> 
-                <span>🧹 Müllproblem / Vogelkot (Stadtreinigung)</span>
-            </label>
-            <label class="damage-option">
-                <input type="radio" name="inline-damage-cat" value="Grünpflege"> 
-                <span>🌿 Bank zugewachsen (Grünpflege)</span>
-            </label>
-            <label class="damage-option">
-                <input type="radio" name="inline-damage-cat" value="Zimmerer"> 
-                <span>🔨 Bank beschädigt (Zimmerer)</span>
-            </label>
-            <label class="damage-option">
-                <input type="radio" name="inline-damage-cat" value="Galabau"> 
-                <span>💣 Bank Irreparabel (Galabau)</span>
-            </label>
+        <!-- Aufklappbarer Bereich -->
+        <div id="inline-damage-container" style="display: none; margin-top: 15px; border-top: 1px solid #f3d2b5; padding-top: 12px;">
+            
+            <div style="font-weight: bold; margin-bottom: 10px; font-size: 14px;">Schadenskategorie auswählen:</div>
+            
+            <div style="display: flex; flex-direction: column; margin-bottom: 15px;">
+                <label class="damage-option">
+                    <input type="radio" name="inline-damage-cat" value="Stadtreinigung"> 
+                    <span>🧹 Müllproblem / Vogelkot (Stadtreinigung)</span>
+                </label>
+                <label class="damage-option">
+                    <input type="radio" name="inline-damage-cat" value="Grünpflege"> 
+                    <span>🌿 Bank zugewachsen (Grünpflege)</span>
+                </label>
+                <label class="damage-option">
+                    <input type="radio" name="inline-damage-cat" value="Zimmerer"> 
+                    <span>🔨 Bank beschädigt (Zimmerer)</span>
+                </label>
+                <label class="damage-option">
+                    <input type="radio" name="inline-damage-cat" value="Galabau"> 
+                    <span>💣 Bank Irreparabel (Galabau)</span>
+                </label>
+            </div>
+
+            <label for="pop-damage-desc" style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px;">Schadensbeschreibung / Details:</label>
+            <input type="text" id="pop-damage-desc" placeholder="z.B. 2 Latten gebrochen..." style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 15px; font-size: 14px; box-sizing: border-box;">
+
+            <div style="font-weight: bold; margin-bottom: 8px; font-size: 14px;">Foto des Schadens:</div>
+            
+            <!-- Unsichtbare File-Inputs -->
+            <input type="file" id="inline-camera-input" accept="image/*" capture="environment" style="display: none;" onchange="handleInlineImageSelect(this)">
+            <input type="file" id="inline-gallery-input" accept="image/*" style="display: none;" onchange="handleInlineImageSelect(this)">
+
+            <div style="display: flex; gap: 10px;">
+                <button type="button" class="btn" style="flex: 1; background-color: #e67e22; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px;" onclick="document.getElementById('inline-camera-input').click()">
+                    📷 Kamera
+                </button>
+                <button type="button" class="btn" style="flex: 1; background-color: #34495e; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px;" onclick="document.getElementById('inline-gallery-input').click()">
+                    🖼️ Galerie
+                </button>
+            </div>
+            
+            <div id="inline-photo-status" style="font-size: 12px; color: #7f8c8d; margin-top: 8px;">Kein Schadensfoto ausgewählt</div>
         </div>
-
-        <label for="pop-damage-desc" style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px;">Schadensbeschreibung / Details:</label>
-        <input type="text" id="pop-damage-desc" placeholder="z.B. 2 Latten gebrochen..." style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 15px; font-size: 14px; box-sizing: border-box;">
-
-        <div style="font-weight: bold; margin-bottom: 8px; font-size: 14px;">Foto des Schadens:</div>
-        
-        <!-- Unsichtbare File-Inputs -->
-        <input type="file" id="inline-camera-input" accept="image/*" capture="environment" style="display: none;" onchange="handleInlineImageSelect(this)">
-        <input type="file" id="inline-gallery-input" accept="image/*" style="display: none;" onchange="handleInlineImageSelect(this)">
-
-        <div style="display: flex; gap: 10px;">
-            <button type="button" class="btn" style="flex: 1; background-color: #e67e22; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px;" onclick="document.getElementById('inline-camera-input').click()">
-                📷 Kamera
-            </button>
-            <button type="button" class="btn" style="flex: 1; background-color: #34495e; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px;" onclick="document.getElementById('inline-gallery-input').click()">
-                🖼️ Galerie
-            </button>
-        </div>
-        
-        <div id="inline-photo-status" style="font-size: 12px; color: #7f8c8d; margin-top: 8px;">Kein Schadensfoto ausgewählt</div>
     </div>
-</div>
 
     <label>Standort:</label>
     <button type="button" class="btn" style="background-color: #34495e; color: #fff; margin-bottom: 12px; width: 100%;" onclick="startLocationPicker()">
@@ -1088,11 +1132,22 @@
     // Alle Eingabefelder leeren
     document.getElementById('pop-description').value = '';
     document.getElementById('pop-assembly-note').value = '';
-    document.getElementById('pop-dimensions').value = '';
+    
+    // 🪵 Dynamischen Maße-Container leeren und standardmäßig eine leere Zeile wiederherstellen
+    const dimContainer = document.getElementById('dimensions-container');
+    if (dimContainer) {
+        dimContainer.innerHTML = '';
+        if (typeof addDimensionRow === 'function') {
+            addDimensionRow();
+        }
+    }
+    
     document.getElementById('pop-note').value = '';
     
-    // Optional: Falls du ein Select-Feld für den Status hast, setze es zurück
-    // document.getElementById('pop-status').selectedIndex = 0;
+    // Inline-Schadensfelder ebenfalls zurücksetzen, falls offen
+    if (typeof resetInlineDamageFields === 'function') {
+        resetInlineDamageFields();
+    }
 }
 
 
@@ -3876,7 +3931,7 @@ function getMarkerStyle(status, approved, assemblyNote) {
     let liveFilteredStats = {}; types.forEach(t => liveFilteredStats[t] = 0);
     let totalLiveVisible = 0;
     
-    // 💡 FIX 1: Prüfen, ob aktuell bereits ein Popup geöffnet ist und ID merken
+    // Prüfen, ob aktuell bereits ein Popup geöffnet ist und ID merken
     let currentlyOpenBenchId = null;
     if (window.markerDict) {
         for (const [id, layer] of Object.entries(window.markerDict)) {
@@ -3884,7 +3939,6 @@ function getMarkerStyle(status, approved, assemblyNote) {
                 currentlyOpenBenchId = id;
                 break;
             } else if (layer && layer.getLayers) {
-                // Falls FeatureGroup
                 const subLayers = layer.getLayers();
                 if (subLayers.some(l => l.isPopupOpen && l.isPopupOpen())) {
                     currentlyOpenBenchId = id;
@@ -3934,10 +3988,16 @@ function getMarkerStyle(status, approved, assemblyNote) {
     benches.forEach(bench => {
         if (!bench || !bench.type) return;
 
-        // ✏️ LASSO-FILTER: Wenn ein aktives Lasso-Polygon existiert, Bänke außerhalb direkt überspringen
         if (typeof activeLassoPolygonPoints !== 'undefined' && activeLassoPolygonPoints && activeLassoPolygonPoints.length > 0) {
             if (!bench.lat || !bench.lng || !checkIfPointInPolygon({ lat: bench.lat, lng: bench.lng }, activeLassoPolygonPoints)) {
                 return;
+            }
+        }
+
+        // 🪵 IM ZUSCHNITT-MODUS: Nur Bänke mit Maßen anzeigen!
+        if (typeof isWoodSelectionMode !== 'undefined' && isWoodSelectionMode) {
+            if (!bench.dimensions || bench.dimensions.trim() === "") {
+                return; // Überspringt alle Bänke, die keine Maße haben
             }
         }
         
@@ -3964,7 +4024,14 @@ function getMarkerStyle(status, approved, assemblyNote) {
             if (markersLayer && typeof L !== 'undefined') {
                 const { baseStyle, irisStyle } = getMarkerStyle(status, bench.approved, bench.assembly_note);
 
-                // --- GESTRICHELTER SCHWARZER RAND BEI PENDING EDITS ---
+                // 🪵 ZUSCHNITT-MODUS: Markierung für bereits ausgewählte Bänke auf Blau setzen
+                if (typeof isWoodSelectionMode !== 'undefined' && isWoodSelectionMode && typeof selectedWoodBenchIds !== 'undefined' && selectedWoodBenchIds.has(bench.id)) {
+                    baseStyle.fillColor = '#3498db';
+                    baseStyle.color = '#2980b9';
+                    baseStyle.fillOpacity = 0.9;
+                    baseStyle.weight = 3;
+                }
+
                 const hasPendingEdit = window.pendingBenches && window.pendingBenches.some(p => Number(p.bench_id) === Number(bench.id));
                 if (hasPendingEdit && currentRole !== 'Gast') {
                     baseStyle.color = '#000000';
@@ -3989,7 +4056,6 @@ function getMarkerStyle(status, approved, assemblyNote) {
                 let timeHtml = '';
                 let workerHtml = '';
 
-                // Intervall nur für Nutzer anzeigen, die NICHT Gast sind
                 if (currentRole !== 'Gast' && bench.manual_status === 'Automatisch' && bench.last_maintenance) {
                     const maintDate = new Date(bench.last_maintenance);
                     const nextIntervalDate = new Date(maintDate.getFullYear() + 3, maintDate.getMonth(), maintDate.getDate());
@@ -4167,8 +4233,27 @@ function getMarkerStyle(status, approved, assemblyNote) {
                     </div>
                 `;
                 
-                // NEU: Nimmt das Standardverhalten von Leaflet (altes Popup schließt bei neuem Klick)
-                finalLayer.bindPopup(popupHtml);
+                // 🪵 ZUSCHNITT-MODUS KONTROLLE (Umschalten der Auswahl & Live-Update)
+                if (typeof isWoodSelectionMode !== 'undefined' && isWoodSelectionMode) {
+                    finalLayer.on('click', (e) => {
+                        L.DomEvent.stop(e); 
+                        
+                        if (selectedWoodBenchIds.has(bench.id)) {
+                            selectedWoodBenchIds.delete(bench.id);
+                        } else {
+                            selectedWoodBenchIds.add(bench.id);
+                        }
+
+                        if (typeof updateWoodSelectionBadge === 'function') {
+                            updateWoodSelectionBadge();
+                        }
+
+                        updateApp();
+                    });
+                } else {
+                    finalLayer.bindPopup(popupHtml);
+                }
+
                 markersLayer.addLayer(finalLayer);
                 window.markerDict[bench.id] = finalLayer;
             }
@@ -4189,10 +4274,10 @@ function getMarkerStyle(status, approved, assemblyNote) {
                 if (matchDistrict && matchType) {
                     const pendingStyle = {
                         radius: 8,
-                        fillColor: '#95a5a6',  // Grau/Neutral
-                        color: '#000000',      // Schwarzer Rand
+                        fillColor: '#95a5a6',  
+                        color: '#000000',      
                         weight: 3,
-                        dashArray: '4, 4',      // Gestrichelt
+                        dashArray: '4, 4',      
                         fillOpacity: 0.8
                     };
 
@@ -4240,7 +4325,6 @@ function getMarkerStyle(status, approved, assemblyNote) {
         }
     }
 
-    // 🟢 Lasso-Wartungsbutton in der Sidebar ein-/ausblenden
     const lassoWrapper = document.getElementById('lasso-action-wrapper');
     if (lassoWrapper) {
         if (typeof activeLassoPolygonPoints !== 'undefined' && activeLassoPolygonPoints && activeLassoPolygonPoints.length > 0) {
@@ -4258,7 +4342,6 @@ function getMarkerStyle(status, approved, assemblyNote) {
             map.invalidateSize();
         }
 
-        // 💡 FIX 3: Falls vor dem Redraw ein Popup offen war, öffnen wir es wieder
         if (currentlyOpenBenchId && window.markerDict && window.markerDict[currentlyOpenBenchId]) {
             const restoredLayer = window.markerDict[currentlyOpenBenchId];
             if (typeof restoredLayer.openPopup === 'function') {
@@ -4267,12 +4350,10 @@ function getMarkerStyle(status, approved, assemblyNote) {
                 restoredLayer.getLayers()[0].openPopup();
             }
         } 
-        // Andernfalls prüfen wir auf einen geparkten Deeplink (Shared Bench)
         else if (typeof checkAndOpenSharedBench === 'function') {
             checkAndOpenSharedBench();
         }
     }, 300); 
-
 }
 
 // Hilfsfunktionen für Inline-Buttons (Popup & Formular)
@@ -4338,7 +4419,12 @@ function openFullscreenForm(bench, isNew) {
     document.getElementById('pop-manual').value = bench.manual_status || 'Automatisch';
     document.getElementById('pop-description').value = bench.description || '';
     document.getElementById('pop-assembly-note').value = bench.assembly_note || '';
-    document.getElementById('pop-dimensions').value = bench.dimensions || '';
+    
+    // 🪵 Dynamische Maße & Stückzahlen laden
+    if (typeof loadDimensionsIntoForm === 'function') {
+        loadDimensionsIntoForm(bench.dimensions);
+    }
+    
     document.getElementById('pop-note').value = bench.note || '';
     
     const canDelete = (currentRole === 'Admin');
@@ -4346,7 +4432,6 @@ function openFullscreenForm(bench, isNew) {
     
     if (deleteBtn) {
         deleteBtn.style.display = (isNew || !canDelete) ? 'none' : 'block';
-        // Hier binden wir die Sicherheitsabfrage ein:
         deleteBtn.onclick = function() {
             if (currentEditingBench && currentEditingBench.id) {
                 confirmDeleteBench(currentEditingBench.id);
@@ -4354,13 +4439,93 @@ function openFullscreenForm(bench, isNew) {
         };
     }
     
-    // 💡 Vorschläge für die Datalists/Dropdowns frisch befüllen:
     if (typeof updateTextSuggestions === 'function') updateTextSuggestions();
     if (typeof updateDimensionSuggestions === 'function') updateDimensionSuggestions();
 
     document.getElementById('fullscreen-overlay').style.display = 'block';
     handleTypeChange(); 
 }
+
+// ==========================================
+// DYNAMISCHE MAßE & STÜCKZAHLEN - GLOBALE FUNKTIONEN
+// ==========================================
+
+// Fügt eine neue Zeile (Maß-Input + Stückzahl-Dropdown) in das Formular ein
+window.addDimensionRow = function(dimensionValue = "", countValue = 1) {
+    const container = document.getElementById('dimensions-container');
+    if (!container) return;
+
+    const rowId = 'dim-row-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
+    
+    const rowDiv = document.createElement('div');
+    rowDiv.id = rowId;
+    rowDiv.style.cssText = "display: flex; gap: 8px; align-items: center; margin-bottom: 5px;";
+    
+    rowDiv.innerHTML = `
+        <input type="text" class="pop-dim-input" list="dimensions-suggestions" value="${dimensionValue}" placeholder="z.B. 160/10/4" style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+        <select class="pop-dim-count" style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; box-sizing: border-box;">
+            ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20].map(num => `<option value="${num}" ${Number(countValue) === num ? 'selected' : ''}>${num} Stk.</option>`).join('')}
+        </select>
+        <button type="button" onclick="document.getElementById('${rowId}').remove()" style="background: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">✕</button>
+    `;
+    
+    container.appendChild(rowDiv);
+};
+
+// Konvertiert alle Zeilen aus dem Formular in den kompakten Speicher-String
+window.getDimensionsStringFromForm = function() {
+    const rows = document.querySelectorAll('#dimensions-container > div');
+    let parts = [];
+
+    rows.forEach(row => {
+        const dimInput = row.querySelector('.pop-dim-input');
+        const countSelect = row.querySelector('.pop-dim-count');
+        
+        if (dimInput && dimInput.value.trim() !== "") {
+            const dimText = dimInput.value.trim().replace(/[\-\|]/g, ' '); // Striche/Pipes bereinigen
+            const count = countSelect ? countSelect.value : 1;
+            parts.push(`${dimText} - ${count} Stück`);
+        }
+    });
+
+    return parts.join(' | ');
+};
+
+// Lädt einen gespeicherten String und baut die Zeilen im Formular wieder auf
+window.loadDimensionsIntoForm = function(dimensionsString) {
+    const container = document.getElementById('dimensions-container');
+    if (!container) return;
+    
+    container.innerHTML = ''; // Vorherige Zeilen leeren
+
+    if (!dimensionsString || dimensionsString.trim() === "") {
+        // Standardmäßig direkt 1 leere Zeile beim Öffnen anzeigen
+        window.addDimensionRow();
+        return;
+    }
+
+    const entries = dimensionsString.split('|');
+    let addedAny = false;
+
+    entries.forEach(entry => {
+        const parts = entry.trim().split('-');
+        if (parts.length >= 2) {
+            const dim = parts[0].trim();
+            const countMatch = parts[1].match(/\d+/);
+            const count = countMatch ? parseInt(countMatch[0], 10) : 1;
+            
+            window.addDimensionRow(dim, count);
+            addedAny = true;
+        } else if (entry.trim() !== "") {
+            window.addDimensionRow(entry.trim(), 1);
+            addedAny = true;
+        }
+    });
+
+    if (!addedAny) {
+        window.addDimensionRow();
+    }
+};
 
 // Sicherheitsabfrage per Prompt
 window.confirmDeleteBench = function(benchId) {
@@ -4487,9 +4652,10 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
     lastSelectedDistrict = document.getElementById('pop-district') ? document.getElementById('pop-district').value : null;
     const selectedDate = document.getElementById('pop-date') ? document.getElementById('pop-date').value : null;
     
-const currentDim = document.getElementById('pop-dimensions') ? document.getElementById('pop-dimensions').value : '';
-    if (currentDim) {
-        saveDimensionToLocalHistory(currentDim);
+    // Maße aus dem dynamischen Container auslesen
+    const currentDimString = typeof getDimensionsStringFromForm === 'function' ? getDimensionsStringFromForm() : '';
+    if (currentDimString) {
+        saveDimensionToLocalHistory(currentDimString);
     }
 
     if (selectedDate) {
@@ -4498,7 +4664,6 @@ const currentDim = document.getElementById('pop-dimensions') ? document.getEleme
 
     const isAdmin = currentRole === 'Admin';
     
-    // Namens-Formatierung zentral aufbauen
     let finalWorkerName = (currentEditingBench && currentEditingBench.worker_name) ? currentEditingBench.worker_name : null;
     if (workerName) {
         finalWorkerName = `${currentRole} (${workerName})`;
@@ -4596,18 +4761,16 @@ const currentDim = document.getElementById('pop-dimensions') ? document.getEleme
 
     // --- FALL 2: SPEICHERN / BEARBEITEN ---
     if (actionType === 'save') {
-        // 💡 TEMPLATE FÜR SCHNELL-DUPLIZIEREN MERKEN (inkl. Datum)
         lastBenchTemplate = {
             type: lastSelectedType,
             district: lastSelectedDistrict,
-            dimensions: document.getElementById('pop-dimensions') ? document.getElementById('pop-dimensions').value : '',
+            dimensions: currentDimString,
             assembly_note: document.getElementById('pop-assembly-note') ? document.getElementById('pop-assembly-note').value : '',
             description: document.getElementById('pop-description') ? document.getElementById('pop-description').value : '',
             manual_status: document.getElementById('pop-manual') ? document.getElementById('pop-manual').value : 'Automatisch',
-            last_maintenance: selectedDate // 👈 Das gewählte Datum hier mitschicken
+            last_maintenance: selectedDate 
         };
 
-        // 💡 FILTER-RÜCKSETZUNG bei neuen Bänken
         if (typeof isNewBenchMode !== 'undefined' && isNewBenchMode) {
             if (typeof resetAllFilters === 'function') {
                 resetAllFilters();
@@ -4619,7 +4782,6 @@ const currentDim = document.getElementById('pop-dimensions') ? document.getEleme
         const inlineCategory = selectedRadio ? selectedRadio.value : '';
         const inlineDesc = document.getElementById('pop-damage-desc') ? document.getElementById('pop-damage-desc').value.trim() : '';
 
-        // 🛡️ ULTRA-SICHERE STATUS-BESTIMMUNG (Verhindert das Zurückfallen auf 'In Ordnung')
         let determinedStatus = null;
         const targetBenchId = currentEditingBench ? currentEditingBench.id : null;
         
@@ -4640,11 +4802,9 @@ const currentDim = document.getElementById('pop-dimensions') ? document.getEleme
             else if (reportCat === 'Galabau') determinedStatus = 'Irreparabel';
             else determinedStatus = 'Beschädigt';
         } else if (currentEditingBench && currentEditingBench.manual_status && currentEditingBench.manual_status !== 'In Ordnung') {
-            // Wenn die Bank vorher schon einen Schadensstatus hatte, behalten wir ihn bei!
             determinedStatus = currentEditingBench.manual_status;
         }
 
-        // Falls immer noch kein Status ermittelt wurde, prüfen wir das Dropdown – ABER nur wenn kein Report da ist
         if (!determinedStatus) {
             const manualEl = document.getElementById('pop-manual');
             determinedStatus = manualEl ? manualEl.value : 'In Ordnung';
@@ -4660,7 +4820,7 @@ const currentDim = document.getElementById('pop-dimensions') ? document.getEleme
             manual_status: determinedStatus,
             description: document.getElementById('pop-description') ? document.getElementById('pop-description').value : '', 
             assembly_note: document.getElementById('pop-assembly-note') ? document.getElementById('pop-assembly-note').value : '',
-            dimensions: document.getElementById('pop-dimensions') ? document.getElementById('pop-dimensions').value : '', 
+            dimensions: currentDimString, 
             note: finalNote,
             worker_name: finalWorkerName
         };
@@ -4693,7 +4853,8 @@ const currentDim = document.getElementById('pop-dimensions') ? document.getEleme
                     const { data: dbBench, error } = await supabaseClient
                         .from('benches')
                         .upsert([rowData], { onConflict: conflictKey })
-                        .select().single();
+                        .select()
+                        .single();
 
                     if (error) throw error;
                     if (dbBench) savedBenchId = dbBench.id;
@@ -4706,7 +4867,6 @@ const currentDim = document.getElementById('pop-dimensions') ? document.getEleme
                 saveOfflineAction(isNewBenchMode ? 'insert' : 'update', rowData, currentEditingBench.id, tempId, 'benches');
             }
         } else {
-            // Nicht-Admin/Trupp: Geht als Entwurf in pending_benches
             const pendingData = {
                 ...baseData,
                 bench_id: isNewBenchMode ? null : currentEditingBench.id,
@@ -4738,46 +4898,69 @@ const currentDim = document.getElementById('pop-dimensions') ? document.getEleme
             }
         }
 
-        // 💡 Automatische Schadensmeldung + Bild-Upload anlegen, falls Checkbox aktiv war
-        if (hasInlineDamage && savedBenchId && supabaseClient) {
+        if (hasInlineDamage && supabaseClient) {
             try {
-                const categoryToUse = inlineCategory || 'Zimmerer';
-                const newTicketNumber = await getNextTicketNumber(categoryToUse);
-                const deptCode = newTicketNumber ? newTicketNumber.charAt(2) : 'H';
-
-                let uploadedImageUrl = null;
-
-                if (typeof inlineSelectedImageFile !== 'undefined' && inlineSelectedImageFile) {
-                    const fileExt = inlineSelectedImageFile.name.split('.').pop();
-                    const fileName = `${savedBenchId}_${Date.now()}.${fileExt}`;
-                    const filePath = `damages/${fileName}`;
-
-                    const { error: uploadErr } = await supabaseClient.storage
-                        .from('bench-images')
-                        .upload(filePath, inlineSelectedImageFile);
-
-                    if (!uploadErr) {
-                        const { data: pubUrlData } = supabaseClient.storage
-                            .from('bench-images')
-                            .getPublicUrl(filePath);
-                        if (pubUrlData) uploadedImageUrl = pubUrlData.publicUrl;
-                    } else {
-                        console.error("Fehler beim Schadensbild-Upload:", uploadErr);
-                    }
+                if (!savedBenchId && baseData.client_id) {
+                    const { data: foundBench } = await supabaseClient
+                        .from('benches')
+                        .select('id')
+                        .eq('client_id', baseData.client_id)
+                        .single();
+                    if (foundBench) savedBenchId = foundBench.id;
                 }
 
-                await supabaseClient.from('damage_reports').upsert([{
-                    client_id: generateClientId(),
-                    bench_id: savedBenchId,
-                    description: inlineDesc ? `[${categoryToUse}] ${inlineDesc}` : `[${categoryToUse}] Erstaufnahme mit Schaden`,
-                    category: categoryToUse,
-                    ticket_number: newTicketNumber,
-                    dept_code: deptCode,
-                    image_url: uploadedImageUrl
-                }], { onConflict: 'client_id' });
+                if (savedBenchId) {
+                    const categoryToUse = inlineCategory || 'Zimmerer';
+                    const newTicketNumber = await getNextTicketNumber(categoryToUse);
+                    const deptCode = newTicketNumber ? newTicketNumber.charAt(2) : 'H';
 
-                if (typeof updateBadgeCounters === 'function') await updateBadgeCounters();
-                await fetchBenchesFromCloud();
+                    let uploadedImageUrl = null;
+
+                    if (typeof inlineSelectedImageFile !== 'undefined' && inlineSelectedImageFile) {
+                        const fileExt = inlineSelectedImageFile.name.split('.').pop();
+                        const fileName = `${savedBenchId}_${Date.now()}.${fileExt}`;
+                        const filePath = `damages/${fileName}`;
+
+                        const { error: uploadErr } = await supabaseClient.storage
+                            .from('bench-images')
+                            .upload(filePath, inlineSelectedImageFile);
+
+                        if (!uploadErr) {
+                            const { data: pubUrlData } = supabaseClient.storage
+                                .from('bench-images')
+                                .getPublicUrl(filePath);
+                            if (pubUrlData) uploadedImageUrl = pubUrlData.publicUrl;
+                        } else {
+                            console.error("Fehler beim Schadensbild-Upload:", uploadErr);
+                        }
+                    }
+
+                    const newDamagePayload = {
+                        client_id: generateClientId(),
+                        bench_id: savedBenchId,
+                        description: inlineDesc ? `[${categoryToUse}] ${inlineDesc}` : `[${categoryToUse}] Erstaufnahme mit Schaden`,
+                        category: categoryToUse,
+                        ticket_number: newTicketNumber,
+                        dept_code: deptCode,
+                        image_url: uploadedImageUrl
+                    };
+
+                    const { data: insertedReport, error: reportErr } = await supabaseClient
+                        .from('damage_reports')
+                        .upsert([newDamagePayload], { onConflict: 'client_id' })
+                        .select()
+                        .single();
+
+                    if (!reportErr && insertedReport) {
+                        if (typeof damagereports !== 'undefined') {
+                            damagereports = damagereports.filter(d => String(d.bench_id) !== String(savedBenchId));
+                            damagereports.push(insertedReport);
+                        }
+                    }
+
+                    if (typeof updateBadgeCounters === 'function') await updateBadgeCounters();
+                    await fetchBenchesFromCloud();
+                }
             } catch (err) {
                 console.error("Fehler beim Erstellen der verknüpften Schadensmeldung:", err);
             }
@@ -5453,28 +5636,39 @@ function updateTextSuggestions() {
     
     if (!descList || !assemblyList) return;
 
-    // Sinnvolle Standard-Vorschläge, falls die Datenbank leer ist
-    const uniqueDescs = new Set([
-    ]);
-    
-    const uniqueAssembly = new Set([
-    ]);
+    // Zähler-Objekte für die Häufigkeit
+    const descCounts = {};
+    const assemblyCounts = {};
 
-    // Alle vorhandenen Texte aus den Cloud-Bänken auslesen
+    // Sinnvolle Standard-Vorschläge mit einem kleinen Start-Bonus, 
+    // damit sie direkt weit oben stehen, auch wenn sie erst selten genutzt wurden
+    const defaultDescs = ["Bank auf Betonsockel", "Rundbank auf Gestell", "Standard Parkbank", "Seniorenbank"];
+    const defaultAssembly = ["Sondermaß", "Spezialwerkzeug nötig", "Befestigungsmittel mitgeliefert", "Auf Betonfundament verschraubt"];
+
+    defaultDescs.forEach(d => descCounts[d] = 5);
+    defaultAssembly.forEach(a => assemblyCounts[a] = 5);
+
+    // Alle Bänke durchgehen und die Häufigkeit jedes Texts zählen
     if (typeof benches !== 'undefined' && benches.length > 0) {
         benches.forEach(b => {
             if (b.description && b.description.trim() !== "") {
-                uniqueDescs.add(b.description.trim());
+                const text = b.description.trim();
+                descCounts[text] = (descCounts[text] || 0) + 1;
             }
             if (b.assembly_note && b.assembly_note.trim() !== "") {
-                uniqueAssembly.add(b.assembly_note.trim());
+                const text = b.assembly_note.trim();
+                assemblyCounts[text] = (assemblyCounts[text] || 0) + 1;
             }
         });
     }
 
-    // In HTML-Optionen umwandeln und in die Datalists schreiben
-    descList.innerHTML = Array.from(uniqueDescs).map(item => `<option value="${item}">`).join('');
-    assemblyList.innerHTML = Array.from(uniqueAssembly).map(item => `<option value="${item}">`).join('');
+    // Nach Häufigkeit sortieren (absteigend: das, was am oftsten vorkommt, kommt zuerst)
+    const sortedDescs = Object.keys(descCounts).sort((a, b) => descCounts[b] - descCounts[a]);
+    const sortedAssembly = Object.keys(assemblyCounts).sort((a, b) => assemblyCounts[b] - assemblyCounts[a]);
+
+    // In die HTML-Datalists schreiben
+    descList.innerHTML = sortedDescs.map(item => `<option value="${item}">`).join('');
+    assemblyList.innerHTML = sortedAssembly.map(item => `<option value="${item}">`).join('');
 }
 
 
@@ -5562,6 +5756,488 @@ function resetInlineDamageFields() {
     }
 
     toggleInlineDamageFields();
+}
+
+// Status des Auswahlmodus
+let isWoodSelectionMode = false;
+let selectedWoodBenchIds = new Set();
+
+// 1. Zuschnitt-Modus umschalten und Karte neu zeichnen
+function toggleWoodSelectionMode() {
+    isWoodSelectionMode = !isWoodSelectionMode;
+    selectedWoodBenchIds.clear();
+    
+    if (typeof map !== 'undefined' && map) map.closePopup();
+
+    // Schwebendes Badge aufräumen
+    const existingBadge = document.getElementById('wood-selection-counter');
+    if (existingBadge) {
+        existingBadge.remove();
+    }
+
+    if (isWoodSelectionMode) {
+        // Sidebar automatisch schließen
+        if (typeof toggleSidebar === 'function') {
+            toggleSidebar();
+        }
+
+        // Direkt das kleine Fenster am unteren Rand anzeigen (mit 0 Bänken zu Beginn)
+        updateWoodSelectionBadge();
+    }
+    
+    // Karte und Filter neu zeichnen
+    if (typeof updateApp === 'function') updateApp();
+}
+
+// 2. Wird beim Klick auf eine Bank aufgerufen
+function handleBenchClickForWood(bench) {
+    if (!isWoodSelectionMode) return false; // Normales Verhalten, wenn Modus aus ist
+
+    if (selectedWoodBenchIds.has(bench.id)) {
+        selectedWoodBenchIds.delete(bench.id);
+        console.log(`Bank ${bench.id} abgewählt.`);
+    } else {
+        selectedWoodBenchIds.add(bench.id);
+        console.log(`Bank ${bench.id} ausgewählt.`);
+    }
+
+    // Zeigt kurz an, wie viele Bänke aktuell im Korb sind
+    updateWoodSelectionBadge();
+    return true; // Signalisiert, dass der normale Klick abgefangen wurde
+}
+
+// Optional: Ein kleiner Zähler im UI, damit du siehst, wie viele du hast
+function updateWoodSelectionBadge() {
+    let badge = document.getElementById('wood-selection-counter');
+    
+    // Wenn der Zuschnitt-Modus aktiv ist, aber das Badge noch nicht existiert, erstellen wir es sofort!
+    if (!badge && typeof isWoodSelectionMode !== 'undefined' && isWoodSelectionMode) {
+        const div = document.createElement('div');
+        div.id = 'wood-selection-counter';
+        div.style.cssText = "position: fixed; bottom: 20px; right: 20px; background: #2C3E50; color: #fff; padding: 12px 20px; border-radius: 8px; z-index: 10000; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-family: sans-serif; display: flex; align-items: center; gap: 15px;";
+        div.innerHTML = `
+            <span>🪵 <strong id="wood-count">0</strong> Bänke ausgewählt</span>
+            <button onclick="showSelectedWoodCuttingList()" style="background: #e67e22; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">Holzliste anzeigen</button>
+            <button onclick="toggleWoodSelectionMode()" style="background: transparent; color: #fff; border: 1px solid #fff; padding: 4px 8px; border-radius: 4px; cursor: pointer;">✕</button>
+        `;
+        document.body.appendChild(div);
+        badge = div;
+    }
+    
+    if (badge) {
+        // Wenn der Modus deaktiviert wird, entfernen wir das Badge wieder
+        if (!isWoodSelectionMode) {
+            badge.remove();
+        } else {
+            // Ansonsten aktualisieren wir nur die Anzahl
+            const countEl = document.getElementById('wood-count');
+            if (countEl) countEl.innerText = selectedWoodBenchIds.size;
+        }
+    }
+}
+
+// 3. Die erweiterte Holz- und Zuschnittliste mit Speicher- und Exportfunktion
+function showSelectedWoodCuttingList() {
+    if (selectedWoodBenchIds.size === 0) {
+        alert("Du hast keine Bänke ausgewählt!");
+        return;
+    }
+
+    const districtRequirements = {};
+    let missingDimensionsCount = 0;
+
+    selectedWoodBenchIds.forEach(id => {
+        const bench = benches.find(b => b.id === id);
+        if (bench) {
+            const district = bench.district || 'Unbekannt';
+            if (!districtRequirements[district]) {
+                districtRequirements[district] = {
+                    benchIds: [],
+                    dimensions: {}
+                };
+            }
+            districtRequirements[district].benchIds.push(bench.id);
+
+            if (bench.dimensions && bench.dimensions.trim() !== "") {
+                const entries = bench.dimensions.split('|');
+                
+                entries.forEach(entry => {
+                    const parts = entry.trim().split('-');
+                    if (parts.length >= 2) {
+                        const dim = parts[0].trim();
+                        const countMatch = parts[1].match(/\d+/);
+                        const count = countMatch ? parseInt(countMatch[0], 10) : 1;
+                        
+                        if (!districtRequirements[district].dimensions[dim]) {
+                            districtRequirements[district].dimensions[dim] = 0;
+                        }
+                        districtRequirements[district].dimensions[dim] += count;
+                    }
+                });
+            } else {
+                missingDimensionsCount++;
+            }
+        }
+    });
+
+    let htmlContent = `
+        <div id="active-wood-list-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10001; display: flex; justify-content: center; align-items: center;">
+            <div style="background: #fff; padding: 25px; border-radius: 8px; width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-family: sans-serif;">
+                <h3 style="margin-top: 0; color: #2C3E50;">🪵 Projekt-Zuschnittliste (${selectedWoodBenchIds.size} Bänke ausgewählt)</h3>
+    `;
+
+    if (missingDimensionsCount > 0) {
+        htmlContent += `<p style="color: #e74c3c; font-size: 13px;">⚠️ Achtung: Bei ${missingDimensionsCount} der ausgewählten Bänke sind keine Maße hinterlegt.</p>`;
+    }
+
+    if (Object.keys(districtRequirements).length === 0) {
+        htmlContent += `<p>Für keine der ausgewählten Bänke sind Maße eingetragen.</p>`;
+    } else {
+        const sortedDistricts = Object.keys(districtRequirements).sort();
+
+        sortedDistricts.forEach(district => {
+            const distData = districtRequirements[district];
+            const sortedDims = Object.keys(distData.dimensions).sort((a, b) => distData.dimensions[b] - distData.dimensions[a]);
+
+            htmlContent += `
+                <div style="margin-top: 20px; border-bottom: 2px solid #2980b9; padding-bottom: 5px;">
+                    <h4 style="margin: 0 0 5px 0; color: #2980b9; font-size: 16px;">📍 Stadtteil: ${district} <span style="font-size: 12px; color: #7f8c8d; font-weight: normal;">(Bänke: ${distData.benchIds.map(id => '#' + id).join(', ')})</span></h4>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 8px; margin-bottom: 15px;">
+                    <thead>
+                        <tr style="background: #f4f4f4; border-bottom: 1px solid #ddd;">
+                            <th style="padding: 6px; text-align: left; font-size: 13px;">Dimension / Maß</th>
+                            <th style="padding: 6px; text-align: center; width: 90px; font-size: 13px;">Anzahl</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            if (sortedDims.length === 0) {
+                htmlContent += `<tr><td colspan="2" style="padding: 6px; color: #7f8c8d; font-size: 13px;">Keine Maße für diesen Stadtteil hinterlegt.</td></tr>`;
+            } else {
+                sortedDims.forEach(dim => {
+                    const count = distData.dimensions[dim];
+                    htmlContent += `
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 6px; font-weight: bold; font-size: 14px; color: #333;">${dim}</td>
+                            <td style="padding: 6px; text-align: center; font-weight: bold; color: #e67e22; font-size: 15px;">${count} Stk.</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            htmlContent += `</tbody></table>`;
+        });
+    }
+
+    htmlContent += `
+                <div style="margin-top: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" onclick='saveCurrentWoodProject(${JSON.stringify(districtRequirements).replace(/'/g, "&#39;")})' style="background: #27ae60; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">💾 In App speichern</button>
+                        <button type="button" onclick="printWoodCuttingList()" style="background: #2980b9; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">🖨️ Liste drucken</button>
+                    </div>
+                    <button type="button" onclick="document.getElementById('active-wood-list-modal').remove()" style="background: #2C3E50; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Schließen</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const container = document.createElement('div');
+    container.innerHTML = htmlContent;
+    document.body.appendChild(container);
+}
+
+// Holzprojekt direkt in Supabase speichern
+async function saveCurrentWoodProject(woodData) {
+    if (!supabaseClient) {
+        alert("Keine Cloud-Verbindung. Speicherung fehlgeschlagen.");
+        return;
+    }
+
+    // Projekttitel abfragen
+    const projectTitle = prompt("Gib einen Namen für das Holzprojekt ein:", `Zuschnitt-Projekt vom ${new Date().toLocaleDateString('de-DE')}`);
+    if (!projectTitle) return; // Abgebrochen
+
+    // Alle ausgewählten Bench-IDs als Array umwandeln
+    const benchIdsArray = Array.from(selectedWoodBenchIds).map(id => Number(id));
+
+    const payload = {
+        title: projectTitle,
+        project_data: woodData,
+        bench_ids: benchIdsArray,
+        worker_name: typeof currentRole !== 'undefined' ? currentRole : 'Zimmerer'
+    };
+
+    try {
+        const { error } = await supabaseClient
+            .from('wood_projects')
+            .insert([payload]);
+
+        if (error) throw error;
+
+        alert(`Projekt "${projectTitle}" erfolgreich in der Cloud gespeichert! 🪵💾`);
+
+        // 1. Das aktive Zuschnittlisten-Modal schließen
+        const activeModal = document.getElementById('active-wood-list-modal');
+        if (activeModal) {
+            activeModal.remove();
+        }
+
+        // 2. Auswahlmodus komplett beenden & zurücksetzen
+        if (typeof isWoodSelectionMode !== 'undefined') {
+            isWoodSelectionMode = false;
+        }
+        
+        if (typeof selectedWoodBenchIds !== 'undefined') {
+            selectedWoodBenchIds.clear();
+        }
+
+        // 3. Schwebendes Auswahl-Badge auf der Karte entfernen
+        const existingBadge = document.getElementById('wood-selection-counter');
+        if (existingBadge) {
+            existingBadge.remove();
+        }
+
+        // 4. Karte und UI neu zeichnen, um Markierungen aufzuheben
+        if (typeof updateApp === 'function') {
+            updateApp();
+        }
+
+    } catch (e) {
+        console.error("Fehler beim Speichern in Supabase:", e);
+        alert("Fehler beim Speichern in der Cloud: " + e.message);
+    }
+}
+
+async function openWoodProjectsArchive() {
+    if (!supabaseClient) {
+        alert("Keine Verbindung zur Cloud.");
+        return;
+    }
+
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'wood-archive-loading';
+    loadingDiv.innerHTML = `<div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10002; display: flex; justify-content: center; align-items: center; color: white; font-family: sans-serif; font-size: 18px;">Lade Holzprojekte...</div>`;
+    document.body.appendChild(loadingDiv);
+
+    try {
+        const { data: projects, error } = await supabaseClient
+            .from('wood_projects')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        document.getElementById('wood-archive-loading')?.remove();
+
+        if (error) throw error;
+
+        // 💡 Feste ID "wood-archive-modal" für den Haupt-Container vergeben!
+        let htmlContent = `
+            <div id="wood-archive-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10001; display: flex; justify-content: center; align-items: center;">
+                <div style="background: #fff; padding: 25px; border-radius: 8px; width: 90%; max-width: 700px; max-height: 85vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-family: sans-serif;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
+                        <h3 style="margin: 0; color: #2C3E50;">🪵 Gespeicherte Holz- & Zuschnittprojekte</h3>
+                        <button type="button" onclick="document.getElementById('wood-archive-modal').remove()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #7f8c8d;">✕</button>
+                    </div>
+        `;
+
+        if (!projects || projects.length === 0) {
+            htmlContent += `<p style="color: #7f8c8d; text-align: center; padding: 20px;">Es wurden noch keine Holzprojekte gespeichert.</p>`;
+        } else {
+            htmlContent += `<div style="display: flex; flex-direction: column; gap: 12px;">`;
+
+            projects.forEach(proj => {
+                const dateStr = new Date(proj.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                
+                htmlContent += `
+                    <div style="background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; padding: 15px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="margin: 0 0 5px 0; color: #2980b9;">${proj.title || 'Unbenanntes Projekt'}</h4>
+                            <p style="margin: 0; font-size: 12px; color: #7f8c8d;">📅 Erstellt am: ${dateStr} | 👷 Bearbeiter: ${proj.worker_name || 'Unbekannt'} | 🪵 Bänke: ${(proj.bench_ids || []).length} Stk.</p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick='viewSavedWoodProject(${JSON.stringify(proj).replace(/'/g, "&#39;")})' style="background: #3498db; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">Ansehen</button>
+                            <button onclick="deleteWoodProject(${proj.id})" style="background: #e74c3c; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 13px;">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            htmlContent += `</div>`;
+        }
+
+        htmlContent += `
+                    <div style="margin-top: 20px; text-align: right;">
+                        <button type="button" onclick="document.getElementById('wood-archive-modal').remove()" style="background: #2C3E50; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Schließen</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const container = document.createElement('div');
+        container.innerHTML = htmlContent;
+        document.body.appendChild(container);
+
+    } catch (e) {
+        document.getElementById('wood-archive-loading')?.remove();
+        console.error("Fehler beim Laden der Projekte:", e);
+        alert("Fehler beim Laden der Projekte aus der Cloud.");
+    }
+}
+
+
+// Zeigt ein bereits gespeichertes Projekt im Detail-Pop-up an inklusive Druck-Button
+function viewSavedWoodProject(project) {
+    const archiveModal = document.getElementById('wood-archive-modal');
+    if (archiveModal) archiveModal.remove();
+
+    const woodData = project.project_data || {};
+
+    let htmlContent = `
+        <div id="saved-detail-wood-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10003; display: flex; justify-content: center; align-items: center;">
+            <div style="background: #fff; padding: 25px; border-radius: 8px; width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-family: sans-serif;">
+                <h3 style="margin-top: 0; color: #2C3E50;">🪵 ${project.title || 'Holzprojekt'}</h3>
+                <p style="font-size: 12px; color: #7f8c8d;">Gespeichert am: ${new Date(project.created_at).toLocaleString('de-DE')} | 👷 ${project.worker_name || 'Unbekannt'}</p>
+    `;
+
+    const isDistrictGrouped = Object.values(woodData).some(val => val && val.dimensions && val.benchIds);
+
+    if (isDistrictGrouped) {
+        const sortedDistricts = Object.keys(woodData).sort();
+        sortedDistricts.forEach(district => {
+            const distData = woodData[district];
+            const sortedDims = Object.keys(distData.dimensions || {}).sort((a, b) => distData.dimensions[b] - distData.dimensions[a]);
+
+            htmlContent += `
+                <div style="margin-top: 20px; border-bottom: 2px solid #2980b9; padding-bottom: 5px;">
+                    <h4 style="margin: 0 0 5px 0; color: #2980b9; font-size: 16px;">📍 Stadtteil: ${district} <span style="font-size: 12px; color: #7f8c8d; font-weight: normal;">(Bänke: ${(distData.benchIds || []).map(id => '#' + id).join(', ')})</span></h4>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 8px; margin-bottom: 15px;">
+                    <thead>
+                        <tr style="background: #f4f4f4; border-bottom: 1px solid #ddd;">
+                            <th style="padding: 6px; text-align: left; font-size: 13px;">Dimension / Maß</th>
+                            <th style="padding: 6px; text-align: center; width: 90px; font-size: 13px;">Anzahl</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            if (sortedDims.length === 0) {
+                htmlContent += `<tr><td colspan="2" style="padding: 6px; color: #7f8c8d; font-size: 13px;">Keine Maße für diesen Stadtteil hinterlegt.</td></tr>`;
+            } else {
+                sortedDims.forEach(dim => {
+                    const count = distData.dimensions[dim];
+                    htmlContent += `
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 6px; font-weight: bold; font-size: 14px; color: #333;">${dim}</td>
+                            <td style="padding: 6px; text-align: center; font-weight: bold; color: #e67e22; font-size: 15px;">${count} Stk.</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            htmlContent += `</tbody></table>`;
+        });
+    } else {
+        // Fallback für ältere Projekte im alten Format
+        htmlContent += `
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <thead>
+                    <tr style="background: #f4f4f4; border-bottom: 2px solid #ddd;">
+                        <th style="padding: 8px; text-align: left;">Dimension / Maß</th>
+                        <th style="padding: 8px; text-align: center; width: 90px;">Gesamt</th>
+                        <th style="padding: 8px; text-align: left;">Zugeordnet zu Bank & Stadtteil</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        const sortedDims = Object.keys(woodData).sort((a, b) => {
+            const countA = woodData[a].totalCount !== undefined ? woodData[a].totalCount : (woodData[a].count || 0);
+            const countB = woodData[b].totalCount !== undefined ? woodData[b].totalCount : (woodData[b].count || 0);
+            return countB - countB;
+        });
+
+        sortedDims.forEach(dim => {
+            const data = woodData[dim];
+            const totalCount = data.totalCount !== undefined ? data.totalCount : (data.count || 0);
+
+            let detailsFormatted = "";
+            if (data.benchMap) {
+                detailsFormatted = Object.keys(data.benchMap).map(bid => {
+                    const val = data.benchMap[bid];
+                    if (typeof val === 'object' && val !== null) {
+                        return `<span style="background: #ecf0f1; padding: 3px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block; margin: 2px; border-left: 3px solid #2980b9;">#${bid} <span style="color: #555; font-weight: normal;">(${val.district || 'Unbekannt'})</span> [${val.count}x]</span>`;
+                    } else {
+                        return `<span style="background: #ecf0f1; padding: 3px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block; margin: 2px;">#${bid} (${val}x)</span>`;
+                    }
+                }).join(' ');
+            } else if (data.benchIds) {
+                detailsFormatted = data.benchIds.map(id => `<span style="background: #ecf0f1; padding: 3px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block; margin: 2px;">#${id}</span>`).join(' ');
+            }
+
+            htmlContent += `
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 8px; font-weight: bold; vertical-align: top; font-size: 15px; color: #2980b9;">${dim}</td>
+                    <td style="padding: 8px; text-align: center; font-weight: bold; color: #e67e22; vertical-align: top; font-size: 16px;">${totalCount} Stk.</td>
+                    <td style="padding: 8px; text-align: left; vertical-align: top;">${detailsFormatted}</td>
+                </tr>
+            `;
+        });
+        htmlContent += `</tbody></table>`;
+    }
+
+    htmlContent += `
+                <div style="margin-top: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <button type="button" onclick="document.getElementById('saved-detail-wood-modal').remove(); openWoodProjectsArchive();" style="background: #7f8c8d; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">← Zurück zur Übersicht</button>
+                    
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" onclick="printWoodCuttingList()" style="background: #2980b9; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">🖨️ Liste drucken</button>
+                        <button type="button" onclick="document.getElementById('saved-detail-wood-modal').remove()" style="background: #2C3E50; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Schließen</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const container = document.createElement('div');
+    container.innerHTML = htmlContent;
+    document.body.appendChild(container);
+}
+
+function printWoodCuttingList() {
+    // Prüfen, ob überhaupt ein Modal da ist
+    const activeModal = document.getElementById('active-wood-list-modal');
+    const detailModal = document.getElementById('saved-detail-wood-modal');
+    
+    if (!activeModal && !detailModal) {
+        alert("Keine Zuschnittliste gefunden zum Drucken.");
+        return;
+    }
+
+    // Direkt den nativen Druckdialog des Browsers aufrufen.
+    // Das CSS oben kümmert sich vollautomatisch darum, dass nur das Modal gedruckt wird!
+    window.print();
+}
+
+async function deleteWoodProject(projectId) {
+    if (!confirm("Möchtest du dieses Holzprojekt wirklich löschen?")) return;
+
+    try {
+        const { error } = await supabaseClient
+            .from('wood_projects')
+            .delete()
+            .eq('id', projectId);
+
+        if (error) throw error;
+
+        document.getElementById('wood-archive-modal')?.remove();
+        if (typeof openWoodProjectsArchive === 'function') {
+            openWoodProjectsArchive();
+        }
+    } catch (e) {
+        console.error("Fehler beim Löschen des Projekts:", e);
+        alert("Fehler beim Löschen.");
+    }
 }
 
 // Schließen mit Escape
