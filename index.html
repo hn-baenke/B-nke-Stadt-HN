@@ -291,20 +291,6 @@
             margin: auto; 
         }
 
-        @media (min-width: 768px) {
-            #sidebar { bottom: auto; top: 0; right: -440px; left: auto; width: 420px; height: 100%; border-top-left-radius: 0px; border-top-right-radius: 0px; box-shadow: -5px 0 20px rgba(0,0,0,0.2); transition: right 0.3s ease-in-out; padding-bottom: 20px; }
-            #sidebar.open { right: 0; }
-            .map-info-widget { top: 124px; left: 10px; }
-        }
-        
-        @media (max-width: 767px) {
-            #live-stats-widget { bottom: 15px; right: 10px; left: auto; width: 220px; }
-            .leaflet-control-attribution { display: none !important; }
-        }
-        .leaflet-top.leaflet-right .leaflet-control-layers { margin-top: 55px !important; }
-        #secure-share-bridge { display: none; }
-
-
     /* Modal-Hintergrund */
 .image-modal {
     display: none; 
@@ -370,38 +356,6 @@
     transform: scale(0.98);
 }
 
-/* Regeln für den A4-Ein-Seiten-Ausdruck */
-@media print {
-    @page {
-        size: A4 portrait;
-        margin: 8mm; /* Schnallt den Rand eng für maximale Fläche */
-    }
-
-    body * {
-        visibility: hidden !important;
-    }
-
-    #print-section, #print-section * {
-        visibility: visible !important;
-    }
-
-    #print-section {
-        display: block !important;
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        box-sizing: border-box;
-        font-family: Arial, sans-serif;
-        color: #1e293b;
-        background: #fff;
-    }
-
-    /* Verhindert unbeabsichtigte Seitenumbrüche */
-    .print-no-break {
-        page-break-inside: avoid;
-    }
-}
 
 /* Container für die Schadensmeldung */
 .damage-box-wrapper {
@@ -455,39 +409,157 @@
     text-align: left !important;
 }
 
+/* ==========================================
+   1. UI- & LAYOUT-REGELN (Bildschirmansicht)
+   ========================================== */
+
+@media (min-width: 768px) {
+    #sidebar { 
+        bottom: auto; 
+        top: 0; 
+        right: -440px; 
+        left: auto; 
+        width: 420px; 
+        height: 100%; 
+        border-top-left-radius: 0px; 
+        border-top-right-radius: 0px; 
+        box-shadow: -5px 0 20px rgba(0,0,0,0.2); 
+        transition: right 0.3s ease-in-out; 
+        padding-bottom: 20px; 
+    }
+    #sidebar.open { right: 0; }
+    .map-info-widget { top: 124px; left: 10px; }
+}
+
+@media (max-width: 767px) {
+    #live-stats-widget { bottom: 15px; right: 10px; left: auto; width: 220px; }
+    .leaflet-control-attribution { display: none !important; }
+}
+
+.leaflet-top.leaflet-right .leaflet-control-layers { 
+    margin-top: 55px !important; 
+}
+
+#secure-share-bridge { 
+    display: none; 
+}
+
+
+/* ==========================================
+   2. EINZIGER, SAUBERER DRUCK-BLOCK (@media print)
+   ========================================== */
+
 @media print {
-    /* 1. Alles auf der Seite unsichtbar machen */
-    body * {
-        visibility: hidden !important;
+    @page {
+        size: A4 portrait;
+        margin: 8mm; /* Genialer Rand für maximale A4-Fläche */
     }
-    
-    /* 2. Nur das aktive Modal (egal ob offen oder Archiv) und dessen Kinder sichtbar machen */
-    #active-wood-list-modal, #active-wood-list-modal *,
-    #saved-detail-wood-modal, #saved-detail-wood-modal * {
-        visibility: visible !important;
+
+    /* Alles auf der Hauptseite unsichtbar machen, außer unseren Druckcontainer */
+    body > *:not(#static-print-area) {
+        display: none !important;
     }
-    
-    /* 3. Das Modal für den Druck sauber oben links positionieren und skalieren */
-    #active-wood-list-modal, #saved-detail-wood-modal {
+
+    /* Den Druckbereich vollflächig auf der Seite positionieren */
+    #static-print-area {
+        display: block !important;
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
         width: 100% !important;
-        height: auto !important;
-        background: white !important;
+        background: #fff !important;
         z-index: 999999 !important;
-        box-shadow: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
     }
-    
-    /* Schließen-Buttons oder unnötige UI-Elemente im Modal beim Drucken ausblenden */
-    #active-wood-list-modal button, #active-wood-list-modal .close-btn,
-    #saved-detail-wood-modal button, #saved-detail-wood-modal .close-btn {
+
+    /* Alle Elemente im Druckbereich erzwingen und lesbar machen */
+    #static-print-area * {
+        visibility: visible !important;
+        color: #1e293b !important;
+        box-shadow: none !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Entfernt ungewollte graue Rahmen und Hintergründe von allgemeinen Boxen/Wrappern im Druck */
+    #static-print-area div {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Tabellenrahmen und Linien gezielt erhalten */
+    #static-print-area table, 
+    #static-print-area th, 
+    #static-print-area td {
+        border-color: #cbd5e1 !important;
+    }
+
+    /* Eventuelle Buttons im Druckbereich ausblenden */
+    #static-print-area button {
         display: none !important;
+    }
+
+    /* Verhindert unsaubere Seitenumbrüche mitten im Block */
+    .print-no-break {
+        page-break-inside: avoid;
+        break-inside: avoid;
     }
 }
 
+/* Suchfeld und Ergebnisliste per CSS verstecken */
+#street-search-input,
+#search-results-list {
+  display: none !important;
+}
+
+#sidebar {
+    display: none;
+    position: absolute; /* Legt die Sidebar ÜBER die Karte */
+    top: 0;
+    right: 0;
+    bottom: 0; /* Nutzt jetzt wieder bottom: 0, greift aber dank des Container-Fixes perfekt */
+    height: auto; /* Hebt das starre 100vh auf */
+    max-height: 100%; /* Verhindert, dass sie übersteht */
+    width: 400px;
+    max-width: 90vw;
+    background: #ffffff;
+    z-index: 2000;
+    overflow-y: auto; /* Scrollbar, falls der Inhalt länger als der Bildschirm ist */
+    padding: 0 !important;
+    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15);
+    box-sizing: border-box;
+}
+
+#sidebar.open {
+    display: flex;
+    flex-direction: column;
+}
+
+/* 2. Der fixe Header bleibt unverändert */
+.sidebar-sticky-header {
+    position: sticky;
+    top: 0;
+    background: #ffffff;
+    padding: 15px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 9999;
+}
+
+/* 3. Inhaltsabstand */
+.sidebar-content {
+    padding: 15px;
+}
+
+/* 4. Mobil-Optimierung: Auf kleineren Bildschirmen die Sidebar auf volle Breite setzen (bleibt rechts!) */
+@media (max-width: 768px) {
+    #sidebar {
+        width: 100% !important;
+        max-width: 100vw !important;
+    }
+}
 
     </style>
 </head>
@@ -554,68 +626,85 @@
     </div>
         
         <div id="sidebar">
-            <button class="close-sidebar-btn" onclick="toggleSidebar()">✕ Menü schließen</button>
-            
-            <button id="menu-damage-reports-btn" class="btn btn-admin-menu" onclick="openReportsOverlay('damage')" style="display:none;">⚠️ Schadensmeldungen (0)</button>
-            <button id="menu-new-entries-btn" class="btn btn-admin-menu" onclick="openReportsOverlay('entries')" style="display:none;">🔍 Neue Eintragungen (0)</button>
-
-            <div class="filter-group">
-    <label>📍 Stadtteil / Park</label>
-    <select id="filter-district"><option value="Alle">Ganz Heilbronn (Alle)</option></select>
-</div>
-<div class="filter-group">
-    <label>🔍 Bautyp filtern</label>
-    <select id="filter-type"><option value="Alle">Alle Bautypen</option></select>
-</div>
-<div class="filter-group">
-    <label>🚦 Status filtern (Keine Auswahl = Alle anzeigen)</label>
-    <div class="status-checkbox-container" id="status-checkboxes-container">
-        <label class="status-checkbox-item"><input type="checkbox" value="Wartung empfohlen"> 🟡 Wartung empfohlen (~3J)</label>
-        <label class="status-checkbox-item"><input type="checkbox" value="Wartung nötig"> 🔴 Wartung nötig (>5J)</label>
-        <label class="status-checkbox-item"><input type="checkbox" value="Beschädigt"> 🔴⚪ Beschädigt</label>
-        <label class="status-checkbox-item"><input type="checkbox" value="In Bearbeitung"> 🟣 In Bearbeitung</label>
-        <label class="status-checkbox-item"><input type="checkbox" value="Irreparabel"> ⚫ Irreparabel</label>
-        <label class="status-checkbox-item"><input type="checkbox" value="Verschmutzt"> 🟠 Verschmutzt</label>
-        <label class="status-checkbox-item"><input type="checkbox" value="Zugewachsen"> 🔵 Zugewachsen</label>
-        <label class="status-checkbox-item"><input type="checkbox" value="Ungeprüft"> ⚪ Ungeprüft</label>
-        <label class="status-checkbox-item"><input type="checkbox" value="Wartungsfrei"> 🟢✨ Wartungsfrei (Dauerhaft)</label>
-        <label class="status-checkbox-item"><input type="checkbox" value="Gut"> 🟢 Gut</label>
-    </div>
     
-    <!-- 🔄 Button zum Zurücksetzen aller Filter -->
-    <button type="button" class="btn-reset-filters" onclick="resetAllFilters()">
-        🔄 Filter zurücksetzen
-    </button>
-    <button class="btn" onclick="activateLassoFromMenu()" title="Gebiet mit Lasso auf der Karte umkreisen">
-    ✏️ Gebiet mit Lasso markieren
-</button>
-<button class="btn" onclick="toggleWoodSelectionMode()" style="background: #8E44AD; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
-    🪵 Zuschnitt-Modus starten
-</button>
-<button class="btn" onclick="openWoodProjectsArchive()" style="background: #2980b9; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
-    📂 Holz-Archiv öffnen
-</button>
-</div>
-            <div class="stats-box">
-                <strong id="stats-title">Auswertung</strong>
-                <ul id="stats-list"></ul>
+    <!-- 1. FIXER HEADER -->
+    <div class="sidebar-sticky-header">
+        <span style="font-weight: bold; font-size: 1.1rem; color: #1e293b;">Menü & Filter</span>
+        <button type="button" onclick="toggleSidebar()" style="background: #e2e8f0; border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 16px; font-weight: bold; color: #475569; display: flex; align-items: center; justify-content: center;" title="Menü schließen">✕</button>
+    </div>
+
+    <!-- 2. INHALT -->
+    <div class="sidebar-content">
+        
+        <button id="menu-damage-reports-btn" class="btn btn-admin-menu" onclick="openReportsOverlay('damage')" style="display:none; width: 100%; margin-bottom: 10px;">⚠️ Schadensmeldungen (0)</button>
+        <button id="menu-new-entries-btn" class="btn btn-admin-menu" onclick="openReportsOverlay('entries')" style="display:none; width: 100%; margin-bottom: 10px;">🔍 Neue Eintragungen (0)</button>
+
+        <!-- ID-Suchfeld -->
+        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 15px;">
+            <input type="text" id="bench-id-search" placeholder="🔍 Nach Bank-ID suchen..." onkeydown="if(event.key === 'Enter') searchByBenchId(this.value)" style="flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem;">
+            <button type="button" onclick="clearBenchIdSearch()" style="background: #e2e8f0; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; color: #475569;">Zurücksetzen</button>
+        </div>
+
+        <div class="filter-group">
+            <label>📍 Stadtteil / Park</label>
+            <select id="filter-district"><option value="Alle">Ganz Heilbronn (Alle)</option></select>
+        </div>
+        
+        <div class="filter-group">
+            <label>🔍 Bautyp filtern</label>
+            <select id="filter-type"><option value="Alle">Alle Bautypen</option></select>
+        </div>
+        
+        <div class="filter-group">
+            <label>🚦 Status filtern (Keine Auswahl = Alle anzeigen)</label>
+            <div class="status-checkbox-container" id="status-checkboxes-container">
+                <label class="status-checkbox-item"><input type="checkbox" value="Wartung empfohlen"> 🟡 Wartung empfohlen (~3J)</label>
+                <label class="status-checkbox-item"><input type="checkbox" value="Wartung nötig"> 🔴 Wartung nötig (>5J)</label>
+                <label class="status-checkbox-item"><input type="checkbox" value="Beschädigt"> 🔴⚪ Beschädigt</label>
+                <label class="status-checkbox-item"><input type="checkbox" value="In Bearbeitung"> 🟣 In Bearbeitung</label>
+                <label class="status-checkbox-item"><input type="checkbox" value="Irreparabel"> ⚫ Irreparabel</label>
+                <label class="status-checkbox-item"><input type="checkbox" value="Verschmutzt"> 🟠 Verschmutzt</label>
+                <label class="status-checkbox-item"><input type="checkbox" value="Zugewachsen"> 🔵 Zugewachsen</label>
+                <label class="status-checkbox-item"><input type="checkbox" value="Ungeprüft"> ⚪ Ungeprüft</label>
+                <label class="status-checkbox-item"><input type="checkbox" value="Wartungsfrei"> 🟢✨ Wartungsfrei (Dauerhaft)</label>
+                <label class="status-checkbox-item"><input type="checkbox" value="Gut"> 🟢 Gut</label>
             </div>
             
-            <button id="menu-help-btn" class="btn btn-help" onclick="openHelpOverlay()">ℹ️ App-Anleitung öffnen</button>
-            
-            <hr style="width:100%; border:0; border-top:1px solid #e2e8f0; margin: 5px 0;"/>
-            
-            <div class="filter-group" id="admin-add-type-container" style="display:none;">
-                <label>🛠️ System-Verwaltung</label>
-                <button class="btn btn-add-type-trigger" onclick="openTypeOverlay()">➕ Neuen Bautyp anlegen</button>
-            </div>
-            
-            <div class="legend">
-                <strong>Status:</strong> 🟢 Gut | 🟢✨ Wartungsfrei | 🟣 In Arbeit | 🟡 ~3J | 🔴 &gt;5J | 🔴⚪ Defekt | ⚫ Irreparabel | 🟠 Verschmutzt | 🔵 Zugewachsen<br>
-                💡 <em>Karte antippen = Button zum Anlegen öffnen. Punkt antippen = Bearbeiten.</em>
-            </div>
+            <!-- 🔄 Button zum Zurücksetzen aller Filter -->
+            <button type="button" class="btn-reset-filters" onclick="resetAllFilters()">
+                🔄 Filter zurücksetzen
+            </button>
+            <button class="btn" onclick="activateLassoFromMenu()" title="Gebiet mit Lasso auf der Karte umkreisen">
+                ✏️ Gebiet mit Lasso markieren
+            </button>
+            <button class="btn" onclick="toggleWoodSelectionMode()" style="background: #8E44AD; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 6px;">
+                🪵 Zuschnitt-Modus starten
+            </button>
+            <button class="btn" onclick="openWoodProjectsArchive()" style="background: #2980b9; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 6px;">
+                📂 Holz-Archiv öffnen
+            </button>
+        </div>
+        
+        <div class="stats-box">
+            <strong id="stats-title">Auswertung</strong>
+            <ul id="stats-list"></ul>
+        </div>
+        
+        <button id="menu-help-btn" class="btn btn-help" onclick="openHelpOverlay()" style="width: 100%; margin-bottom: 10px;">ℹ️ App-Anleitung öffnen</button>
+        
+        <hr style="width:100%; border:0; border-top:1px solid #e2e8f0; margin: 10px 0;"/>
+        
+        <div class="filter-group" id="admin-add-type-container" style="display:none;">
+            <label>🛠️ System-Verwaltung</label>
+            <button class="btn btn-add-type-trigger" onclick="openTypeOverlay()">➕ Neuen Bautyp anlegen</button>
+        </div>
+        
+        <div class="legend" style="margin-top: 15px; font-size: 0.85rem; color: #64748b;">
+            <strong>Status:</strong> 🟢 Gut | 🟢✨ Wartungsfrei | 🟣 In Arbeit | 🟡 ~3J | 🔴 &gt;5J | 🔴⚪ Defekt | ⚫ Irreparabel | 🟠 Verschmutzt | 🔵 Zugewachsen<br>
+            💡 <em>Karte antippen = Button zum Anlegen öffnen. Punkt antippen = Bearbeiten.</em>
         </div>
     </div>
+</div>
 
     <!-- Ausführliche App Anleitung / Hilfe Overlay -->
     <div id="help-overlay" class="fullscreen-overlay">
@@ -2562,7 +2651,6 @@ window.printReport = function(repId) {
     const date = new Date(rep.created_at).toLocaleString('de-DE');
     const b = rep.benches || {};
     
-    // Ticket & Trupp ermitteln
     const ticket = rep.ticket_number ? String(rep.ticket_number).trim() : 'Keine Nummer';
     const descLower = (rep.description || '').toLowerCase();
     let trupp = 'Allgemein';
@@ -2573,158 +2661,198 @@ window.printReport = function(repId) {
         trupp = descLower.includes('zugewachsen') ? 'Grünpflege' : (descLower.includes('irreparabel') ? 'Gala Bau' : 'Grünpflege / Gala Bau');
     }
 
-    const printContainer = document.getElementById('print-section');
-    
-    // Container sichtbar schalten & A4-Breite erzwingen für genaue Leaflet-Berechnung
-    printContainer.style.display = 'block';
-    printContainer.style.width = '794px'; 
+    const targetBenchId = rep.bench_id;
+    const sitzfinderUrl = targetBenchId 
+        ? window.location.origin + window.location.pathname + '?id=' + targetBenchId
+        : window.location.href;
 
-    // HTML-Aufbau
-    printContainer.innerHTML = `
-        <!-- HEADER MIT LOGOS -->
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2C3E50; padding-bottom: 8px; margin-bottom: 12px;">
-            <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/hnlogo.png" style="height: 60px; object-fit: contain;" alt="Stadt Heilbronn" crossorigin="anonymous">
-            <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/Logo%20SitzFinder.png" style="height: 66px; margin: -4px 0; object-fit: contain;" alt="SitzFinder" crossorigin="anonymous">
-        </div>
+    // Exakte Koordinaten ermitteln mit Fallback auf Heilbronn-Zentrum
+    const lat = (b && b.lat) ? Number(b.lat) : 49.1406;
+    const lng = (b && b.lng) ? Number(b.lng) : 9.2199;
 
-        <!-- TICKET INFO & QR CODE -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; background: #f8fafc; padding: 12px 18px; border-radius: 6px; border: 1px solid #cbd5e1;">
-            <div>
-                <h2 style="margin: 0 0 4px 0; font-size: 22px; color: #1e293b;">Schadensmeldung: ${ticket}</h2>
-                <div style="font-size: 16px; font-weight: bold; color: #2563eb;">Zuständiger Trupp: ${trupp}</div>
-                <div style="font-size: 13px; color: #64748b; margin-top: 4px;">Gemeldet am: ${date}</div>
+    // Zoom 16 für maximale Detailtiefe (Fußwege, Parks, Pfade)
+    const zoom = 16;
+    const n = Math.pow(2, zoom);
+    const xFloat = (lng + 180) / 360 * n;
+    const latRad = lat * Math.PI / 180;
+    const yFloat = (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n;
+
+    const xt = Math.floor(xFloat);
+    const yt = Math.floor(yFloat);
+
+    const containerWidth = 774; 
+    const containerHeight = 260;
+    // Wieder exakt die echte geometrische Mitte, damit der GPS-Punkt perfekt sitzt!
+    const centerX = containerWidth / 2; 
+    const centerY = containerHeight / 2;
+
+    let tilesHtml = '';
+    for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+            const tx = xt + dx;
+            const ty = yt + dy;
+            if (ty >= 0 && ty < n) {
+                const tileX = (tx + n) % n;
+                const tileUrl = `https://tile.openstreetmap.org/${zoom}/${tileX}/${ty}.png`;
+                const cssLeft = Math.round((tx - xFloat) * 256 + centerX);
+                const cssTop = Math.round((ty - yFloat) * 256 + centerY);
+                tilesHtml += `<img src="${tileUrl}" class="print-map-tile" style="position: absolute; left: ${cssLeft}px; top: ${cssTop}px; width: 256px; height: 256px; display: block; object-fit: cover; background: #e2e8f0;" crossorigin="anonymous" />`;
+            }
+        }
+    }
+
+    const district = b.district || 'Keine Angabe';
+    const benchType = b.type || 'Standard';
+    const benchId = rep.bench_id || 'Unbekannt';
+    const dimensions = (b.dimensions && b.dimensions.trim() !== '') ? '<div style="margin-bottom: 4px;"><strong style="color: #475569;">Maße:</strong> ' + b.dimensions + '</div>' : '';
+    const description = (rep.description && rep.description.trim() !== '') ? '<div style="margin-bottom: 4px;"><strong style="color: #475569;">Schaden:</strong> ' + rep.description + '</div>' : '';
+    const assemblyNote = (b.assembly_note && b.assembly_note.trim() !== '') ? '<div style="margin-bottom: 4px;"><strong style="color: #475569;">Montagehinweis:</strong> ' + b.assembly_note + '</div>' : '';
+    const note = (b.note && b.note.trim() !== '') ? '<div><strong style="color: #475569;">Notiz:</strong> ' + b.note + '</div>' : '';
+
+    const imageHtml = rep.image_url ? 
+        '<div style="margin-bottom: 12px;">' +
+            '<h3 style="margin: 0 0 6px 0; font-size: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; color: #334155;">Foto vom Schaden</h3>' +
+            '<div style="display: flex; justify-content: center; background: #f1f5f9; border-radius: 6px; border: 1px solid #cbd5e1; overflow: hidden; max-height: 270px;">' +
+                '<img src="' + rep.image_url + '" style="max-width: 100%; max-height: 270px; object-fit: contain;" crossorigin="anonymous"/>' +
+            '</div>' +
+        '</div>' : '';
+
+    let printArea = document.getElementById('static-print-area');
+    if (!printArea) {
+        printArea = document.createElement('div');
+        printArea.id = 'static-print-area';
+        document.body.appendChild(printArea);
+    }
+
+    printArea.style.display = 'block';
+    printArea.style.position = 'absolute';
+    printArea.style.left = '0';
+    printArea.style.top = '0';
+    printArea.style.width = '100%';
+    printArea.style.opacity = '0';
+    printArea.style.zIndex = '-9999';
+
+    printArea.innerHTML = `
+        <div style="padding: 10px; background: #fff; font-family: Arial, sans-serif; width: 794px; margin: 0 auto; box-sizing: border-box;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2C3E50; padding-bottom: 8px; margin-bottom: 12px;">
+                <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/hnlogo.png" style="height: 60px; object-fit: contain;" alt="Stadt Heilbronn" crossorigin="anonymous">
+                <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/Logo%20SitzFinder.png" style="height: 66px; margin: -4px 0; object-fit: contain;" alt="SitzFinder" crossorigin="anonymous">
             </div>
-            <div style="text-align: center;">
-                <div id="print-qrcode" style="display: flex; justify-content: center;"></div>
-                <div style="font-size: 10px; color: #64748b; margin-top: 4px; font-weight: bold;">In SitzFinder öffnen</div>
-            </div>
-        </div>
 
-        <!-- DETAILS ZUR BANK & SCHADEN (GROSSE SCHRIFT) -->
-        <div style="margin-bottom: 12px;">
-            <h3 style="margin: 0 0 6px 0; font-size: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; color: #334155;">Details zur Bank & Schaden</h3>
-            <div style="display: flex; gap: 24px; font-size: 14px; line-height: 1.5;">
-                <!-- Linke Spalte -->
-                <div style="flex: 1;">
-                    <div style="margin-bottom: 4px;"><strong style="color: #475569;">Bank-ID:</strong> #${rep.bench_id || 'Unbekannt'}</div>
-                    <div style="margin-bottom: 4px;"><strong style="color: #475569;">Stadtteil:</strong> ${b.district || 'Keine Angabe'}</div>
-                    <div><strong style="color: #475569;">Banktyp:</strong> ${b.type || 'Standard'}</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; background: #f8fafc; padding: 12px 18px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                <div>
+                    <h2 style="margin: 0 0 4px 0; font-size: 22px; color: #1e293b;">Schadensmeldung: ${ticket}</h2>
+                    <div style="font-size: 16px; font-weight: bold; color: #2563eb;">Zuständiger Trupp: ${trupp}</div>
+                    <div style="font-size: 13px; color: #64748b; margin-top: 4px;">Gemeldet am: ${date}</div>
                 </div>
-                <!-- Rechte Spalte -->
-                <div style="flex: 1.2;">
-                    ${b.dimensions && b.dimensions.trim() !== '' ? `<div style="margin-bottom: 4px;"><strong style="color: #475569;">Maße:</strong> ${b.dimensions}</div>` : ''}
-                    ${rep.description && rep.description.trim() !== '' ? `<div style="margin-bottom: 4px;"><strong style="color: #475569;">Schaden:</strong> ${rep.description}</div>` : ''}
-                    ${b.assembly_note && b.assembly_note.trim() !== '' ? `<div style="margin-bottom: 4px;"><strong style="color: #475569;">Montagehinweis:</strong> ${b.assembly_note}</div>` : ''}
-                    ${b.note && b.note.trim() !== '' ? `<div><strong style="color: #475569;">Notiz:</strong> ${b.note}</div>` : ''}
+                <div style="text-align: center;">
+                    <div id="print-qrcode" style="display: flex; justify-content: center;"></div>
+                    <div style="font-size: 10px; color: #64748b; margin-top: 4px; font-weight: bold;">In SitzFinder öffnen</div>
                 </div>
             </div>
-        </div>
 
-        <!-- SCHADENSFOTO (MAXIMAL ERHÖHT AUF 270px) -->
-        ${rep.image_url ? `
             <div style="margin-bottom: 12px;">
-                <h3 style="margin: 0 0 6px 0; font-size: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; color: #334155;">Foto vom Schaden</h3>
-                <div style="display: flex; justify-content: center; background: #f1f5f9; border-radius: 6px; border: 1px solid #cbd5e1; overflow: hidden; max-height: 270px;">
-                    <img src="${rep.image_url}" style="max-width: 100%; max-height: 270px; object-fit: contain;" crossorigin="anonymous"/>
+                <h3 style="margin: 0 0 6px 0; font-size: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; color: #334155;">Details zur Bank & Schaden</h3>
+                <div style="display: flex; gap: 24px; font-size: 14px; line-height: 1.5;">
+                    <div style="flex: 1;">
+                        <div style="margin-bottom: 4px;"><strong style="color: #475569;">Bank-ID:</strong> #${benchId}</div>
+                        <div style="margin-bottom: 4px;"><strong style="color: #475569;">Stadtteil:</strong> ${district}</div>
+                        <div><strong style="color: #475569;">Banktyp:</strong> ${benchType}</div>
+                    </div>
+                    <div style="flex: 1.2;">
+                        ${dimensions}
+                        ${description}
+                        ${assemblyNote}
+                        ${note}
+                    </div>
                 </div>
             </div>
-        ` : ''}
 
-        <!-- ORIENTIERUNGSKARTE (ERHÖHT AUF 300px) -->
-        <div style="margin-bottom: 12px;" class="print-no-break">
-            <h3 style="margin: 0 0 6px 0; font-size: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; color: #334155;">Orientierungskarte</h3>
-            <div id="print-map" style="height: 300px; width: 100%; border-radius: 6px; border: 1px solid #cbd5e1; background: #e2e8f0;"></div>
-        </div>
+            ${imageHtml}
 
-        <!-- UNTERSCHRIFTENBLOCK -->
-        <div style="margin-top: 12px; padding-top: 10px; border-top: 2px dashed #94a3b8;" class="print-no-break">
-            <div style="display: flex; justify-content: space-between; font-size: 12px;">
-                <div style="width: 30%;">
-                    <strong>Datum Erledigt:</strong>
-                    <div style="border-bottom: 1px solid #000; margin-top: 40px;"></div>
+            <!-- KARTE MIT EXAKTEM MITTELPUNKT & PUNKT -->
+            <div style="margin-bottom: 12px;" class="print-no-break">
+                <h3 style="margin: 0 0 6px 0; font-size: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; color: #334155;">Orientierungskarte</h3>
+                <div style="height: ${containerHeight}px; width: ${containerWidth}px; margin: 0 auto; border-radius: 6px; border: 1px solid #cbd5e1; background: #e2e8f0; position: relative; overflow: hidden; box-sizing: border-box;">
+                    
+                    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+                        ${tilesHtml}
+                    </div>
+
+                    <!-- Exakter roter Marker im mathematischen Zentrum -->
+                    <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -100%); width: 18px; height: 18px; background-color: #dc2626 !important; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 3px 6px rgba(0,0,0,0.5); z-index: 10;"></div>
                 </div>
-                <div style="width: 30%;">
-                    <strong>Bearbeitet durch:</strong>
-                    <div style="border-bottom: 1px solid #000; margin-top: 40px;"></div>
-                </div>
-                <div style="width: 30%;">
-                    <strong>Unterschrift:</strong>
-                    <div style="border-bottom: 1px solid #000; margin-top: 40px;"></div>
+            </div>
+
+            <div style="margin-top: 12px; padding-top: 10px; border-top: 2px dashed #94a3b8;" class="print-no-break">
+                <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                    <div style="width: 30%;">
+                        <strong>Datum Erledigt:</strong>
+                        <div style="border-bottom: 1px solid #000; margin-top: 40px;"></div>
+                    </div>
+                    <div style="width: 30%;">
+                        <strong>Bearbeitet durch:</strong>
+                        <div style="border-bottom: 1px solid #000; margin-top: 40px;"></div>
+                    </div>
+                    <div style="width: 30%;">
+                        <strong>Unterschrift:</strong>
+                        <div style="border-bottom: 1px solid #000; margin-top: 40px;"></div>
+                    </div>
                 </div>
             </div>
         </div>
     `;
 
-    // 1. QR-Code
-    const targetBenchId = rep.bench_id;
-    const sitzfinderUrl = targetBenchId 
-        ? `${window.location.origin}${window.location.pathname}?id=${targetBenchId}`
-        : window.location.href;
+    const qrContainer = printArea.querySelector("#print-qrcode");
+    if (qrContainer) {
+        qrContainer.innerHTML = '';
+        new QRCode(qrContainer, {
+            text: sitzfinderUrl,
+            width: 72,
+            height: 72,
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    }
 
-    const qrContainer = document.getElementById("print-qrcode");
-    if (qrContainer) qrContainer.innerHTML = '';
+    const allImages = Array.from(printArea.querySelectorAll('img'));
+    let printTriggered = false;
 
-    new QRCode(qrContainer, {
-        text: sitzfinderUrl,
-        width: 72,
-        height: 72,
-        correctLevel: QRCode.CorrectLevel.H
-    });
-
-    // 2. Leaflet Karte initialisieren
     const triggerPrint = () => {
-        window.print();
-        printContainer.style.width = '';
-        printContainer.style.display = '';
-    };
+        if (printTriggered) return;
+        printTriggered = true;
 
-    if (b.lat && b.lng && typeof L !== 'undefined') {
-        const mapDiv = document.getElementById('print-map');
-        if (mapDiv && mapDiv._leaflet_id) {
-            mapDiv._leaflet_id = null;
-        }
+        printArea.style.opacity = '1';
+        printArea.style.zIndex = '999999';
 
         setTimeout(() => {
-            const printMap = L.map('print-map', {
-                dragging: false, 
-                zoomControl: false, 
-                scrollWheelZoom: false, 
-                touchZoom: false
-            }).setView([b.lat, b.lng], 16);
-
-            const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19
-            }).addTo(printMap);
-
-            L.circleMarker([b.lat, b.lng], { 
-                radius: 8, 
-                fillColor: '#e74c3c', 
-                color: '#fff', 
-                weight: 2,
-                fillOpacity: 0.9 
-            }).addTo(printMap);
-
-            printMap.invalidateSize();
-
-            let printed = false;
-            tileLayer.on('load', () => {
-                if (!printed) {
-                    printed = true;
-                    setTimeout(triggerPrint, 250);
-                }
-            });
+            window.print();
 
             setTimeout(() => {
-                if (!printed) {
-                    printed = true;
-                    triggerPrint();
-                }
-            }, 1000);
+                printArea.style.display = 'none';
+                printArea.innerHTML = '';
+            }, 1500);
+        }, 150);
+    };
 
-        }, 100);
-    } else {
-        setTimeout(triggerPrint, 300);
+    if (allImages.length === 0) {
+        triggerPrint();
+        return;
     }
+
+    Promise.all(allImages.map(img => {
+        if (img.complete && img.naturalHeight !== 0) {
+            return Promise.resolve();
+        }
+        if (typeof img.decode === 'function') {
+            return img.decode().catch(() => Promise.resolve());
+        }
+        return new Promise(resolve => {
+            img.onload = resolve;
+            img.onerror = resolve;
+        });
+    })).then(triggerPrint).catch(triggerPrint);
+
+    setTimeout(triggerPrint, 2500);
 };
 
 // Hilfsfunktion zum Schließen des Detail-Modals
@@ -6205,18 +6333,47 @@ function viewSavedWoodProject(project) {
 }
 
 function printWoodCuttingList() {
-    // Prüfen, ob überhaupt ein Modal da ist
+    // 1. Offenes Modal finden
     const activeModal = document.getElementById('active-wood-list-modal');
     const detailModal = document.getElementById('saved-detail-wood-modal');
+    const modalToPrint = activeModal || detailModal;
     
-    if (!activeModal && !detailModal) {
+    if (!modalToPrint) {
         alert("Keine Zuschnittliste gefunden zum Drucken.");
         return;
     }
 
-    // Direkt den nativen Druckdialog des Browsers aufrufen.
-    // Das CSS oben kümmert sich vollautomatisch darum, dass nur das Modal gedruckt wird!
+    // 2. Prüfen oder Erstellen unseres unsichtbaren Druck-Containers im Dokument
+    let printArea = document.getElementById('static-print-area');
+    if (!printArea) {
+        printArea = document.createElement('div');
+        printArea.id = 'static-print-area';
+        printArea.style.display = 'none'; // Im Normalbetrieb unsichtbar
+        document.body.appendChild(printArea);
+    }
+
+    // 3. Inhalt des Modals kopieren (Cloning - völlig ohne HTML-Schreibarbeit!)
+    printArea.innerHTML = '';
+    const modalClone = modalToPrint.cloneNode(true);
+    
+    // Innere Box-Styles anpassen, damit sie auf dem Papier formatfüllend ist
+    const innerBox = modalClone.querySelector('div');
+    if (innerBox) {
+        innerBox.style.boxShadow = 'none';
+        innerBox.style.width = '100%';
+        innerBox.style.maxHeight = 'none';
+        innerBox.style.padding = '10px';
+    }
+
+    printArea.appendChild(modalClone);
+
+    // 4. Drucken aufrufen (das CSS oben blendet alles andere aus)
     window.print();
+
+    // 5. Nach kurzer Verzögerung wieder aufräumen
+    setTimeout(() => {
+        printArea.innerHTML = '';
+    }, 1000);
 }
 
 async function deleteWoodProject(projectId) {
@@ -6238,6 +6395,56 @@ async function deleteWoodProject(projectId) {
         console.error("Fehler beim Löschen des Projekts:", e);
         alert("Fehler beim Löschen.");
     }
+}
+
+// Funktion, um direkt zu einer Bank-ID zu springen
+function searchByBenchId(idQuery) {
+    const query = idQuery.trim();
+    if (!query) return;
+
+    if (typeof benches !== 'undefined' && Array.isArray(benches)) {
+        const foundBench = benches.find(b => String(b.id) === query);
+
+        if (foundBench && foundBench.lat && foundBench.lng) {
+            // 1. Karte zur Bank zentrieren
+            if (typeof map !== 'undefined' && map) {
+                map.setView([parseFloat(foundBench.lat), parseFloat(foundBench.lng)], 19);
+            }
+
+            // 2. Sidebar über deine bestehende Funktion schließen (falls sie offen ist)
+            // Wenn deine toggleSidebar() die Ansicht nur umschaltet, kannst du sie hier triggern. 
+            // Falls du eine Variable für den Zustand hast (z.B. sidebarOpen), kannst du das steuern.
+            if (typeof toggleSidebar === 'function') {
+                // Wir rufen sie auf, falls das Menü gerade sichtbar ist 
+                // (Oder du passt das an, falls toggleSidebar einen Status erwartet)
+                const sidebar = document.getElementById('sidebar'); // oder dein Sidebar-Container
+                if (sidebar && sidebar.classList.contains('open')) { // Passe den Klassennamen an falls nötig
+                    toggleSidebar();
+                }
+            }
+
+            // 3. Popup öffnen
+            setTimeout(() => {
+                if (window.markerDict && window.markerDict[foundBench.id]) {
+                    const layer = window.markerDict[foundBench.id];
+                    if (typeof layer.openPopup === 'function') {
+                        layer.openPopup();
+                    } else if (layer.getLayers && layer.getLayers().length > 0) {
+                        layer.getLayers()[0].openPopup();
+                    }
+                }
+            }, 350);
+        } else {
+            console.log("Bank mit ID " + query + " nicht gefunden.");
+        }
+    }
+}
+
+// Suche zurücksetzen
+function clearBenchIdSearch() {
+    const input = document.getElementById('bench-id-search');
+    if (input) input.value = '';
+    searchByBenchId('');
 }
 
 // Schließen mit Escape
