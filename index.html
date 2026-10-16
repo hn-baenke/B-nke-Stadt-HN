@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
         html, body { height: 100%; margin: 0; padding: 0; width: 100%; }
@@ -2855,45 +2856,45 @@ window.printReport = function(repId) {
     setTimeout(triggerPrint, 2500);
 };
 
-// Hilfsfunktion: Zeigt Logs direkt unten auf dem Handy-Bildschirm an
-function showDebugLog(message, isError = false) {
-    let debugDiv = document.getElementById('mobile-debug-banner');
-    if (!debugDiv) {
-        debugDiv = document.createElement('div');
-        debugDiv.id = 'mobile-debug-banner';
-        debugDiv.style.position = 'fixed';
-        debugDiv.style.bottom = '10px';
-        debugDiv.style.left = '10px';
-        debugDiv.style.right = '10px';
-        debugDiv.style.zIndex = '999999';
-        debugDiv.style.padding = '12px';
-        debugDiv.style.borderRadius = '8px';
-        debugDiv.style.fontSize = '13px';
-        debugDiv.style.fontFamily = 'monospace';
-        debugDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
-        document.body.appendChild(debugDiv);
-    }
-    debugDiv.style.background = isError ? '#fee2e2' : '#f0fdf4';
-    debugDiv.style.color = isError ? '#991b1b' : '#166534';
-    debugDiv.style.border = isError ? '1px solid #f87171' : '1px solid #4ade80';
-    debugDiv.innerText = "📱 Debug: " + message;
-}
-
-// 1. Apple-Erkennung
+// Apple-Erkennung
 function isAppleDevice() {
     return /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) || 
            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
-// 2. Die smarte Weiche mit IFrame-Direktdruck für Apple
+// Die Weiche: Apple bekommt direkt ein sauberes PDF, alle anderen den gewohnten Weg
 window.smartPrintReport = function(repId) {
+    if (isAppleDevice()) {
+        generateReportPDF(repId);
+    } else {
+        if (typeof printReport === 'function') {
+            printReport(repId);
+        }
+    }
+};
+
+// Die PDF-Generierung speziell für Apple-Geräte
+function generateReportPDF(repId) {
     const reportsList = window.currentReportData || [];
     const rep = reportsList.find(function(r) { return String(r.id) === String(repId); });
     
     if (!rep) {
-        alert("Meldungsdaten für den Druck konnten nicht geladen werden.");
+        alert("Meldungsdaten konnten nicht geladen werden.");
         return;
     }
+
+    // Prüfen ob jsPDF geladen ist
+    if (typeof window.jspdf === 'undefined') {
+        alert("PDF-Bibliothek wird noch geladen. Bitte in einer Sekunde nochmal versuchen.");
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+    });
 
     const date = new Date(rep.created_at).toLocaleString('de-DE');
     const b = rep.benches || {};
@@ -2907,125 +2908,73 @@ window.smartPrintReport = function(repId) {
         trupp = descLower.includes('zugewachsen') ? 'Grünpflege' : (descLower.includes('irreparabel') ? 'Gala Bau' : 'Grünpflege / Gala Bau');
     }
 
-    const district = b.district || 'Keine Angabe';
-    const benchType = b.type || 'Standard';
-    const benchId = rep.bench_id || 'Unbekannt';
-    const dimensions = (b.dimensions && b.dimensions.trim() !== '') ? '<div style="margin-bottom: 4px;"><strong style="color: #475569;">Maße:</strong> ' + b.dimensions + '</div>' : '';
-    const description = (rep.description && rep.description.trim() !== '') ? '<div style="margin-bottom: 4px;"><strong style="color: #475569;">Schaden:</strong> ' + rep.description + '</div>' : '';
-    const assemblyNote = (b.assembly_note && b.assembly_note.trim() !== '') ? '<div style="margin-bottom: 4px;"><strong style="color: #475569;">Montagehinweis:</strong> ' + b.assembly_note + '</div>' : '';
-    const note = (b.note && b.note.trim() !== '') ? '<div><strong style="color: #475569;">Notiz:</strong> ' + b.note + '</div>' : '';
+    // PDF Inhalt aufbauen (A4 hat 210mm Breite)
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("Schadensmeldung: " + ticket, 15, 20);
 
-    const imageHtml = rep.image_url ? 
-        '<div style="margin-bottom: 12px;">' +
-            '<h3 style="margin: 0 0 6px 0; font-size: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; color: #334155;">Foto vom Schaden</h3>' +
-            '<div style="display: flex; justify-content: center; background: #f1f5f9; border-radius: 6px; border: 1px solid #cbd5e1; overflow: hidden; max-height: 270px;">' +
-                '<img src="' + rep.image_url + '" style="max-width: 100%; max-height: 270px; object-fit: contain;" crossorigin="anonymous"/>' +
-            '</div>' +
-        '</div>' : '';
+    doc.setFontSize(12);
+    doc.setTextColor(37, 99, 235); // Blau
+    doc.text("Zuständiger Trupp: " + trupp, 15, 28);
 
-    const printHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <title>Schadensmeldung ${ticket}</title>
-            <style>
-                @media print {
-                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    .print-no-break { page-break-inside: avoid; break-inside: avoid; }
-                }
-                body { margin: 0; padding: 20px; background: #fff; font-family: Arial, sans-serif; }
-            </style>
-        </head>
-        <body>
-            <div style="padding: 10px; background: #fff; width: 794px; margin: 0 auto; box-sizing: border-box;">
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2C3E50; padding-bottom: 8px; margin-bottom: 12px;">
-                    <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/hnlogo.png" style="height: 60px; object-fit: contain;" alt="Stadt Heilbronn" crossorigin="anonymous">
-                    <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/Logo%20SitzFinder.png" style="height: 66px; margin: -4px 0; object-fit: contain;" alt="SitzFinder" crossorigin="anonymous">
-                </div>
+    doc.setFont("Helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text("Gemeldet am: " + date, 15, 34);
 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; background: #f8fafc; padding: 12px 18px; border-radius: 6px; border: 1px solid #cbd5e1;">
-                    <div>
-                        <h2 style="margin: 0 0 4px 0; font-size: 22px; color: #1e293b;">Schadensmeldung: ${ticket}</h2>
-                        <div style="font-size: 16px; font-weight: bold; color: #2563eb;">Zuständiger Trupp: ${trupp}</div>
-                        <div style="font-size: 13px; color: #64748b; margin-top: 4px;">Gemeldet am: ${date}</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="font-weight: bold; font-size: 11px; color: #334155;">#${ticket}</div>
-                    </div>
-                </div>
+    // Trennlinie
+    doc.setDrawColor(200, 200, 200);
+    doc.line(15, 40, 195, 40);
 
-                <div style="margin-bottom: 12px;">
-                    <h3 style="margin: 0 0 6px 0; font-size: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; color: #334155;">Details zur Bank & Schaden</h3>
-                    <div style="display: flex; gap: 24px; font-size: 14px; line-height: 1.5;">
-                        <div style="flex: 1;">
-                            <div style="margin-bottom: 4px;"><strong style="color: #475569;">Bank-ID:</strong> #${benchId}</div>
-                            <div style="margin-bottom: 4px;"><strong style="color: #475569;">Stadtteil:</strong> ${district}</div>
-                            <div><strong style="color: #475569;">Banktyp:</strong> ${benchType}</div>
-                        </div>
-                        <div style="flex: 1.2;">
-                            ${dimensions}
-                            ${description}
-                            ${assemblyNote}
-                            ${note}
-                        </div>
-                    </div>
-                </div>
+    // Details Block
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(50, 50, 50);
+    doc.text("Details zur Bank & Schaden", 15, 48);
 
-                ${imageHtml}
+    doc.setFont("Helvetica", "normal");
+    doc.setFontSize(10);
+    let y = 56;
 
-                <div style="margin-top: 12px; padding-top: 10px; border-top: 2px dashed #94a3b8;" class="print-no-break">
-                    <div style="display: flex; justify-content: space-between; font-size: 12px;">
-                        <div style="width: 30%;">
-                            <strong>Datum Erledigt:</strong>
-                            <div style="border-bottom: 1px solid #000; margin-top: 40px;"></div>
-                        </div>
-                        <div style="width: 30%;">
-                            <strong>Bearbeitet durch:</strong>
-                            <div style="border-bottom: 1px solid #000; margin-top: 40px;"></div>
-                        </div>
-                        <div style="width: 30%;">
-                            <strong>Unterschrift:</strong>
-                            <div style="border-bottom: 1px solid #000; margin-top: 40px;"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </body>
-        </html>
-    `;
+    const details = [
+        ["Bank-ID:", "#" + (rep.bench_id || 'Unbekannt')],
+        ["Stadtteil:", b.district || 'Keine Angabe'],
+        ["Banktyp:", b.type || 'Standard'],
+        ["Maße:", b.dimensions || '-'],
+        ["Schaden:", rep.description || '-'],
+        ["Montagehinweis:", b.assembly_note || '-'],
+        ["Notiz:", b.note || '-']
+    ];
 
-    if (isAppleDevice()) {
-        // Alten IFrame falls vorhanden entfernen
-        let existingIframe = document.getElementById('apple-print-iframe');
-        if (existingIframe) existingIframe.remove();
+    details.forEach(function(item) {
+        doc.setFont("Helvetica", "bold");
+        doc.text(item[0], 15, y);
+        doc.setFont("Helvetica", "normal");
+        doc.text(String(item[1]), 50, y, { maxWidth: 140 });
+        y += 8;
+    });
 
-        const iframe = document.createElement('iframe');
-        iframe.id = 'apple-print-iframe';
-        iframe.style.position = 'fixed';
-        iframe.style.right = '0';
-        iframe.style.bottom = '0';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = 'none';
-        document.body.appendChild(iframe);
+    // Unterschriftsbereich am Ende
+    y += 20;
+    doc.line(15, y, 70, y);
+    doc.line(80, y, 135, y);
+    doc.line(145, y, 195, y);
 
-        const doc = iframe.contentWindow.document;
-        doc.open();
-        doc.write(printHtml);
-        doc.close();
+    doc.setFontSize(8);
+    doc.text("Datum Erledigt", 15, y + 5);
+    doc.text("Bearbeitet durch", 80, y + 5);
+    doc.text("Unterschrift", 145, y + 5);
 
-        setTimeout(function() {
-            iframe.contentWindow.focus();
-            iframe.contentWindow.print();
-        }, 500);
+    // PDF im neuen Tab öffnen (iOS Safari zeigt es direkt an, von wo aus man es sofort drucken/teilen kann)
+    const pdfDataUri = doc.output('datauristring');
+    const win = window.open();
+    if (win) {
+        win.document.write('<iframe src="' + pdfDataUri + '" frameborder="0" style="border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;" allowfullscreen></iframe>');
     } else {
-        // Standard-Geräte nutzen die gewohnte Funktion
-        if (typeof printReport === 'function') {
-            printReport(repId);
-        }
+        // Fallback falls Pop-up blockiert
+        doc.save('Schadensmeldung_' + ticket + '.pdf');
     }
-};
+}
 
 // Hilfsfunktion zum Schließen des Detail-Modals
 window.closeReportDetail = function() {
