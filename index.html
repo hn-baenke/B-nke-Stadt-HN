@@ -3048,6 +3048,96 @@ window.printReport = function(repId) {
     setTimeout(triggerPrint, 2500);
 };
 
+// 1. Apple-Erkennung
+function isAppleDevice() {
+    return /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) || 
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+// 2. Die smarte Weiche
+window.smartPrintReport = function(repId) {
+    if (isAppleDevice()) {
+        const reportsList = window.currentReportData || [];
+        const rep = reportsList.find(function(r) { return String(r.id) === String(repId); });
+        
+        if (!rep) {
+            alert("Meldungsdaten für den Druck konnten nicht geladen werden.");
+            return;
+        }
+
+        const date = new Date(rep.created_at).toLocaleString('de-DE');
+        const b = rep.benches || {};
+        const ticket = rep.ticket_number ? String(rep.ticket_number).trim() : 'Keine Nummer';
+        const descLower = (rep.description || '').toLowerCase();
+        let trupp = 'Allgemein';
+        
+        if (ticket.includes('H')) trupp = 'Zimmerer';
+        else if (ticket.includes('S')) trupp = 'Stadtreinigung';
+        else if (ticket.includes('G')) {
+            trupp = descLower.includes('zugewachsen') ? 'Grünpflege' : (descLower.includes('irreparabel') ? 'Gala Bau' : 'Grünpflege / Gala Bau');
+        }
+
+        const district = b.district || 'Keine Angabe';
+        const benchType = b.type || 'Standard';
+        const benchId = rep.bench_id || 'Unbekannt';
+        const dimensions = (b.dimensions && b.dimensions.trim() !== '') ? '<div style="margin-bottom: 4px;"><strong style="color: #475569;">Maße:</strong> ' + b.dimensions + '</div>' : '';
+        const description = (rep.description && rep.description.trim() !== '') ? '<div style="margin-bottom: 4px;"><strong style="color: #475569;">Schaden:</strong> ' + rep.description + '</div>' : '';
+        const assemblyNote = (b.assembly_note && b.assembly_note.trim() !== '') ? '<div style="margin-bottom: 4px;"><strong style="color: #475569;">Montagehinweis:</strong> ' + b.assembly_note + '</div>' : '';
+        const note = (b.note && b.note.trim() !== '') ? '<div><strong style="color: #475569;">Notiz:</strong> ' + b.note + '</div>' : '';
+
+        const imageHtml = rep.image_url ? 
+            '<div style="margin-bottom: 12px;">' +
+                '<h3 style="margin: 0 0 6px 0; font-size: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; color: #334155;">Foto vom Schaden</h3>' +
+                '<div style="display: flex; justify-content: center; background: #f1f5f9; border-radius: 6px; border: 1px solid #cbd5e1; overflow: hidden; max-height: 270px;">' +
+                    '<img src="' + rep.image_url + '" style="max-width: 100%; max-height: 270px; object-fit: contain;" crossorigin="anonymous"/>' +
+                '</div>' +
+            '</div>' : '';
+
+        // Öffne ein leeres neues Tab für Apple-Geräte
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert("Bitte Pop-up-Blocker für diese Seite deaktivieren.");
+            return;
+        }
+
+        // Schreibe das Druck-HTML direkt in das neue Fenster
+        printWindow.document.write(
+            '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Schadensmeldung ' + ticket + '</title>' +
+            '<style>@media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .print-no-break { page-break-inside: avoid; break-inside: avoid; } } body { margin: 0; padding: 20px; background: #fff; font-family: Arial, sans-serif; }</style>' +
+            '</head><body>' +
+            '<div style="padding: 10px; background: #fff; width: 794px; margin: 0 auto; box-sizing: border-box;">' +
+            '<div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2C3E50; padding-bottom: 8px; margin-bottom: 12px;">' +
+            '<img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/hnlogo.png" style="height: 60px; object-fit: contain;" alt="Stadt Heilbronn" crossorigin="anonymous">' +
+            '<img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/Logo%20SitzFinder.png" style="height: 66px; margin: -4px 0; object-fit: contain;" alt="SitzFinder" crossorigin="anonymous">' +
+            '</div>' +
+            '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; background: #f8fafc; padding: 12px 18px; border-radius: 6px; border: 1px solid #cbd5e1;">' +
+            '<div><h2 style="margin: 0 0 4px 0; font-size: 22px; color: #1e293b;">Schadensmeldung: ' + ticket + '</h2>' +
+            '<div style="font-size: 16px; font-weight: bold; color: #2563eb;">Zuständiger Trupp: ' + trupp + '</div>' +
+            '<div style="font-size: 13px; color: #64748b; margin-top: 4px;">Gemeldet am: ' + date + '</div></div>' +
+            '<div style="text-align: center;"><div style="font-weight: bold; font-size: 11px; color: #334155;">#' + ticket + '</div></div></div>' +
+            '<div style="margin-bottom: 12px;"><h3 style="margin: 0 0 6px 0; font-size: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; color: #334155;">Details zur Bank & Schaden</h3>' +
+            '<div style="display: flex; gap: 24px; font-size: 14px; line-height: 1.5;">' +
+            '<div style="flex: 1;"><div style="margin-bottom: 4px;"><strong style="color: #475569;">Bank-ID:</strong> #' + benchId + '</div>' +
+            '<div style="margin-bottom: 4px;"><strong style="color: #475569;">Stadtteil:</strong> ' + district + '</div>' +
+            '<div><strong style="color: #475569;">Banktyp:</strong> ' + benchType + '</div></div>' +
+            '<div style="flex: 1.2;">' + dimensions + description + assemblyNote + note + '</div></div></div>' +
+            imageHtml +
+            '<div style="margin-top: 12px; padding-top: 10px; border-top: 2px dashed #94a3b8;" class="print-no-break">' +
+            '<div style="display: flex; justify-content: space-between; font-size: 12px;">' +
+            '<div style="width: 30%;"><strong>Datum Erledigt:</strong><div style="border-bottom: 1px solid #000; margin-top: 40px;"></div></div>' +
+            '<div style="width: 30%;"><strong>Bearbeitet durch:</strong><div style="border-bottom: 1px solid #000; margin-top: 40px;"></div></div>' +
+            '<div style="width: 30%;"><strong>Unterschrift:</strong><div style="border-bottom: 1px solid #000; margin-top: 40px;"></div></div>' +
+            '</div></div></div>' +
+            '<script>window.onload = function() { setTimeout(function() { window.focus(); window.print(); }, 500); };<\/script>' +
+            '</body></html>'
+        );
+        printWindow.document.close();
+    } else {
+        // Alle anderen Geräte nutzen deine normale printReport-Funktion
+        printReport(repId);
+    }
+};
+
 // Hilfsfunktion zum Schließen des Detail-Modals
 window.closeReportDetail = function() {
     const detailOverlay = document.getElementById('report-detail-overlay');
