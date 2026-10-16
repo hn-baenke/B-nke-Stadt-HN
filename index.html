@@ -2862,7 +2862,7 @@ function isAppleDevice() {
            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
-// Die Weiche: Apple bekommt direkt ein sauberes PDF, alle anderen den gewohnten Weg
+// Die Weiche
 window.smartPrintReport = function(repId) {
     if (isAppleDevice()) {
         generateReportPDF(repId);
@@ -2873,109 +2873,114 @@ window.smartPrintReport = function(repId) {
     }
 };
 
-// Die PDF-Generierung speziell für Apple-Geräte
+// Die bombensichere PDF-Funktion für iOS
 function generateReportPDF(repId) {
     const reportsList = window.currentReportData || [];
     const rep = reportsList.find(function(r) { return String(r.id) === String(repId); });
     
     if (!rep) {
-        alert("Meldungsdaten konnten nicht geladen werden.");
+        alert("Meldungsdaten konnten nicht gefunden werden.");
         return;
     }
 
-    // Prüfen ob jsPDF geladen ist
+    // Prüfen ob jsPDF da ist, sonst kurz warnen
     if (typeof window.jspdf === 'undefined') {
-        alert("PDF-Bibliothek wird noch geladen. Bitte in einer Sekunde nochmal versuchen.");
+        alert("PDF-Bibliothek lädt noch. Bitte in 2 Sekunden nochmal tippen.");
         return;
     }
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-    });
-
-    const date = new Date(rep.created_at).toLocaleString('de-DE');
-    const b = rep.benches || {};
-    const ticket = rep.ticket_number ? String(rep.ticket_number).trim() : 'Keine Nummer';
-    const descLower = (rep.description || '').toLowerCase();
-    let trupp = 'Allgemein';
-    
-    if (ticket.includes('H')) trupp = 'Zimmerer';
-    else if (ticket.includes('S')) trupp = 'Stadtreinigung';
-    else if (ticket.includes('G')) {
-        trupp = descLower.includes('zugewachsen') ? 'Grünpflege' : (descLower.includes('irreparabel') ? 'Gala Bau' : 'Grünpflege / Gala Bau');
-    }
-
-    // PDF Inhalt aufbauen (A4 hat 210mm Breite)
-    doc.setFont("Helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text("Schadensmeldung: " + ticket, 15, 20);
-
-    doc.setFontSize(12);
-    doc.setTextColor(37, 99, 235); // Blau
-    doc.text("Zuständiger Trupp: " + trupp, 15, 28);
-
-    doc.setFont("Helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
-    doc.text("Gemeldet am: " + date, 15, 34);
-
-    // Trennlinie
-    doc.setDrawColor(200, 200, 200);
-    doc.line(15, 40, 195, 40);
-
-    // Details Block
-    doc.setFont("Helvetica", "bold");
-    doc.setFontSize(12);
-    doc.setTextColor(50, 50, 50);
-    doc.text("Details zur Bank & Schaden", 15, 48);
-
-    doc.setFont("Helvetica", "normal");
-    doc.setFontSize(10);
-    let y = 56;
-
-    const details = [
-        ["Bank-ID:", "#" + (rep.bench_id || 'Unbekannt')],
-        ["Stadtteil:", b.district || 'Keine Angabe'],
-        ["Banktyp:", b.type || 'Standard'],
-        ["Maße:", b.dimensions || '-'],
-        ["Schaden:", rep.description || '-'],
-        ["Montagehinweis:", b.assembly_note || '-'],
-        ["Notiz:", b.note || '-']
-    ];
-
-    details.forEach(function(item) {
-        doc.setFont("Helvetica", "bold");
-        doc.text(item[0], 15, y);
-        doc.setFont("Helvetica", "normal");
-        doc.text(String(item[1]), 50, y, { maxWidth: 140 });
-        y += 8;
-    });
-
-    // Unterschriftsbereich am Ende
-    y += 20;
-    doc.line(15, y, 70, y);
-    doc.line(80, y, 135, y);
-    doc.line(145, y, 195, y);
-
-    doc.setFontSize(8);
-    doc.text("Datum Erledigt", 15, y + 5);
-    doc.text("Bearbeitet durch", 80, y + 5);
-    doc.text("Unterschrift", 145, y + 5);
 
     try {
-        doc.save('Schadensmeldung_' + ticket + '.pdf');
-    } catch (e) {
-        // Falls das blockiert wird, nutzen wir den Data-URI als absoluten Notnagel
-        const pdfDataUri = doc.output('datauristring');
-        const win = window.open();
-        if (win) {
-            win.document.write('<iframe src="' + pdfDataUri + '" style="width:100%; height:100%; border:0;"></iframe>');
-        } else {
-            alert("Das PDF konnte nicht automatisch geöffnet werden. Bitte erlauben Sie Pop-ups.");
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        const date = new Date(rep.created_at).toLocaleString('de-DE');
+        const b = rep.benches || {};
+        const ticket = rep.ticket_number ? String(rep.ticket_number).trim() : 'Keine Nummer';
+        const descLower = (rep.description || '').toLowerCase();
+        let trupp = 'Allgemein';
+        
+        if (ticket.includes('H')) trupp = 'Zimmerer';
+        else if (ticket.includes('S')) trupp = 'Stadtreinigung';
+        else if (ticket.includes('G')) {
+            trupp = descLower.includes('zugewachsen') ? 'Grünpflege' : (descLower.includes('irreparabel') ? 'Gala Bau' : 'Grünpflege / Gala Bau');
         }
+
+        // Inhalt schreiben
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(18);
+        doc.text("Schadensmeldung: " + ticket, 15, 20);
+
+        doc.setFontSize(12);
+        doc.setTextColor(37, 99, 235);
+        doc.text("Zuständiger Trupp: " + trupp, 15, 28);
+
+        doc.setFont("Helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text("Gemeldet am: " + date, 15, 34);
+
+        doc.setDrawColor(200, 200, 200);
+        doc.line(15, 40, 195, 40);
+
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(50, 50, 50);
+        doc.text("Details zur Bank & Schaden", 15, 48);
+
+        doc.setFont("Helvetica", "normal");
+        doc.setFontSize(10);
+        let y = 56;
+
+        const details = [
+            ["Bank-ID:", "#" + (rep.bench_id || 'Unbekannt')],
+            ["Stadtteil:", b.district || 'Keine Angabe'],
+            ["Banktyp:", b.type || 'Standard'],
+            ["Maße:", b.dimensions || '-'],
+            ["Schaden:", rep.description || '-'],
+            ["Montagehinweis:", b.assembly_note || '-'],
+            ["Notiz:", b.note || '-']
+        ];
+
+        details.forEach(function(item) {
+            doc.setFont("Helvetica", "bold");
+            doc.text(item[0], 15, y);
+            doc.setFont("Helvetica", "normal");
+            doc.text(String(item[1]), 50, y, { maxWidth: 140 });
+            y += 8;
+        });
+
+        // Unterschriften
+        y += 20;
+        doc.line(15, y, 70, y);
+        doc.line(80, y, 135, y);
+        doc.line(145, y, 195, y);
+
+        doc.setFontSize(8);
+        doc.text("Datum Erledigt", 15, y + 5);
+        doc.text("Bearbeitet durch", 80, y + 5);
+        doc.text("Unterschrift", 145, y + 5);
+
+        // ** iOS-Download erzwingen über Blob & Link **
+        const pdfBlob = doc.output('blob');
+        const blobUrl = URL.createObjectURL(pdfBlob);
+        
+        const downloadLink = document.createElement('a');
+        downloadLink.href = blobUrl;
+        downloadLink.download = 'Schadensmeldung_' + ticket + '.pdf';
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        
+        setTimeout(function() {
+            document.body.removeChild(downloadLink);
+            window.URL.revokeObjectURL(blobUrl);
+        }, 100);
+
+    } catch (err) {
+        alert("PDF-Fehler auf dem iPhone: " + err.message);
     }
 }
 
