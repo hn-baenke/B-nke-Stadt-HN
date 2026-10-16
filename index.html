@@ -2855,21 +2855,197 @@ window.printReport = function(repId) {
     setTimeout(triggerPrint, 2500);
 };
 
-// 1. Apple / Safari Erkennung
+// 1. Apple-Erkennung
 function isAppleDevice() {
     return /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) || 
            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
-// 2. Der zentrale Aufruf, ohne deine alte Funktion anzufassen:
+// 2. Die smarte Weiche für den Button-Klick
 window.smartPrintReport = function(repId) {
     if (isAppleDevice()) {
-        console.log("Apple-Gerät erkannt: Verwende Safari-Druck-Engine (IFrame)...");
-        printReportSafari(repId); // Die IFrame-Version speziell für Apple
+        // Apple-Gerät: Öffnet die Ansicht sauber in einem neuen Tab zum Drucken
+        const printWindow = window.open(window.location.origin + window.location.pathname + '?print_id=' + repId, '_blank');
+        if (!printWindow) {
+            alert("Bitte Pop-up-Blocker für diese Seite deaktivieren.");
+        }
     } else {
-        console.log("Standard-Gerät erkannt: Verwende gewohnte Druck-Engine...");
-        printReport(repId); // Deine bisherige, bewährte Funktion
+        // Alle anderen Geräte: Nutzen deine gewohnte Funktion mit window.print()
+        printReport(repId);
     }
+};
+
+// 3. Deine originale Druckfunktion (mit window.print() für Android, Windows & Mac)
+window.printReport = function(repId) {
+    const reportsList = window.currentReportData || [];
+    const rep = reportsList.find(function(r) { return String(r.id) === String(repId); });
+    
+    if (!rep) {
+        alert("Meldungsdaten für den Druck konnten nicht geladen werden.");
+        return;
+    }
+
+    const date = new Date(rep.created_at).toLocaleString('de-DE');
+    const b = rep.benches || {};
+    
+    const ticket = rep.ticket_number ? String(rep.ticket_number).trim() : 'Keine Nummer';
+    const descLower = (rep.description || '').toLowerCase();
+    let trupp = 'Allgemein';
+    
+    if (ticket.includes('H')) trupp = 'Zimmerer';
+    else if (ticket.includes('S')) trupp = 'Stadtreinigung';
+    else if (ticket.includes('G')) {
+        trupp = descLower.includes('zugewachsen') ? 'Grünpflege' : (descLower.includes('irreparabel') ? 'Gala Bau' : 'Grünpflege / Gala Bau');
+    }
+
+    const targetBenchId = rep.bench_id;
+    const sitzfinderUrl = targetBenchId 
+        ? window.location.origin + window.location.pathname + '?id=' + targetBenchId
+        : window.location.href;
+
+    const lat = (b && b.lat) ? Number(b.lat) : 49.1406;
+    const lng = (b && b.lng) ? Number(b.lng) : 9.2199;
+
+    const zoom = 16;
+    const n = Math.pow(2, zoom);
+    const xFloat = (lng + 180) / 360 * n;
+    const latRad = lat * Math.PI / 180;
+    const yFloat = (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n;
+
+    const xt = Math.floor(xFloat);
+    const yt = Math.floor(yFloat);
+
+    const containerWidth = 774; 
+    const containerHeight = 260;
+    const centerX = containerWidth / 2; 
+    const centerY = containerHeight / 2;
+
+    let tilesHtml = '';
+    for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+            const tx = xt + dx;
+            const ty = yt + dy;
+            if (ty >= 0 && ty < n) {
+                const tileX = (tx + n) % n;
+                const tileUrl = 'https://tile.openstreetmap.org/' + zoom + '/' + tileX + '/' + ty + '.png';
+                const cssLeft = Math.round((tx - xFloat) * 256 + centerX);
+                const cssTop = Math.round((ty - yFloat) * 256 + centerY);
+                tilesHtml += '<img src="' + tileUrl + '" style="position: absolute; left: ' + cssLeft + 'px; top: ' + cssTop + 'px; width: 256px; height: 256px; display: block; object-fit: cover; background: #e2e8f0;" crossorigin="anonymous" />';
+            }
+        }
+    }
+
+    const district = b.district || 'Keine Angabe';
+    const benchType = b.type || 'Standard';
+    const benchId = rep.bench_id || 'Unbekannt';
+    const dimensions = (b.dimensions && b.dimensions.trim() !== '') ? '<div style="margin-bottom: 4px;"><strong style="color: #475569;">Maße:</strong> ' + b.dimensions + '</div>' : '';
+    const description = (rep.description && rep.description.trim() !== '') ? '<div style="margin-bottom: 4px;"><strong style="color: #475569;">Schaden:</strong> ' + rep.description + '</div>' : '';
+    const assemblyNote = (b.assembly_note && b.assembly_note.trim() !== '') ? '<div style="margin-bottom: 4px;"><strong style="color: #475569;">Montagehinweis:</strong> ' + b.assembly_note + '</div>' : '';
+    const note = (b.note && b.note.trim() !== '') ? '<div><strong style="color: #475569;">Notiz:</strong> ' + b.note + '</div>' : '';
+
+    const imageHtml = rep.image_url ? 
+        '<div style="margin-bottom: 12px;">' +
+            '<h3 style="margin: 0 0 6px 0; font-size: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; color: #334155;">Foto vom Schaden</h3>' +
+            '<div style="display: flex; justify-content: center; background: #f1f5f9; border-radius: 6px; border: 1px solid #cbd5e1; overflow: hidden; max-height: 270px;">' +
+                '<img src="' + rep.image_url + '" style="max-width: 100%; max-height: 270px; object-fit: contain;" crossorigin="anonymous"/>' +
+            '</div>' +
+        '</div>' : '';
+
+    let printArea = document.getElementById('static-print-area');
+    if (!printArea) {
+        printArea = document.createElement('div');
+        printArea.id = 'static-print-area';
+        document.body.appendChild(printArea);
+    }
+
+    printArea.style.display = 'block';
+    printArea.style.position = 'absolute';
+    printArea.style.left = '0';
+    printArea.style.top = '0';
+    printArea.style.width = '100%';
+    printArea.style.opacity = '0';
+    printArea.style.zIndex = '-9999';
+
+    printArea.innerHTML = 
+        '<div style="padding: 10px; background: #fff; font-family: Arial, sans-serif; width: 794px; margin: 0 auto; box-sizing: border-box;">' +
+        '<div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2C3E50; padding-bottom: 8px; margin-bottom: 12px;">' +
+        '<img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/hnlogo.png" style="height: 60px; object-fit: contain;" alt="Stadt Heilbronn" crossorigin="anonymous">' +
+        '<img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/Logo%20SitzFinder.png" style="height: 66px; margin: -4px 0; object-fit: contain;" alt="SitzFinder" crossorigin="anonymous">' +
+        '</div>' +
+        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; background: #f8fafc; padding: 12px 18px; border-radius: 6px; border: 1px solid #cbd5e1;">' +
+        '<div><h2 style="margin: 0 0 4px 0; font-size: 22px; color: #1e293b;">Schadensmeldung: ' + ticket + '</h2>' +
+        '<div style="font-size: 16px; font-weight: bold; color: #2563eb;">Zuständiger Trupp: ' + trupp + '</div>' +
+        '<div style="font-size: 13px; color: #64748b; margin-top: 4px;">Gemeldet am: ' + date + '</div></div>' +
+        '<div style="text-align: center;"><div id="print-qrcode" style="display: flex; justify-content: center;"></div>' +
+        '<div style="font-size: 10px; color: #64748b; margin-top: 4px; font-weight: bold;">In SitzFinder öffnen</div></div></div>' +
+        '<div style="margin-bottom: 12px;"><h3 style="margin: 0 0 6px 0; font-size: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; color: #334155;">Details zur Bank & Schaden</h3>' +
+        '<div style="display: flex; gap: 24px; font-size: 14px; line-height: 1.5;">' +
+        '<div style="flex: 1;"><div style="margin-bottom: 4px;"><strong style="color: #475569;">Bank-ID:</strong> #' + benchId + '</div>' +
+        '<div style="margin-bottom: 4px;"><strong style="color: #475569;">Stadtteil:</strong> ' + district + '</div>' +
+        '<div><strong style="color: #475569;">Banktyp:</strong> ' + benchType + '</div></div>' +
+        '<div style="flex: 1.2;">' + dimensions + description + assemblyNote + note + '</div></div></div>' +
+        imageHtml +
+        '<div style="margin-bottom: 12px;" class="print-no-break"><h3 style="margin: 0 0 6px 0; font-size: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; color: #334155;">Orientierungskarte</h3>' +
+        '<div style="height: ' + containerHeight + 'px; width: ' + containerWidth + 'px; margin: 0 auto; border-radius: 6px; border: 1px solid #cbd5e1; background: #e2e8f0; position: relative; overflow: hidden; box-sizing: border-box;">' +
+        '<div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">' + tilesHtml + '</div>' +
+        '<div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -100%); width: 18px; height: 18px; background-color: #dc2626 !important; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 3px 6px rgba(0,0,0,0.5); z-index: 10;"></div></div></div>' +
+        '<div style="margin-top: 12px; padding-top: 10px; border-top: 2px dashed #94a3b8;" class="print-no-break">' +
+        '<div style="display: flex; justify-content: space-between; font-size: 12px;">' +
+        '<div style="width: 30%;"><strong>Datum Erledigt:</strong><div style="border-bottom: 1px solid #000; margin-top: 40px;"></div></div>' +
+        '<div style="width: 30%;"><strong>Bearbeitet durch:</strong><div style="border-bottom: 1px solid #000; margin-top: 40px;"></div></div>' +
+        '<div style="width: 30%;"><strong>Unterschrift:</strong><div style="border-bottom: 1px solid #000; margin-top: 40px;"></div></div>' +
+        '</div></div></div>';
+
+    const qrContainer = printArea.querySelector("#print-qrcode");
+    if (qrContainer) {
+        qrContainer.innerHTML = '';
+        new QRCode(qrContainer, {
+            text: sitzfinderUrl,
+            width: 72,
+            height: 72,
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    }
+
+    const allImages = Array.from(printArea.querySelectorAll('img'));
+    let printTriggered = false;
+
+    const triggerPrint = function() {
+        if (printTriggered) return;
+        printTriggered = true;
+
+        printArea.style.opacity = '1';
+        printArea.style.zIndex = '999999';
+
+        setTimeout(function() {
+            window.print(); // <--- Hier ist das window.print() für Standardgeräte wieder da!
+
+            setTimeout(function() {
+                printArea.style.display = 'none';
+                printArea.innerHTML = '';
+            }, 1500);
+        }, 150);
+    };
+
+    if (allImages.length === 0) {
+        triggerPrint();
+        return;
+    }
+
+    Promise.all(allImages.map(function(img) {
+        if (img.complete && img.naturalHeight !== 0) {
+            return Promise.resolve();
+        }
+        if (typeof img.decode === 'function') {
+            return img.decode().catch(function() { return Promise.resolve(); });
+        }
+        return new Promise(function(resolve) {
+            img.onload = resolve;
+            img.onerror = resolve;
+        });
+    })).then(triggerPrint).catch(triggerPrint);
+
+    setTimeout(triggerPrint, 2500);
 };
 
 // Hilfsfunktion zum Schließen des Detail-Modals
@@ -6461,62 +6637,7 @@ function searchByBenchId(idQuery) {
     }
 }
 
-// Hilfsfunktion: Zeigt Logs direkt unten auf dem Handy-Bildschirm an
-function showDebugLog(message, isError = false) {
-    let debugDiv = document.getElementById('mobile-debug-banner');
-    if (!debugDiv) {
-        debugDiv = document.createElement('div');
-        debugDiv.id = 'mobile-debug-banner';
-        debugDiv.style.position = 'fixed';
-        debugDiv.style.bottom = '10px';
-        debugDiv.style.left = '10px';
-        debugDiv.style.right = '10px';
-        debugDiv.style.zIndex = '999999';
-        debugDiv.style.padding = '12px';
-        debugDiv.style.borderRadius = '8px';
-        debugDiv.style.fontSize = '13px';
-        debugDiv.style.fontFamily = 'monospace';
-        debugDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
-        document.body.appendChild(debugDiv);
-    }
-    debugDiv.style.background = isError ? '#fee2e2' : '#f0fdf4';
-    debugDiv.style.color = isError ? '#991b1b' : '#166534';
-    debugDiv.style.border = isError ? '1px solid #f87171' : '1px solid #4ade80';
-    debugDiv.innerText = "📱 Debug: " + message;
-}
 
-// 1. Apple / Safari Erkennung
-function isAppleDevice() {
-    return /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) || 
-           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-}
-
-// 2. Der zentrale Aufruf mit Bildschirmausgabe
-window.smartPrintReport = function(repId) {
-    if (isAppleDevice()) {
-        showDebugLog("Apple-Gerät erkannt, starte Druck...");
-        console.log("Apple-Gerät erkannt: Verwende Safari-Druck-Engine...");
-        
-        if (typeof printReportSafari === 'function') {
-            printReportSafari(repId);
-        } else {
-            showDebugLog("Fehler: printReportSafari nicht gefunden!", true);
-        }
-    } else {
-        console.log("Standard-Gerät erkannt...");
-        if (typeof printReport === 'function') {
-            printReport(repId);
-        }
-    }
-};
-
-// Hilfsfunktion zum Schließen des Detail-Modals
-window.closeReportDetail = function() {
-    const detailOverlay = document.getElementById('report-detail-overlay');
-    if (detailOverlay) {
-        detailOverlay.style.display = 'none';
-    }
-};
 
 // Schließen mit Escape
 document.addEventListener('keydown', function(e) {
