@@ -640,10 +640,9 @@
         <button id="menu-new-entries-btn" class="btn btn-admin-menu" onclick="openReportsOverlay('entries')" style="display:none; width: 100%; margin-bottom: 10px;">🔍 Neue Eintragungen (0)</button>
 
         <!-- ID-Suchfeld -->
-        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 15px;">
-            <input type="text" id="bench-id-search" placeholder="🔍 Nach Bank-ID suchen..." onkeydown="if(event.key === 'Enter') searchByBenchId(this.value)" style="flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem;">
-            <button type="button" onclick="clearBenchIdSearch()" style="background: #e2e8f0; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; color: #475569;">Zurücksetzen</button>
-        </div>
+<div style="display: flex; align-items: center; gap: 6px; margin-bottom: 15px;">
+    <input type="text" id="bench-id-search" placeholder="🔍 Nach Bank-ID suchen..." onkeydown="if(event.key === 'Enter') { event.preventDefault(); searchByBenchId(this.value); this.blur(); }" style="flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem;">
+</div>
 
         <div class="filter-group">
             <label>📍 Stadtteil / Park</label>
@@ -6397,9 +6396,9 @@ async function deleteWoodProject(projectId) {
     }
 }
 
-// Funktion, um direkt zu einer Bank-ID zu springen
+// Funktion, um direkt zu einer Bank-ID zu springen (ohne Sprünge in Dropdowns)
 function searchByBenchId(idQuery) {
-    const query = idQuery.trim();
+    const query = String(idQuery).trim();
     if (!query) return;
 
     if (typeof benches !== 'undefined' && Array.isArray(benches)) {
@@ -6411,14 +6410,10 @@ function searchByBenchId(idQuery) {
                 map.setView([parseFloat(foundBench.lat), parseFloat(foundBench.lng)], 19);
             }
 
-            // 2. Sidebar über deine bestehende Funktion schließen (falls sie offen ist)
-            // Wenn deine toggleSidebar() die Ansicht nur umschaltet, kannst du sie hier triggern. 
-            // Falls du eine Variable für den Zustand hast (z.B. sidebarOpen), kannst du das steuern.
+            // 2. Sidebar schließen, falls sie auf dem Handy offen ist
             if (typeof toggleSidebar === 'function') {
-                // Wir rufen sie auf, falls das Menü gerade sichtbar ist 
-                // (Oder du passt das an, falls toggleSidebar einen Status erwartet)
-                const sidebar = document.getElementById('sidebar'); // oder dein Sidebar-Container
-                if (sidebar && sidebar.classList.contains('open')) { // Passe den Klassennamen an falls nötig
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar && sidebar.classList.contains('open')) {
                     toggleSidebar();
                 }
             }
@@ -6438,13 +6433,6 @@ function searchByBenchId(idQuery) {
             console.log("Bank mit ID " + query + " nicht gefunden.");
         }
     }
-}
-
-// Suche zurücksetzen
-function clearBenchIdSearch() {
-    const input = document.getElementById('bench-id-search');
-    if (input) input.value = '';
-    searchByBenchId('');
 }
 
 // Schließen mit Escape
