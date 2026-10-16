@@ -639,9 +639,10 @@
         <button id="menu-damage-reports-btn" class="btn btn-admin-menu" onclick="openReportsOverlay('damage')" style="display:none; width: 100%; margin-bottom: 10px;">⚠️ Schadensmeldungen (0)</button>
         <button id="menu-new-entries-btn" class="btn btn-admin-menu" onclick="openReportsOverlay('entries')" style="display:none; width: 100%; margin-bottom: 10px;">🔍 Neue Eintragungen (0)</button>
 
-        <!-- ID-Suchfeld -->
+        <!-- ID-Suchfeld mit direktem Suchen-Button -->
 <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 15px;">
-    <input type="text" id="bench-id-search" placeholder="🔍 Nach Bank-ID suchen..." onkeydown="if(event.key === 'Enter') { event.preventDefault(); searchByBenchId(this.value); this.blur(); }" style="flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem;">
+    <input type="text" id="bench-id-search" placeholder="🔍 Nach Bank-ID suchen..." onkeydown="if(event.key === 'Enter') { searchByBenchId(this.value); this.blur(); }" style="flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem;">
+    <button type="button" onclick="const input = document.getElementById('bench-id-search'); searchByBenchId(input.value); input.blur();" style="background: #2563eb; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: bold;">Suchen</button>
 </div>
 
         <div class="filter-group">
