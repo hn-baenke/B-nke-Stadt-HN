@@ -2856,13 +2856,18 @@ window.printReport = function(repId) {
     setTimeout(triggerPrint, 2500);
 };
 
+// Prüfen, ob die App als Homescreen-PWA (Standalone) läuft
+function isInStandaloneMode() {
+    return ('standalone' in window.navigator) && (window.navigator.standalone);
+}
+
 // Apple-Erkennung
 function isAppleDevice() {
     return /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) || 
            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
-// Die Weiche
+// Hauptweiche
 window.smartPrintReport = function(repId) {
     if (isAppleDevice()) {
         generateReportPDF(repId);
@@ -2873,7 +2878,7 @@ window.smartPrintReport = function(repId) {
     }
 };
 
-// Die bombensichere PDF-Funktion für iOS
+// Die PDF-Funktion mit speziellem Homescreen-Handling
 function generateReportPDF(repId) {
     const reportsList = window.currentReportData || [];
     const rep = reportsList.find(function(r) { return String(r.id) === String(repId); });
@@ -2883,7 +2888,6 @@ function generateReportPDF(repId) {
         return;
     }
 
-    // Prüfen ob jsPDF da ist, sonst kurz warnen
     if (typeof window.jspdf === 'undefined') {
         alert("PDF-Bibliothek lädt noch. Bitte in 2 Sekunden nochmal tippen.");
         return;
@@ -2909,7 +2913,7 @@ function generateReportPDF(repId) {
             trupp = descLower.includes('zugewachsen') ? 'Grünpflege' : (descLower.includes('irreparabel') ? 'Gala Bau' : 'Grünpflege / Gala Bau');
         }
 
-        // Inhalt schreiben
+        // PDF-Inhalt aufbauen
         doc.setFont("Helvetica", "bold");
         doc.setFontSize(18);
         doc.text("Schadensmeldung: " + ticket, 15, 20);
@@ -2964,24 +2968,64 @@ function generateReportPDF(repId) {
         doc.text("Bearbeitet durch", 80, y + 5);
         doc.text("Unterschrift", 145, y + 5);
 
-        // ** iOS-Download erzwingen über Blob & Link **
+        // Blob generieren
         const pdfBlob = doc.output('blob');
         const blobUrl = URL.createObjectURL(pdfBlob);
-        
-        const downloadLink = document.createElement('a');
-        downloadLink.href = blobUrl;
-        downloadLink.download = 'Schadensmeldung_' + ticket + '.pdf';
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        
-        setTimeout(function() {
-            document.body.removeChild(downloadLink);
-            window.URL.revokeObjectURL(blobUrl);
-        }, 100);
+
+        // Wenn Homescreen-Modus: Zeige einen echten Button an, den der User antippen muss
+        if (isInStandaloneMode()) {
+            showStandaloneDownloadModal(blobUrl, ticket);
+        } else {
+            // Normaler Safari Browser: Direktlink simulieren
+            const downloadLink = document.createElement('a');
+            downloadLink.href = blobUrl;
+            downloadLink.download = 'Schadensmeldung_' + ticket + '.pdf';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            setTimeout(function() {
+                document.body.removeChild(downloadLink);
+                window.URL.revokeObjectURL(blobUrl);
+            }, 100);
+        }
 
     } catch (err) {
-        alert("PDF-Fehler auf dem iPhone: " + err.message);
+        alert("PDF-Fehler: " + err.message);
     }
+}
+
+// Hilfsfunktion: Erstellt ein kleines Overlay mit echtem Download-Button für den Homescreen-Modus
+function showStandaloneDownloadModal(blobUrl, ticketNum) {
+    let oldModal = document.getElementById('pwa-pdf-modal');
+    if (oldModal) oldModal.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'pwa-pdf-modal';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.backgroundColor = 'rgba(0,0,0,0.6)';
+    modal.style.zIndex = '999999';
+    modal.style.display = 'flex';
+    modal.style.justifyContent = 'center';
+    modal.style.alignItems = 'center';
+
+    modal.innerHTML = `
+        <div style="background: white; padding: 24px; border-radius: 12px; width: 85%; max-width: 320px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+            <h3 style="margin-top: 0; color: #1e293b; font-size: 18px;">PDF bereit!</h3>
+            <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">Schadensmeldung #${ticketNum} wurde erfolgreich als PDF erstellt.</p>
+            <a href="${blobUrl}" download="Schadensmeldung_${ticketNum}.pdf" style="display: block; background: #2563eb; color: white; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; margin-bottom: 12px;">PDF öffnen / drucken</a>
+            <button id="close-pwa-modal" style="background: #e2e8f0; color: #475569; border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; width: 100%; cursor: pointer;">Schließen</button>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById('close-pwa-modal').onclick = function() {
+        modal.remove();
+        window.URL.revokeObjectURL(blobUrl);
+    };
 }
 
 // Hilfsfunktion zum Schließen des Detail-Modals
