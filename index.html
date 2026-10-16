@@ -2965,14 +2965,17 @@ function generateReportPDF(repId) {
     doc.text("Bearbeitet durch", 80, y + 5);
     doc.text("Unterschrift", 145, y + 5);
 
-    // PDF im neuen Tab öffnen (iOS Safari zeigt es direkt an, von wo aus man es sofort drucken/teilen kann)
-    const pdfDataUri = doc.output('datauristring');
-    const win = window.open();
-    if (win) {
-        win.document.write('<iframe src="' + pdfDataUri + '" frameborder="0" style="border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;" allowfullscreen></iframe>');
-    } else {
-        // Fallback falls Pop-up blockiert
+    try {
         doc.save('Schadensmeldung_' + ticket + '.pdf');
+    } catch (e) {
+        // Falls das blockiert wird, nutzen wir den Data-URI als absoluten Notnagel
+        const pdfDataUri = doc.output('datauristring');
+        const win = window.open();
+        if (win) {
+            win.document.write('<iframe src="' + pdfDataUri + '" style="width:100%; height:100%; border:0;"></iframe>');
+        } else {
+            alert("Das PDF konnte nicht automatisch geöffnet werden. Bitte erlauben Sie Pop-ups.");
+        }
     }
 }
 
