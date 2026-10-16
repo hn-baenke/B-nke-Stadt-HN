@@ -2855,6 +2855,23 @@ window.printReport = function(repId) {
     setTimeout(triggerPrint, 2500);
 };
 
+// 1. Apple / Safari Erkennung
+function isAppleDevice() {
+    return /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) || 
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+// 2. Der zentrale Aufruf, ohne deine alte Funktion anzufassen:
+window.smartPrintReport = function(repId) {
+    if (isAppleDevice()) {
+        console.log("Apple-Gerät erkannt: Verwende Safari-Druck-Engine (IFrame)...");
+        printReportSafari(repId); // Die IFrame-Version speziell für Apple
+    } else {
+        console.log("Standard-Gerät erkannt: Verwende gewohnte Druck-Engine...");
+        printReport(repId); // Deine bisherige, bewährte Funktion
+    }
+};
+
 // Hilfsfunktion zum Schließen des Detail-Modals
 window.closeReportDetail = function() {
     const detailOverlay = document.getElementById('report-detail-overlay');
