@@ -2879,6 +2879,14 @@ window.closeReportDetail = function() {
         detailOverlay.style.display = 'none';
     }
 };
+
+// Hilfsfunktion zum Schließen des Detail-Modals
+window.closeReportDetail = function() {
+    const detailOverlay = document.getElementById('report-detail-overlay');
+    if (detailOverlay) {
+        detailOverlay.style.display = 'none';
+    }
+};
         window.closeReportsOverlay = function() {
             document.getElementById('reports-overlay').style.display = "none";
         };
@@ -6452,6 +6460,63 @@ function searchByBenchId(idQuery) {
         }
     }
 }
+
+// Hilfsfunktion: Zeigt Logs direkt unten auf dem Handy-Bildschirm an
+function showDebugLog(message, isError = false) {
+    let debugDiv = document.getElementById('mobile-debug-banner');
+    if (!debugDiv) {
+        debugDiv = document.createElement('div');
+        debugDiv.id = 'mobile-debug-banner';
+        debugDiv.style.position = 'fixed';
+        debugDiv.style.bottom = '10px';
+        debugDiv.style.left = '10px';
+        debugDiv.style.right = '10px';
+        debugDiv.style.zIndex = '999999';
+        debugDiv.style.padding = '12px';
+        debugDiv.style.borderRadius = '8px';
+        debugDiv.style.fontSize = '13px';
+        debugDiv.style.fontFamily = 'monospace';
+        debugDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+        document.body.appendChild(debugDiv);
+    }
+    debugDiv.style.background = isError ? '#fee2e2' : '#f0fdf4';
+    debugDiv.style.color = isError ? '#991b1b' : '#166534';
+    debugDiv.style.border = isError ? '1px solid #f87171' : '1px solid #4ade80';
+    debugDiv.innerText = "📱 Debug: " + message;
+}
+
+// 1. Apple / Safari Erkennung
+function isAppleDevice() {
+    return /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) || 
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+// 2. Der zentrale Aufruf mit Bildschirmausgabe
+window.smartPrintReport = function(repId) {
+    if (isAppleDevice()) {
+        showDebugLog("Apple-Gerät erkannt, starte Druck...");
+        console.log("Apple-Gerät erkannt: Verwende Safari-Druck-Engine...");
+        
+        if (typeof printReportSafari === 'function') {
+            printReportSafari(repId);
+        } else {
+            showDebugLog("Fehler: printReportSafari nicht gefunden!", true);
+        }
+    } else {
+        console.log("Standard-Gerät erkannt...");
+        if (typeof printReport === 'function') {
+            printReport(repId);
+        }
+    }
+};
+
+// Hilfsfunktion zum Schließen des Detail-Modals
+window.closeReportDetail = function() {
+    const detailOverlay = document.getElementById('report-detail-overlay');
+    if (detailOverlay) {
+        detailOverlay.style.display = 'none';
+    }
+};
 
 // Schließen mit Escape
 document.addEventListener('keydown', function(e) {
