@@ -1,5 +1,5 @@
 // ==========================================
-// ZENTRALE DRUCK- UND PDF-STEUERUNG (DIREKT-PDF & SHARE)
+// ZENTRALE DRUCK- UND PDF-STEUERUNG (SAUBERES CANVAS-RENDERING)
 // ==========================================
 
 async function getBlobUrl(imageUrl) {
@@ -112,7 +112,7 @@ window.triggerManualPDFDownload = async function(repId) {
             '</div>' +
         '</div>' : '';
 
-    // Sauberes Element direkt im DOM erzeugen, aber absolut im sichtbaren Bereich verankern, damit html2canvas es fehlerfrei erfasst
+    // Render-Container temporär erzeugen
     let pdfContainer = document.getElementById('pdf-render-container');
     if (!pdfContainer) {
         pdfContainer = document.createElement('div');
@@ -122,7 +122,7 @@ window.triggerManualPDFDownload = async function(repId) {
         pdfContainer.style.left = '0';
         pdfContainer.style.width = '794px';
         pdfContainer.style.zIndex = '-9999';
-        pdfContainer.style.opacity = '1';
+        pdfContainer.style.opacity = '0.99'; // Stellt sicher, dass das DOM das Rendering verarbeitet
         pdfContainer.style.background = '#ffffff';
         document.body.appendChild(pdfContainer);
     }
@@ -194,18 +194,17 @@ window.triggerManualPDFDownload = async function(repId) {
         </div>
     `;
 
-    // Warten bis alle Bilder (Schadensfoto, OSM-Kacheln, QR-Code, Logos) garantiert geladen sind
+    // Sicherstellen, dass alle Bilder geladen sind
     const images = pdfContainer.querySelectorAll('img');
     await Promise.all(Array.from(images).map(img => {
-        if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
+        if (img.complete) return Promise.resolve();
         return new Promise(resolve => {
             img.onload = resolve;
             img.onerror = resolve;
         });
     }));
 
-    // Kurze Atempause fürs Layout-Rendering
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 300));
 
     const filename = `Schadensmeldung_${ticket}.pdf`;
     const opt = {
@@ -224,7 +223,7 @@ window.triggerManualPDFDownload = async function(repId) {
             const file = new File([pdfBlob], filename, { type: 'application/pdf' });
             
             if (navigator.canShare({ files: [file] })) {
-                // EXAKT NUR DIE DATEI – KEIN 'text'-FELD, damit keine zweite Textdatei entsteht!
+                // WICHTIG: Kein 'text'-Feld mitgeben, damit iOS nur die PDF-Datei teilt!
                 await navigator.share({
                     files: [file],
                     title: filename
@@ -234,7 +233,6 @@ window.triggerManualPDFDownload = async function(repId) {
             }
         }
 
-        // Für Windows & Android: Direkt als Download speichern
         await html2pdf().set(opt).from(pdfContainer).save();
         pdfContainer.remove();
 
