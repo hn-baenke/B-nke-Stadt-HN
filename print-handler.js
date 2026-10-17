@@ -261,50 +261,6 @@ window.triggerManualPDFDownload = async function(repId) {
     }
 };
 
-function printWoodCuttingList() {
-    // 1. Offenes Modal finden
-    const activeModal = document.getElementById('active-wood-list-modal');
-    const detailModal = document.getElementById('saved-detail-wood-modal');
-    const modalToPrint = activeModal || detailModal;
-    
-    if (!modalToPrint) {
-        alert("Keine Zuschnittliste gefunden zum Drucken.");
-        return;
-    }
-
-    // 2. Prüfen oder Erstellen unseres unsichtbaren Druck-Containers im Dokument
-    let printArea = document.getElementById('static-print-area');
-    if (!printArea) {
-        printArea = document.createElement('div');
-        printArea.id = 'static-print-area';
-        printArea.style.display = 'none'; // Im Normalbetrieb unsichtbar
-        document.body.appendChild(printArea);
-    }
-
-    // 3. Inhalt des Modals kopieren (Cloning - völlig ohne HTML-Schreibarbeit!)
-    printArea.innerHTML = '';
-    const modalClone = modalToPrint.cloneNode(true);
-    
-    // Innere Box-Styles anpassen, damit sie auf dem Papier formatfüllend ist
-    const innerBox = modalClone.querySelector('div');
-    if (innerBox) {
-        innerBox.style.boxShadow = 'none';
-        innerBox.style.width = '100%';
-        innerBox.style.maxHeight = 'none';
-        innerBox.style.padding = '10px';
-    }
-
-    printArea.appendChild(modalClone);
-
-    // 4. Drucken aufrufen (das CSS oben blendet alles andere aus)
-    window.print();
-
-    // 5. Nach kurzer Verzögerung wieder aufräumen
-    setTimeout(() => {
-        printArea.innerHTML = '';
-    }, 1000);
-}
-
 window.printReport = function(repId) {
     const reportsList = window.currentReportData || [];
     const rep = reportsList.find(r => String(r.id) === String(repId));
@@ -519,4 +475,196 @@ window.printReport = function(repId) {
     })).then(triggerPrint).catch(triggerPrint);
 
     setTimeout(triggerPrint, 2500);
+};
+
+// ==========================================
+// 1. ISOLIERTER DRUCK ÜBER SEPARATES POPUP-FENSTER
+// ==========================================
+window.printWoodCuttingListPopup = function() {
+    const activeModal = document.getElementById('active-wood-list-modal');
+    const detailModal = document.getElementById('saved-detail-wood-modal');
+    const modalToPrint = activeModal || detailModal;
+    
+    if (!modalToPrint) {
+        alert("Keine Zuschnittliste gefunden zum Drucken.");
+        return;
+    }
+
+    const innerCard = modalToPrint.querySelector('div');
+    if (!innerCard) return;
+
+    const cardClone = innerCard.cloneNode(true);
+    const buttons = cardClone.querySelectorAll('button');
+    buttons.forEach(btn => btn.remove());
+
+    cardClone.style.boxShadow = 'none';
+    cardClone.style.width = '100%';
+    cardClone.style.maxHeight = 'none';
+    cardClone.style.padding = '10px';
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        alert("Das Druckfenster wurde vom Browser blockiert. Bitte erlaube Pop-ups für diese Seite.");
+        return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Holz-Zuschnittliste Drucken</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    margin: 20px;
+                    background: #ffffff;
+                    color: #000000;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-top: 8px;
+                    margin-bottom: 15px;
+                }
+                th, td {
+                    border: 1px solid #ddd;
+                    padding: 8px;
+                }
+                th {
+                    background: #f4f4f4;
+                    text-align: left;
+                }
+                @media print {
+                    body {
+                        margin: 0;
+                        padding: 0;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            ${cardClone.innerHTML}
+            <script>
+                window.onload = function() {
+                    window.print();
+                    setTimeout(function() {
+                        window.close();
+                    }, 500);
+                };
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+};
+
+
+// ==========================================
+// 2. UNIVERSELLER PDF-DOWNLOAD & SHARE-WEG (REINER INHALT)
+// ==========================================
+window.triggerManualWoodPDFDownload = async function() {
+    const activeModal = document.getElementById('active-wood-list-modal');
+    const detailModal = document.getElementById('saved-detail-wood-modal');
+    const modalToPrint = activeModal || detailModal;
+    
+    if (!modalToPrint) {
+        alert("Keine Zuschnittliste gefunden.");
+        return;
+    }
+
+    const innerCard = modalToPrint.querySelector('div');
+    if (!innerCard) return;
+
+    let pdfContainer = document.getElementById('wood-pdf-render-container');
+    if (!pdfContainer) {
+        pdfContainer = document.createElement('div');
+        pdfContainer.id = 'wood-pdf-render-container';
+        pdfContainer.style.position = 'absolute';
+        pdfContainer.style.top = '0';
+        pdfContainer.style.left = '0';
+        pdfContainer.style.width = '794px';
+        pdfContainer.style.zIndex = '-9999';
+        pdfContainer.style.background = '#ffffff';
+        document.body.appendChild(pdfContainer);
+    }
+
+    const cardClone = innerCard.cloneNode(true);
+
+    // Buttons für den PDF-Export entfernen
+    const buttons = cardClone.querySelectorAll('button');
+    buttons.forEach(btn => btn.remove());
+
+    // Styles für A4-Render-Container zurücksetzen
+    cardClone.style.boxShadow = 'none';
+    cardClone.style.width = '794px';
+    cardClone.style.maxWidth = '794px';
+    cardClone.style.maxHeight = 'none';
+    cardClone.style.padding = '20px';
+    cardClone.style.borderRadius = '0';
+    cardClone.style.background = '#ffffff';
+    cardClone.style.color = '#000000';
+
+    pdfContainer.innerHTML = '';
+    pdfContainer.appendChild(cardClone);
+
+    await new Promise(r => setTimeout(r, 400));
+
+    const titleEl = cardClone.querySelector('h3');
+    let projectTitleText = titleEl ? titleEl.innerText.replace(/[^a-zA-Z0-9_\.-]/g, '_') : 'Zuschnittliste';
+    projectTitleText = projectTitleText.substring(0, 40);
+    const filename = `${projectTitleText}.pdf`;
+
+    try {
+        const opt = {
+            margin:       0,
+            filename:     filename,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { 
+                scale: 2, 
+                useCORS: true, 
+                allowTaint: true,
+                logging: false,
+                width: 794,
+                scrollX: 0,
+                scrollY: 0
+            },
+            jsPDF:        { unit: 'pt', format: 'a4', orientation: 'portrait' }
+        };
+
+        const pdfBlob = await html2pdf().set(opt).from(cardClone).output('blob');
+        const cleanBlob = pdfBlob.slice(0, pdfBlob.size, 'application/pdf');
+
+        const file = new File([cleanBlob], filename, { 
+            type: 'application/pdf',
+            lastModified: Date.now()
+        });
+
+        // Web Share API (iOS / Android)
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+                files: [file]
+            });
+            pdfContainer.remove();
+            return;
+        }
+
+        // Fallback für Desktop
+        const blobUrl = URL.createObjectURL(cleanBlob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+
+        pdfContainer.remove();
+
+    } catch (err) {
+        console.error("Fehler bei der Holzlisten-PDF-Erstellung:", err);
+        alert("PDF konnte nicht erstellt werden.");
+        if (pdfContainer) pdfContainer.remove();
+    }
 };

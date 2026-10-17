@@ -5850,9 +5850,10 @@ function showSelectedWoodCuttingList() {
 
     htmlContent += `
                 <div style="margin-top: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                    <div style="display: flex; gap: 8px;">
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                         <button type="button" onclick='saveCurrentWoodProject(${JSON.stringify(districtRequirements).replace(/'/g, "&#39;")})' style="background: #27ae60; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">💾 In App speichern</button>
-                        <button type="button" onclick="printWoodCuttingList()" style="background: #2980b9; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">🖨️ Liste drucken</button>
+                        <button type="button" onclick="printWoodCuttingListPopup()" style="background: #2980b9; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">🖨️ Drucken / Ansicht</button>
+                        <button type="button" onclick="triggerManualWoodPDFDownload()" style="background: #e67e22; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">📥 PDF herunterladen / Teilen</button>
                     </div>
                     <button type="button" onclick="document.getElementById('active-wood-list-modal').remove()" style="background: #2C3E50; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Schließen</button>
                 </div>
@@ -6107,8 +6108,9 @@ function viewSavedWoodProject(project) {
                 <div style="margin-top: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                     <button type="button" onclick="document.getElementById('saved-detail-wood-modal').remove(); openWoodProjectsArchive();" style="background: #7f8c8d; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">← Zurück zur Übersicht</button>
                     
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" onclick="printWoodCuttingList()" style="background: #2980b9; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">🖨️ Liste drucken</button>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" onclick="printWoodCuttingListPopup()" style="background: #2980b9; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">🖨️ Drucken / Ansicht</button>
+                        <button type="button" onclick="triggerManualWoodPDFDownload()" style="background: #e67e22; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">📥 PDF herunterladen / Teilen</button>
                         <button type="button" onclick="document.getElementById('saved-detail-wood-modal').remove()" style="background: #2C3E50; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Schließen</button>
                     </div>
                 </div>
