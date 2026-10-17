@@ -1,5 +1,5 @@
 // ==========================================
-// ZENTRALE DRUCK- UND PDF-STEUERUNG (Option B)
+// ZENTRALE DRUCK- UND PDF-STEUERUNG (UNIVERSAL-FIX)
 // ==========================================
 
 async function getBlobUrl(imageUrl) {
@@ -40,7 +40,7 @@ window.triggerManualPDFDownload = async function(repId) {
     }
 
     if (!rep) {
-        alert("Keine Schadensdaten für den Druck gefunden.");
+        alert("Keine Schadensdaten für das PDF gefunden.");
         return;
     }
 
@@ -66,7 +66,6 @@ window.triggerManualPDFDownload = async function(repId) {
     const lng = b.lng ? Number(b.lng) : 9.2199;
     const benchId = rep.bench_id || 'Unbekannt';
 
-    // QR-Code führt zur App-Ansicht
     const appUrl = window.location.origin + window.location.pathname + `?bench=${benchId}&lat=${lat}&lng=${lng}`;
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(appUrl)}`;
 
@@ -113,7 +112,7 @@ window.triggerManualPDFDownload = async function(repId) {
             '</div>' +
         '</div>' : '';
 
-    // Unsichtbaren Container im DOM für die PDF-Generierung erzeugen
+    // Temp-Container zum Rendern des A4-Layouts im Hintergrund
     let pdfContainer = document.getElementById('pdf-render-container');
     if (!pdfContainer) {
         pdfContainer = document.createElement('div');
@@ -192,7 +191,6 @@ window.triggerManualPDFDownload = async function(repId) {
         </div>
     `;
 
-    // Optionen für html2pdf
     const filename = `Schadensmeldung_${ticket}.pdf`;
     const opt = {
         margin:       0,
@@ -203,30 +201,29 @@ window.triggerManualPDFDownload = async function(repId) {
     };
 
     try {
-        // PDF im Speicher generieren
-        const pdfWorker = html2pdf().set(opt).from(pdfContainer);
-        
-        // Prüfen ob mobiles Teilen (iOS) unterstützt wird
-        if (navigator.canShare && window.File) {
-            const pdfBlob = await pdfWorker.output('blob');
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+        // iOS: Über das native Share-Sheet teilen (In Dateien sichern, AirDrop, etc.)
+        if (isIOS && navigator.canShare && window.File) {
+            const pdfBlob = await html2pdf().set(opt).from(pdfContainer).output('blob');
             const file = new File([pdfBlob], filename, { type: 'application/pdf' });
             
             if (navigator.canShare({ files: [file] })) {
                 await navigator.share({
                     files: [file],
                     title: `Schadensmeldung ${ticket}`,
-                    text: `Hier ist die Schadensmeldung ${ticket} als PDF.`
+                    text: `PDF-Bericht für Schadensmeldung ${ticket}`
                 });
                 return;
             }
         }
-        
-        // Standard Download (Desktop / Android)
-        await pdfWorker.save();
+
+        // Windows, Mac & Android: Direkter Datei-Download im Downloads-Ordner!
+        await html2pdf().set(opt).from(pdfContainer).save();
 
     } catch (err) {
-        console.error("Fehler beim Erstellen/Teilen des PDFs:", err);
-        alert("Fehler beim Erstellen des PDFs.");
+        console.error("Fehler bei der PDF-Erstellung:", err);
+        alert("PDF konnte nicht erstellt werden.");
     }
 };
 
