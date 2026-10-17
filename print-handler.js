@@ -1,5 +1,5 @@
 // ==========================================
-// ZENTRALE DRUCK- UND PDF-STEUERUNG (ASYNC-WARTESCHL、ICHE)
+// ZENTRALE DRUCK- UND PDF-STEUERUNG (SAUBERES CANVAS-RENDERING)
 // ==========================================
 
 async function getBlobUrl(imageUrl) {
@@ -77,8 +77,8 @@ window.triggerManualPDFDownload = async function(repId) {
 
     const xt = Math.floor(xFloat);
     const yt = Math.floor(yFloat);
-    const containerWidth = 774; 
-    const containerHeight = 240;
+    const containerWidth = 750; 
+    const containerHeight = 230;
     const centerX = containerWidth / 2; 
     const centerY = containerHeight / 2;
 
@@ -112,14 +112,18 @@ window.triggerManualPDFDownload = async function(repId) {
             '</div>' +
         '</div>' : '';
 
+    // Render-Container temporär erzeugen
     let pdfContainer = document.getElementById('pdf-render-container');
     if (!pdfContainer) {
         pdfContainer = document.createElement('div');
         pdfContainer.id = 'pdf-render-container';
-        pdfContainer.style.position = 'absolute';
-        pdfContainer.style.left = '-9999px';
-        pdfContainer.style.top = '-9999px';
+        pdfContainer.style.position = 'fixed';
+        pdfContainer.style.top = '0';
+        pdfContainer.style.left = '0';
         pdfContainer.style.width = '794px';
+        pdfContainer.style.zIndex = '-9999';
+        pdfContainer.style.opacity = '0.99'; // Stellt sicher, dass das DOM das Rendering verarbeitet
+        pdfContainer.style.background = '#ffffff';
         document.body.appendChild(pdfContainer);
     }
 
@@ -190,7 +194,7 @@ window.triggerManualPDFDownload = async function(repId) {
         </div>
     `;
 
-    // WICHTIG: Warten, bis alle Bilder und Kacheln im Container geladen sind!
+    // Sicherstellen, dass alle Bilder geladen sind
     const images = pdfContainer.querySelectorAll('img');
     await Promise.all(Array.from(images).map(img => {
         if (img.complete) return Promise.resolve();
@@ -200,8 +204,7 @@ window.triggerManualPDFDownload = async function(repId) {
         });
     }));
 
-    // Kleine zusätzliche Sicherheitspause für das Rendering
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 300));
 
     const filename = `Schadensmeldung_${ticket}.pdf`;
     const opt = {
@@ -220,20 +223,23 @@ window.triggerManualPDFDownload = async function(repId) {
             const file = new File([pdfBlob], filename, { type: 'application/pdf' });
             
             if (navigator.canShare({ files: [file] })) {
+                // WICHTIG: Kein 'text'-Feld mitgeben, damit iOS nur die PDF-Datei teilt!
                 await navigator.share({
                     files: [file],
-                    title: `Schadensmeldung ${ticket}`,
-                    text: `PDF-Bericht für Schadensmeldung ${ticket}`
+                    title: filename
                 });
+                pdfContainer.remove();
                 return;
             }
         }
 
         await html2pdf().set(opt).from(pdfContainer).save();
+        pdfContainer.remove();
 
     } catch (err) {
         console.error("Fehler bei der PDF-Erstellung:", err);
         alert("PDF konnte nicht erstellt werden.");
+        if (pdfContainer) pdfContainer.remove();
     }
 };
 
