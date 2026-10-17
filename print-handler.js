@@ -1,5 +1,5 @@
 // ==========================================
-// ZENTRALE DRUCK- UND PDF-STEUERUNG
+// ZENTRALE DRUCK- UND PDF-STEUERUNG (iOS-FIX)
 // ==========================================
 
 async function getBlobUrl(imageUrl) {
@@ -112,41 +112,48 @@ window.triggerManualPDFDownload = async function(repId) {
             '</div>' +
         '</div>' : '';
 
+    const mailSubject = encodeURIComponent(`Schadensmeldung ${ticket} - Bank #${benchId}`);
+    const mailBody = encodeURIComponent(`Hallo,\n\nhier ist die Schadensmeldung ${ticket} für Bank #${benchId} (${district}).\n\nLink in SitzFinder: ${appUrl}\n\nViele Grüße`);
+
     const fullHtmlContent = `
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Schadensmeldung ${ticket}</title>
             <style>
-                body { margin: 0; padding: 15px; background: #f1f5f9; font-family: Arial, sans-serif; }
-                .sheet { background: #fff; width: 794px; margin: 0 auto; padding: 20px; box-sizing: border-box; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; }
+                body { margin: 0; padding: 10px; background: #f1f5f9; font-family: Arial, sans-serif; }
+                .sheet { background: #fff; width: 100%; max-width: 794px; margin: 0 auto; padding: 15px; box-sizing: border-box; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; }
                 .print-no-break { page-break-inside: avoid; break-inside: avoid; }
                 
-                /* Aktionsleiste für iOS / Web (wird beim Drucken ausgeblendet) */
                 .action-bar {
                     position: sticky;
                     top: 0;
                     z-index: 1000;
                     background: #1e293b;
                     color: white;
-                    padding: 12px 20px;
+                    padding: 10px 15px;
                     display: flex;
+                    flex-wrap: wrap;
                     justify-content: space-between;
                     align-items: center;
+                    gap: 10px;
                     border-radius: 8px;
-                    margin-bottom: 20px;
+                    margin-bottom: 15px;
                     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
                 }
-                .action-bar button {
+                .action-bar button, .action-bar a.btn-link {
                     background: #2563eb;
                     color: white;
                     border: none;
-                    padding: 8px 16px;
+                    padding: 8px 14px;
                     border-radius: 6px;
                     font-weight: bold;
                     cursor: pointer;
-                    font-size: 14px;
+                    font-size: 13px;
+                    text-decoration: none;
+                    display: inline-block;
                 }
                 .action-bar button.secondary {
                     background: #475569;
@@ -154,45 +161,45 @@ window.triggerManualPDFDownload = async function(repId) {
 
                 @media print {
                     body { background: #fff; padding: 0; }
-                    .sheet { box-shadow: none; border-radius: 0; width: 100%; padding: 0; }
+                    .sheet { box-shadow: none; border-radius: 0; width: 100%; max-width: 100%; padding: 0; }
                     .action-bar { display: none !important; }
                     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                 }
             </style>
         </head>
         <body>
-            <!-- Extra Menüleiste für iPhones/iPads im Standalone-Modus -->
             <div class="action-bar">
                 <div>
-                    <strong>PDF-Ansicht (${ticket})</strong>
+                    <strong>Meldung ${ticket}</strong>
                 </div>
-                <div style="display: flex; gap: 10px;">
-                    <button onclick="window.print()">🖨️ Drucken / Als PDF sichern</button>
-                    <button class="secondary" onclick="window.close()">✖ Schließen</button>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button onclick="window.print()">🖨️ Drucken / PDF</button>
+                    <a href="mailto:?subject=${mailSubject}&body=${mailBody}" class="btn-link" style="background:#059669;">✉️ Per E-Mail senden</a>
+                    <button class="secondary" onclick="window.close()">✖ Zu</button>
                 </div>
             </div>
 
             <div class="sheet">
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2C3E50; padding-bottom: 6px; margin-bottom: 10px;">
-                    <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/hnlogo.png" style="height: 50px; object-fit: contain;" alt="Stadt Heilbronn" crossorigin="anonymous">
-                    <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/Logo%20SitzFinder.png" style="height: 56px; margin: -4px 0; object-fit: contain;" alt="SitzFinder" crossorigin="anonymous">
+                    <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/hnlogo.png" style="height: 45px; object-fit: contain;" alt="Stadt Heilbronn" crossorigin="anonymous">
+                    <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/Logo%20SitzFinder.png" style="height: 50px; margin: -4px 0; object-fit: contain;" alt="SitzFinder" crossorigin="anonymous">
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; background: #f8fafc; padding: 10px 15px; border-radius: 6px; border: 1px solid #cbd5e1;">
                     <div>
-                        <h2 style="margin: 0 0 2px 0; font-size: 20px; color: #1e293b;">Schadensmeldung: ${ticket}</h2>
-                        <div style="font-size: 15px; font-weight: bold; color: #2563eb;">Zuständiger Trupp: ${trupp}</div>
+                        <h2 style="margin: 0 0 2px 0; font-size: 18px; color: #1e293b;">Schadensmeldung: ${ticket}</h2>
+                        <div style="font-size: 14px; font-weight: bold; color: #2563eb;">Zuständiger Trupp: ${trupp}</div>
                         <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Gemeldet am: ${date}</div>
                     </div>
                     <div style="text-align: center; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; display: flex; flex-direction: column; align-items: center;">
-                        <img src="${qrCodeUrl}" style="width: 75px; height: 75px; display: block;" alt="QR-Code" crossorigin="anonymous"/>
+                        <img src="${qrCodeUrl}" style="width: 70px; height: 70px; display: block;" alt="QR-Code" crossorigin="anonymous"/>
                         <span style="font-size: 9px; color: #475569; margin-top: 2px; font-weight: bold;">In App öffnen</span>
                     </div>
                 </div>
 
                 <div style="margin-bottom: 10px;" class="print-no-break">
                     <h3 style="margin: 0 0 4px 0; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; color: #334155;">Details zur Bank & Schaden</h3>
-                    <div style="display: flex; gap: 24px; font-size: 13px; line-height: 1.4;">
+                    <div style="display: flex; gap: 20px; font-size: 13px; line-height: 1.4;">
                         <div style="flex: 1;">
                             <div style="margin-bottom: 3px;"><strong style="color: #475569;">Bank-ID:</strong> #${benchId}</div>
                             <div style="margin-bottom: 3px;"><strong style="color: #475569;">Stadtteil:</strong> ${district}</div>
@@ -211,7 +218,7 @@ window.triggerManualPDFDownload = async function(repId) {
 
                 <div style="margin-bottom: 10px;" class="print-no-break">
                     <h3 style="margin: 0 0 4px 0; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; color: #334155;">Orientierungskarte</h3>
-                    <div style="height: ${containerHeight}px; width: ${containerWidth}px; margin: 0 auto; border-radius: 6px; border: 1px solid #cbd5e1; background: #e2e8f0; position: relative; overflow: hidden; box-sizing: border-box;">
+                    <div style="height: ${containerHeight}px; width: 100%; max-width: ${containerWidth}px; margin: 0 auto; border-radius: 6px; border: 1px solid #cbd5e1; background: #e2e8f0; position: relative; overflow: hidden; box-sizing: border-box;">
                         <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
                             ${tilesHtml}
                         </div>
@@ -223,15 +230,15 @@ window.triggerManualPDFDownload = async function(repId) {
                     <div style="display: flex; justify-content: space-between; font-size: 11px;">
                         <div style="width: 30%;">
                             <strong>Datum Erledigt:</strong>
-                            <div style="border-bottom: 1px solid #000; margin-top: 30px;"></div>
+                            <div style="border-bottom: 1px solid #000; margin-top: 25px;"></div>
                         </div>
                         <div style="width: 30%;">
                             <strong>Bearbeitet durch:</strong>
-                            <div style="border-bottom: 1px solid #000; margin-top: 30px;"></div>
+                            <div style="border-bottom: 1px solid #000; margin-top: 25px;"></div>
                         </div>
                         <div style="width: 30%;">
                             <strong>Unterschrift:</strong>
-                            <div style="border-bottom: 1px solid #000; margin-top: 30px;"></div>
+                            <div style="border-bottom: 1px solid #000; margin-top: 25px;"></div>
                         </div>
                     </div>
                 </div>
@@ -240,9 +247,10 @@ window.triggerManualPDFDownload = async function(repId) {
         </html>
     `;
 
+    // iOS PWA Popup Handling
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-        alert("Pop-up wurde vom Browser blockiert. Bitte erlaube Pop-ups für diese App.");
+        alert("Pop-up wurde vom Browser blockiert. Bitte erlaube Pop-ups.");
         return;
     }
 
