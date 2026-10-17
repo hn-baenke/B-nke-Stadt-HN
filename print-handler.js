@@ -1,5 +1,5 @@
 // ==========================================
-// ZENTRALE DRUCK- UND PDF-STEUERUNG (SAUBERES CANVAS-RENDERING)
+// ZENTRALE DRUCK- UND PDF-STEUERUNG (UNIVERSELL)
 // ==========================================
 
 async function getBlobUrl(imageUrl) {
@@ -122,7 +122,7 @@ window.triggerManualPDFDownload = async function(repId) {
         pdfContainer.style.left = '0';
         pdfContainer.style.width = '794px';
         pdfContainer.style.zIndex = '-9999';
-        pdfContainer.style.opacity = '0.99'; // Stellt sicher, dass das DOM das Rendering verarbeitet
+        pdfContainer.style.opacity = '0.99';
         pdfContainer.style.background = '#ffffff';
         document.body.appendChild(pdfContainer);
     }
@@ -216,24 +216,29 @@ window.triggerManualPDFDownload = async function(repId) {
     };
 
     try {
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const pdfBlob = await html2pdf().set(opt).from(pdfContainer).output('blob');
+        const file = new File([pdfBlob], filename, { type: 'application/pdf' });
 
-        if (isIOS && navigator.canShare && window.File) {
-            const pdfBlob = await html2pdf().set(opt).from(pdfContainer).output('blob');
-            const file = new File([pdfBlob], filename, { type: 'application/pdf' });
-            
-            if (navigator.canShare({ files: [file] })) {
-                // WICHTIG: Kein 'text'-Feld mitgeben, damit iOS nur die PDF-Datei teilt!
-                await navigator.share({
-                    files: [file],
-                    title: filename
-                });
-                pdfContainer.remove();
-                return;
-            }
+        // Wenn Web Share API mit Dateiversand unterstützt wird (iOS, Android, moderne Browser)
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+                files: [file],
+                title: filename
+            });
+            pdfContainer.remove();
+            return;
         }
 
-        await html2pdf().set(opt).from(pdfContainer).save();
+        // Fallback für Windows / Desktops ohne File-Share-API: Direkter, sauberer Download
+        const blobUrl = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+
         pdfContainer.remove();
 
     } catch (err) {
