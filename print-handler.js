@@ -205,13 +205,13 @@ window.triggerManualPDFDownload = async function(repId) {
     await new Promise(r => setTimeout(r, 500));
 
     const targetElement = document.getElementById('pdf-inner-content');
-    const filename = `Schadensmeldung_${ticket}.pdf`;
+    const rawFilename = `Schadensmeldung_${ticket}.pdf`;
+    const cleanFilename = rawFilename.replace(/[^a-zA-Z0-9_\.-]/g, '_');
 
     try {
-        // Direkte PDF-Konvertierung
         const opt = {
             margin:       0,
-            filename:     filename,
+            filename:     cleanFilename,
             image:        { type: 'jpeg', quality: 0.98 },
             html2canvas:  { 
                 scale: 2, 
@@ -224,9 +224,16 @@ window.triggerManualPDFDownload = async function(repId) {
         };
 
         const pdfBlob = await html2pdf().set(opt).from(targetElement).output('blob');
-        const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+        
+        // Explicit PDF MIME-Type Reslicing
+        const cleanBlob = pdfBlob.slice(0, pdfBlob.size, 'application/pdf');
 
-// Wenn Web Share API verfügbar ist (iOS / Android / Chrome Desktop)
+        const file = new File([cleanBlob], cleanFilename, { 
+            type: 'application/pdf',
+            lastModified: Date.now()
+        });
+
+        // Web Share API (iOS / Android / Chrome Desktop)
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({
                 files: [file]
@@ -235,11 +242,11 @@ window.triggerManualPDFDownload = async function(repId) {
             return;
         }
 
-        // Fallback für Rechner/Browser ohne Share API (Direkt-Download)
-        const blobUrl = URL.createObjectURL(pdfBlob);
+        // Fallback für Desktop ohne Share API
+        const blobUrl = URL.createObjectURL(cleanBlob);
         const link = document.createElement('a');
         link.href = blobUrl;
-        link.download = filename;
+        link.download = cleanFilename;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
