@@ -1,5 +1,5 @@
 // ==========================================
-// ZENTRALE DRUCK- UND PDF-STEUERUNG (CANVAS-VISIBILITY-FIX)
+// ZENTRALE DRUCK- UND PDF-STEUERUNG (CANVAS-PROXIED-FIX)
 // ==========================================
 
 async function getBlobUrl(imageUrl) {
@@ -112,16 +112,15 @@ window.triggerManualPDFDownload = async function(repId) {
             '</div>' +
         '</div>' : '';
 
-    // Render-Container im sichtbaren DOM platzieren, aber hinter einem Fix-Layer verstecken
     let pdfContainer = document.getElementById('pdf-render-container');
     if (!pdfContainer) {
         pdfContainer = document.createElement('div');
         pdfContainer.id = 'pdf-render-container';
-        pdfContainer.style.position = 'fixed';
+        pdfContainer.style.position = 'absolute';
         pdfContainer.style.top = '0';
         pdfContainer.style.left = '0';
         pdfContainer.style.width = '794px';
-        pdfContainer.style.zIndex = '-1'; // Hinter der UI verbergen
+        pdfContainer.style.zIndex = '-9999';
         pdfContainer.style.background = '#ffffff';
         document.body.appendChild(pdfContainer);
     }
@@ -193,7 +192,7 @@ window.triggerManualPDFDownload = async function(repId) {
         </div>
     `;
 
-    // 1. Warten auf das Laden aller Bilder
+    // 1. Warten, bis alle Bilder vollständig geladen sind
     const images = pdfContainer.querySelectorAll('img');
     await Promise.all(Array.from(images).map(img => {
         if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
@@ -203,32 +202,32 @@ window.triggerManualPDFDownload = async function(repId) {
         });
     }));
 
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 500));
 
     const targetElement = document.getElementById('pdf-inner-content');
     const filename = `Schadensmeldung_${ticket}.pdf`;
-    
-    const opt = {
-        margin:       0,
-        filename:     filename,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { 
-            scale: 2, 
-            useCORS: true, 
-            logging: true,
-            scrollX: 0,
-            scrollY: 0
-        },
-        jsPDF:        { unit: 'pt', format: 'a4', orientation: 'portrait' }
-    };
 
     try {
+        // Direkte PDF-Konvertierung
+        const opt = {
+            margin:       0,
+            filename:     filename,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { 
+                scale: 2, 
+                useCORS: true, 
+                allowTaint: true,
+                logging: false,
+                width: 794
+            },
+            jsPDF:        { unit: 'pt', format: 'a4', orientation: 'portrait' }
+        };
+
         const pdfBlob = await html2pdf().set(opt).from(targetElement).output('blob');
         const file = new File([pdfBlob], filename, { type: 'application/pdf' });
 
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
-        if (isIOS && navigator.canShare && navigator.canShare({ files: [file] })) {
+        // Wenn Web Share API verfügbar ist (iOS / Android / Chrome Desktop)
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({
                 files: [file],
                 title: filename
@@ -237,7 +236,7 @@ window.triggerManualPDFDownload = async function(repId) {
             return;
         }
 
-        // Fallback für Windows / Android
+        // Fallback für Rechner/Browser ohne Share API (Direkt-Download)
         const blobUrl = URL.createObjectURL(pdfBlob);
         const link = document.createElement('a');
         link.href = blobUrl;
