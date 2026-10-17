@@ -233,32 +233,39 @@ window.triggerManualPDFDownload = async function(repId) {
             lastModified: Date.now()
         });
 
-        // Web Share API (iOS / Android / Chrome Desktop)
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        // Prüfen, ob es ein mobiles Gerät ist (iOS / Android)
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    // Nur auf Mobilgeräten das native Teilen-Menü öffnen
+    if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
             await navigator.share({
                 files: [file]
             });
             pdfContainer.remove();
             return;
+        } catch (shareErr) {
+            console.log("Teilen abgebrochen");
         }
-
-        // Fallback für Desktop ohne Share API
-        const blobUrl = URL.createObjectURL(cleanBlob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = cleanFilename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-
-        pdfContainer.remove();
-
-    } catch (err) {
-        console.error("Fehler bei der PDF-Erstellung:", err);
-        alert("PDF konnte nicht erstellt werden.");
-        if (pdfContainer) pdfContainer.remove();
     }
+
+    // Auf Desktop (Windows/Mac) ODER als Fallback: Direkt herunterladen
+    const blobUrl = URL.createObjectURL(cleanBlob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = cleanFilename; // Hier nutzen wir jetzt korrekt cleanFilename!
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+
+    pdfContainer.remove();
+
+} catch (err) {
+    console.error("Fehler bei der PDF-Erstellung:", err);
+    alert("PDF konnte nicht erstellt werden.");
+    if (pdfContainer) pdfContainer.remove();
+}
 };
 
 window.printReport = function(repId) {
@@ -478,29 +485,164 @@ window.printReport = function(repId) {
 };
 
 // ==========================================
-// 1. ISOLIERTER DRUCK ÜBER SEPARATES POPUP-FENSTER
+// 1. HILFSFUNKTION: BAUT BEIDE ANSICHTEN KOMPLETT ZUSAMMEN
 // ==========================================
-window.printWoodCuttingListPopup = function() {
+function buildCombinedWoodHTML() {
+    let districtRequirements = {};
+    let benchWiseData = {};
+    let projectTitle = "🪵 Holz-Zuschnittliste";
+
     const activeModal = document.getElementById('active-wood-list-modal');
     const detailModal = document.getElementById('saved-detail-wood-modal');
     const modalToPrint = activeModal || detailModal;
-    
-    if (!modalToPrint) {
+
+    if (!modalToPrint) return null;
+
+    const titleEl = modalToPrint.querySelector('h3');
+    if (titleEl) projectTitle = titleEl.innerText;
+
+    // A) Wenn wir im aktiven Auswahlmodus auf der Karte sind
+    if (activeModal && typeof selectedWoodBenchIds !== 'undefined' && selectedWoodBenchIds.size > 0 && typeof benches !== 'undefined') {
+        selectedWoodBenchIds.forEach(id => {
+            const bench = benches.find(b => b.id === id);
+            if (bench) {
+                const district = bench.district || 'Unbekannt';
+                benchWiseData[id] = { district: district, items: parseBenchDimensionsRaw(bench.dimensions) };
+                
+                if (!districtRequirements[district]) {
+                    districtRequirements[district] = { benchIds: [], dimensions: {} };
+                }
+                districtRequirements[district].benchIds.push(bench.id);
+
+                benchWiseData[id].items.forEach(item => {
+                    const dimKey = item.part ? `${item.part}: ${item.dimension}` : item.dimension;
+                    if (!districtRequirements[district].dimensions[dimKey]) {
+                        districtRequirements[district].dimensions[dimKey] = { count: 0, benchIds: [] };
+                    }
+                    districtRequirements[district].dimensions[dimKey].count += item.count;
+                    if (!districtRequirements[district].dimensions[dimKey].benchIds.includes(bench.id)) {
+                        districtRequirements[district].dimensions[dimKey].benchIds.push(bench.id);
+                    }
+                });
+            }
+        });
+    } 
+    // B) Wenn es ein gespeichertes Projekt aus dem Archiv ist
+    else if (window.currentWoodProjectForExport) {
+        const rawData = window.currentWoodProjectForExport.project_data || {};
+        districtRequirements = rawData.districtRequirements || rawData;
+        benchWiseData = rawData.benchWiseData || window.currentWoodProjectForExport.bench_wise_data || {};
+        
+        if (Object.keys(benchWiseData).length === 0 && window.currentWoodProjectForExport.bench_ids && typeof benches !== 'undefined') {
+            window.currentWoodProjectForExport.bench_ids.forEach(id => {
+                const bench = benches.find(b => b.id === Number(id));
+                if (bench) {
+                    benchWiseData[id] = { district: bench.district || 'Unbekannt', items: parseBenchDimensionsRaw(bench.dimensions) };
+                }
+            });
+        }
+    }
+
+    // HTML für Seite 1: Nach Bauteilen
+    let html = `
+        <div style="font-family: Arial, sans-serif; color: #2C3E50; width: 100%;">
+            <h2 style="margin-top: 0; color: #2C3E50; border-bottom: 2px solid #2C3E50; padding-bottom: 5px;">${projectTitle}</h2>
+            <h3 style="color: #2980b9; margin-top: 15px; margin-bottom: 5px;">📋 Zuschnittliste nach Bauteilen</h3>
+    `;
+
+    const sortedDistricts = Object.keys(districtRequirements || {}).sort();
+    if (sortedDistricts.length === 0) {
+        html += `<p style="color: #7f8c8d;">Keine Maße nach Bauteilen verfügbar.</p>`;
+    } else {
+        sortedDistricts.forEach(district => {
+            const distData = districtRequirements[district];
+            const sortedWoodItems = parseAndSortWoodItems(distData.dimensions || {});
+
+            html += `
+                <div style="margin-top: 12px; border-bottom: 1px solid #2980b9; padding-bottom: 2px;">
+                    <h4 style="margin: 0; color: #2980b9; font-size: 14px;">📍 Stadtteil: ${district} <span style="font-size: 11px; color: #7f8c8d; font-weight: normal;">(Bänke: ${(distData.benchIds || []).map(id => '#' + id).join(', ')})</span></h4>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 5px; margin-bottom: 10px;">
+                    <thead>
+                        <tr style="background: #f4f4f4; border-bottom: 1px solid #ddd;">
+                            <th style="padding: 5px; text-align: left; font-size: 12px;">Dimension / Maß & Bänke</th>
+                            <th style="padding: 5px; text-align: center; width: 70px; font-size: 12px;">Anzahl</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            sortedWoodItems.forEach(item => {
+                const labelText = item.hasPart ? `<strong>${item.part}:</strong> ${item.dimension}` : item.dimension;
+                let benchTags = "";
+                if (item.benchIds && item.benchIds.length > 0) {
+                    const sortedIds = [...item.benchIds].sort((a, b) => Number(a) - Number(b));
+                    const badges = sortedIds.map(id => `<span style="background: ${getBankColor(id)}; color: white; padding: 1px 4px; border-radius: 3px; font-size: 9px; font-weight: bold; display: inline-block; margin: 1px;">#${id}</span>`).join('');
+                    benchTags = `<div style="margin-top: 2px; display: flex; flex-wrap: wrap; gap: 2px; align-items: center;"><span style="font-size: 10px; color: #7f8c8d; margin-right: 2px;">Für Bank:</span> ${badges}</div>`;
+                }
+
+                html += `
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 5px; font-size: 12px; color: #333;">${labelText}${benchTags}</td>
+                        <td style="padding: 5px; text-align: center; font-weight: bold; color: #e67e22; font-size: 13px; vertical-align: middle;">${item.count} Stk.</td>
+                    </tr>
+                `;
+            });
+            html += `</tbody></table>`;
+        });
+    }
+
+    // Sauberer Seitenumbruch für Seite 2
+    html += `
+        <div style="page-break-before: always; break-before: page; margin-top: 30px; padding-top: 10px;"></div>
+        <h3 style="color: #2980b9; margin-top: 0; margin-bottom: 10px;">🪑 Einzelübersicht nach Bänken</h3>
+    `;
+
+    const sortedBenchIds = Object.keys(benchWiseData || {}).sort((a, b) => Number(a) - Number(b));
+    if (sortedBenchIds.length === 0) {
+        html += `<p style="color: #7f8c8d;">Keine Einzelbank-Details verfügbar.</p>`;
+    } else {
+        sortedBenchIds.forEach(id => {
+            const data = benchWiseData[id];
+            const benchColor = getBankColor(id);
+
+            html += `
+                <div style="margin-top: 10px; background: #fafafa; border: 1px solid #ddd; border-left: 5px solid ${benchColor}; border-radius: 4px; padding: 8px 12px; page-break-inside: avoid; break-inside: avoid;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 4px; margin-bottom: 6px;">
+                        <h4 style="margin: 0; color: #2c3e50; font-size: 14px;">🪑 Bank <span style="background: ${benchColor}; color: white; padding: 1px 5px; border-radius: 3px;">#${id}</span></h4>
+                        <span style="font-size: 11px; color: #7f8c8d;">📍 Stadtteil: ${data.district || 'Unbekannt'}</span>
+                    </div>
+            `;
+
+            if (!data.items || data.items.length === 0) {
+                html += `<p style="margin: 2px 0; font-size: 11px; color: #e74c3c;">Keine Maße hinterlegt.</p>`;
+            } else {
+                html += `<ul style="margin: 0; padding-left: 18px; font-size: 12px; color: #333;">`;
+                data.items.forEach(i => {
+                    const partLabel = i.part ? `<strong>${i.part}:</strong> ` : '';
+                    html += `<li style="margin-bottom: 2px;">${partLabel}${i.dimension} &nbsp;&rightarrow;&nbsp; <strong style="color: #e67e22;">${i.count} Stk.</strong></li>`;
+                });
+                html += `</ul>`;
+            }
+
+            html += `</div>`;
+        });
+    }
+
+    html += `</div>`;
+    return html;
+}
+
+
+// ==========================================
+// 2. ISOLIERTER DRUCK ÜBER SEPARATES POPUP-FENSTER
+// ==========================================
+window.printWoodCuttingListPopup = function() {
+    const combinedHTML = buildCombinedWoodHTML();
+    if (!combinedHTML) {
         alert("Keine Zuschnittliste gefunden zum Drucken.");
         return;
     }
-
-    const innerCard = modalToPrint.querySelector('div');
-    if (!innerCard) return;
-
-    const cardClone = innerCard.cloneNode(true);
-    const buttons = cardClone.querySelectorAll('button');
-    buttons.forEach(btn => btn.remove());
-
-    cardClone.style.boxShadow = 'none';
-    cardClone.style.width = '100%';
-    cardClone.style.maxHeight = 'none';
-    cardClone.style.padding = '10px';
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -516,6 +658,11 @@ window.printWoodCuttingListPopup = function() {
             <meta charset="utf-8">
             <title>Holz-Zuschnittliste Drucken</title>
             <style>
+                * {
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                    color-adjust: exact !important;
+                }
                 body {
                     font-family: Arial, sans-serif;
                     margin: 20px;
@@ -530,28 +677,23 @@ window.printWoodCuttingListPopup = function() {
                 }
                 th, td {
                     border: 1px solid #ddd;
-                    padding: 8px;
+                    padding: 6px;
                 }
                 th {
-                    background: #f4f4f4;
+                    background: #f4f4f4 !important;
                     text-align: left;
                 }
                 @media print {
-                    body {
-                        margin: 0;
-                        padding: 0;
-                    }
+                    body { margin: 0; padding: 10px; }
                 }
             </style>
         </head>
         <body>
-            ${cardClone.innerHTML}
+            ${combinedHTML}
             <script>
                 window.onload = function() {
                     window.print();
-                    setTimeout(function() {
-                        window.close();
-                    }, 500);
+                    setTimeout(function() { window.close(); }, 500);
                 };
             </script>
         </body>
@@ -562,109 +704,71 @@ window.printWoodCuttingListPopup = function() {
 
 
 // ==========================================
-// 2. UNIVERSELLER PDF-DOWNLOAD & SHARE-WEG (REINER INHALT)
+// 3. UNIVERSELLER PDF-DOWNLOAD & SHARE-WEG
 // ==========================================
 window.triggerManualWoodPDFDownload = async function() {
-    const activeModal = document.getElementById('active-wood-list-modal');
-    const detailModal = document.getElementById('saved-detail-wood-modal');
-    const modalToPrint = activeModal || detailModal;
+    console.log("1. Starte PDF-Export...");
     
-    if (!modalToPrint) {
+    const combinedHTML = buildCombinedWoodHTML();
+    if (!combinedHTML) {
         alert("Keine Zuschnittliste gefunden.");
         return;
     }
 
-    const innerCard = modalToPrint.querySelector('div');
-    if (!innerCard) return;
+    // Projekttitel aus dem aktiven Modal oder aus dem gespeicherten Objekt ermitteln
+    let rawTitle = "Holz_Zuschnittliste";
+    const activeModal = document.getElementById('active-wood-list-modal');
+    const detailModal = document.getElementById('saved-detail-wood-modal');
+    const modalToPrint = activeModal || detailModal;
 
-    let pdfContainer = document.getElementById('wood-pdf-render-container');
-    if (!pdfContainer) {
-        pdfContainer = document.createElement('div');
-        pdfContainer.id = 'wood-pdf-render-container';
-        pdfContainer.style.position = 'absolute';
-        pdfContainer.style.top = '0';
-        pdfContainer.style.left = '0';
-        pdfContainer.style.width = '794px';
-        pdfContainer.style.zIndex = '-9999';
-        pdfContainer.style.background = '#ffffff';
-        document.body.appendChild(pdfContainer);
+    if (modalToPrint) {
+        const titleEl = modalToPrint.querySelector('h3');
+        if (titleEl && titleEl.innerText.trim()) {
+            rawTitle = titleEl.innerText.trim();
+        }
+    } else if (window.currentWoodProjectForExport && window.currentWoodProjectForExport.name) {
+        rawTitle = window.currentWoodProjectForExport.name;
     }
 
-    const cardClone = innerCard.cloneNode(true);
+    // Titel für den Dateinamen bereinigen (Emojis & unerlaubte Zeichen entfernen/ersetzen)
+    let cleanTitle = rawTitle
+        .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '') // Emojis entfernen
+        .trim()
+        .replace(/[^a-zA-Z0-9äöüÄÖÜß_\-\s]/g, '') // Nur sichere Zeichen behalten
+        .replace(/\s+/g, '_');                   // Leerzeichen durch Unterstriche ersetzen
 
-    // Buttons für den PDF-Export entfernen
-    const buttons = cardClone.querySelectorAll('button');
-    buttons.forEach(btn => btn.remove());
+    if (!cleanTitle) cleanTitle = "Holz_Zuschnittliste";
 
-    // Styles für A4-Render-Container zurücksetzen
-    cardClone.style.boxShadow = 'none';
-    cardClone.style.width = '794px';
-    cardClone.style.maxWidth = '794px';
-    cardClone.style.maxHeight = 'none';
-    cardClone.style.padding = '20px';
-    cardClone.style.borderRadius = '0';
-    cardClone.style.background = '#ffffff';
-    cardClone.style.color = '#000000';
+    const filename = `${cleanTitle}.pdf`;
 
-    pdfContainer.innerHTML = '';
-    pdfContainer.appendChild(cardClone);
+    // Wrapper mit leicht angepasster Breite (740px), damit rechts nichts abgeschnitten wird
+    const wrappedHTML = `
+        <div style="width: 740px; background: #ffffff; padding: 10px; box-sizing: border-box; font-family: Arial, sans-serif; color: #000000; overflow: hidden;">
+            ${combinedHTML}
+        </div>
+    `;
 
-    await new Promise(r => setTimeout(r, 400));
-
-    const titleEl = cardClone.querySelector('h3');
-    let projectTitleText = titleEl ? titleEl.innerText.replace(/[^a-zA-Z0-9_\.-]/g, '_') : 'Zuschnittliste';
-    projectTitleText = projectTitleText.substring(0, 40);
-    const filename = `${projectTitleText}.pdf`;
+    const opt = {
+        margin:       [20, 20, 20, 20],
+        filename:     filename,
+        image:        { type: 'jpeg', quality: 0.95 },
+        html2canvas:  { 
+            scale: 1.5, 
+            useCORS: true, 
+            allowTaint: true,
+            logging: false,
+            letterRendering: true
+        },
+        jsPDF:        { unit: 'pt', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', 'div'] }
+    };
 
     try {
-        const opt = {
-            margin:       0,
-            filename:     filename,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { 
-                scale: 2, 
-                useCORS: true, 
-                allowTaint: true,
-                logging: false,
-                width: 794,
-                scrollX: 0,
-                scrollY: 0
-            },
-            jsPDF:        { unit: 'pt', format: 'a4', orientation: 'portrait' }
-        };
-
-        const pdfBlob = await html2pdf().set(opt).from(cardClone).output('blob');
-        const cleanBlob = pdfBlob.slice(0, pdfBlob.size, 'application/pdf');
-
-        const file = new File([cleanBlob], filename, { 
-            type: 'application/pdf',
-            lastModified: Date.now()
-        });
-
-        // Web Share API (iOS / Android)
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-                files: [file]
-            });
-            pdfContainer.remove();
-            return;
-        }
-
-        // Fallback für Desktop
-        const blobUrl = URL.createObjectURL(cleanBlob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-
-        pdfContainer.remove();
-
+        console.log(`2. Generiere PDF mit Dateiname: ${filename}...`);
+        await html2pdf().set(opt).from(wrappedHTML).save();
+        console.log("3. PDF-Download erfolgreich ausgelöst!");
     } catch (err) {
-        console.error("Fehler bei der Holzlisten-PDF-Erstellung:", err);
-        alert("PDF konnte nicht erstellt werden.");
-        if (pdfContainer) pdfContainer.remove();
+        console.error("Fehler bei der PDF-Erstellung:", err);
+        alert("PDF konnte nicht erstellt werden: " + err.message);
     }
 };

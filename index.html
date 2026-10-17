@@ -965,13 +965,26 @@
     <datalist id="assembly-suggestions"></datalist>
     <span class="field-example">z.B. Sondermaß, Spezialwerkzeug nötig, Befestigungsmittel</span>
 
-    <!-- 🪵 NEU: Dynamische Maße & Stückzahlen -->
+    <!-- 🪵 Dynamische Maße & Stückzahlen -->
     <label>Zuschnitt-Maße & Stückzahlen:</label>
     <div id="dimensions-container" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px;">
         <!-- Hier werden die Zeilen per JavaScript eingefügt -->
     </div>
-    <button type="button" class="btn btn-sm" style="background-color: #27ae60; color: white; padding: 6px 12px; font-size: 13px; margin-bottom: 15px; width: 100%; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;" onclick="addDimensionRow()">➕ Weiteres Maß hinzufügen</button>
+    
+    <!-- Buttons zum Hinzufügen -->
+    <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+        <button type="button" class="btn btn-sm" style="flex: 1; background-color: #27ae60; color: white; padding: 6px 12px; font-size: 13px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;" onclick="addDimensionRow()">➕ Weiteres Maß</button>
+        <button type="button" class="btn btn-sm" style="flex: 1; background-color: #3498db; color: white; padding: 6px 12px; font-size: 13px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;" onclick="addAssemblyMeasureRow()">➕ Montagemaß</button>
+    </div>
+
     <datalist id="dimensions-suggestions"></datalist>
+    <datalist id="part-suggestions">
+    <option value="Lehne"></option>
+    <option value="Sitzfläche"></option>
+    <option value="Armlehne"></option>
+    <option value="Füße"></option>
+    <option value="Unterkonstruktion"></option>
+</datalist>
 
     <label for="pop-note">Notiz:</label>
     <input type="text" id="pop-note" placeholder="Notiz eingeben...">
@@ -2448,16 +2461,21 @@ async function quickDuplicateBench(lat, lng) {
                      title="Auf der Hauptkarte anzeigen">
                 </div>
 
-                <div style="margin-top: 15px; display: flex; gap: 10px; align-items: stretch;">
-    <button class="btn btn-save" style="flex: 1; width: 50%; padding: 10px; font-size: 14px; font-weight: bold; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0;" onclick="resolveDamageReport(${rep.id}, ${rep.bench_id}, '${rep.image_url || ''}')">
+                <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 10px;">
+    <!-- "Erledigt"-Button über die volle Breite -->
+    <button class="btn btn-save" style="width: 100%; padding: 10px; font-size: 14px; font-weight: bold; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0; cursor: pointer;" onclick="resolveDamageReport(${rep.id}, ${rep.bench_id}, '${rep.image_url || ''}')">
         ✔ Erledigt
     </button>
-    <button class="btn" style="flex: 1; width: 50%; background-color: #2C3E50; color: white; padding: 10px; font-size: 14px; font-weight: bold; border: none; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; margin: 0;" onclick="window.printReport('${rep.id}')">
-        🖨️ Drucken
-    </button>
-    <button id="pdf-download-btn" onclick="triggerManualPDFDownload()" style="background: #2563eb; color: white; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px;">
-    📄 PDF herunterladen
-</button>
+    
+    <!-- Untere Reihe: Drucken und PDF gleichmäßig (50/50) nebeneinander -->
+    <div style="display: flex; gap: 10px; width: 100%;">
+        <button class="btn" style="flex: 1; background-color: #2C3E50; color: white; padding: 10px; font-size: 14px; font-weight: bold; border: none; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; margin: 0;" onclick="window.printReport('${rep.id}')">
+            🖨️ Drucken
+        </button>
+        <button id="pdf-download-btn" class="btn" style="flex: 1; background: #2563eb; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0;" onclick="triggerManualPDFDownload()">
+            📥 PDF / Teilen
+        </button>
+    </div>
 </div>
         `;
         
@@ -4364,11 +4382,11 @@ function openFullscreenForm(bench, isNew) {
 }
 
 // ==========================================
-// DYNAMISCHE MAßE & STÜCKZAHLEN - GLOBALE FUNKTIONEN
+// DYNAMISCHE MAßE, STÜCKZAHLEN & MONTAGEMAß
 // ==========================================
 
-// Fügt eine neue Zeile (Maß-Input + Stückzahl-Dropdown) in das Formular ein
-window.addDimensionRow = function(dimensionValue = "", countValue = 1) {
+// Fügt eine neue Zeile ein: Bauteil oben über die volle Breite, Maß & Stückzahl darunter
+window.addDimensionRow = function(partValue = "", dimensionValue = "", countValue = 1) {
     const container = document.getElementById('dimensions-container');
     if (!container) return;
 
@@ -4376,32 +4394,71 @@ window.addDimensionRow = function(dimensionValue = "", countValue = 1) {
     
     const rowDiv = document.createElement('div');
     rowDiv.id = rowId;
-    rowDiv.style.cssText = "display: flex; gap: 8px; align-items: center; margin-bottom: 5px;";
+    rowDiv.className = 'dimension-row';
+    // Karten-Design: Untereinander gestapelt mit feinem Rahmen
+    rowDiv.style.cssText = "display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; padding: 10px; background: #fdfefe; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box;";
     
     rowDiv.innerHTML = `
-        <input type="text" class="pop-dim-input" list="dimensions-suggestions" value="${dimensionValue}" placeholder="z.B. 160/10/4" style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-        <select class="pop-dim-count" style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; box-sizing: border-box;">
-            ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20].map(num => `<option value="${num}" ${Number(countValue) === num ? 'selected' : ''}>${num} Stk.</option>`).join('')}
-        </select>
-        <button type="button" onclick="document.getElementById('${rowId}').remove()" style="background: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">✕</button>
+        <!-- Obere Zeile: Bauteil (volle Breite) -->
+        <input type="text" class="pop-dim-part" list="part-suggestions" value="${partValue}" placeholder="Bauteil (z.B. Lehne, optional)" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; background: #fff;">
+        
+        <!-- Untere Zeile: Maß, Stückzahl und Löschen-Button nebeneinander -->
+        <div style="display: flex; gap: 6px; align-items: center; width: 100%;">
+            <input type="text" class="pop-dim-input" list="dimensions-suggestions" value="${dimensionValue}" placeholder="Maß (z.B. 160/10/4)" style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; background: #fff;">
+            <input type="number" min="1" class="pop-dim-count" value="${countValue}" placeholder="Stk." style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; box-sizing: border-box;">
+            <button type="button" onclick="document.getElementById('${rowId}').remove()" style="background: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; flex-shrink: 0;">✕</button>
+        </div>
     `;
     
     container.appendChild(rowDiv);
 };
 
-// Konvertiert alle Zeilen aus dem Formular in den kompakten Speicher-String
+// Fügt gezielt eine Montagemaß-Zeile ein (per Button freischaltbar)
+window.addAssemblyMeasureRow = function(assemblyValue = "") {
+    const container = document.getElementById('dimensions-container');
+    if (!container) return;
+
+    // Prüfen, ob es bereits ein Montagemaß gibt (optional: nur 1 erlauben)
+    if (document.getElementById('assembly-measure-row')) {
+        document.getElementById('assembly-input').focus();
+        return;
+    }
+
+    const rowId = 'assembly-measure-row';
+    const rowDiv = document.createElement('div');
+    rowDiv.id = rowId;
+    rowDiv.className = 'assembly-row';
+    rowDiv.style.cssText = "display: flex; gap: 8px; align-items: center; margin-bottom: 5px; background: #fef9e7; padding: 4px; border-radius: 4px; border: 1px dashed #f1c40f;";
+    
+    rowDiv.innerHTML = `
+        <input type="text" id="assembly-input" class="pop-assembly-input" value="${assemblyValue}" placeholder="Montagemaß (wird nicht gesägt)" style="flex: 3; padding: 8px; border: 1px solid #f39c12; border-radius: 4px; box-sizing: border-box; background: #fff;">
+        <span style="font-size: 11px; color: #d35400; font-weight: bold; padding: 0 4px;">Info</span>
+        <button type="button" onclick="document.getElementById('${rowId}').remove()" style="background: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">✕</button>
+    `;
+    
+    // Ganz unten oder oben einfügen – hier hängen wir es an den Container an
+    container.appendChild(rowDiv);
+};
+
+// Konvertiert alle Zeilen in den Speicher-String (Montagemaß wird speziell markiert)
 window.getDimensionsStringFromForm = function() {
     const rows = document.querySelectorAll('#dimensions-container > div');
     let parts = [];
 
     rows.forEach(row => {
+        const partInput = row.querySelector('.pop-dim-part');
         const dimInput = row.querySelector('.pop-dim-input');
-        const countSelect = row.querySelector('.pop-dim-count');
+        const countInput = row.querySelector('.pop-dim-count');
+        const assemblyInput = row.querySelector('.pop-assembly-input');
         
         if (dimInput && dimInput.value.trim() !== "") {
-            const dimText = dimInput.value.trim().replace(/[\-\|]/g, ' '); // Striche/Pipes bereinigen
-            const count = countSelect ? countSelect.value : 1;
-            parts.push(`${dimText} - ${count} Stück`);
+            const partText = partInput && partInput.value.trim() ? partInput.value.trim() + ': ' : '';
+            const dimText = dimInput.value.trim().replace(/[\-\|]/g, ' '); 
+            const count = countInput && countInput.value ? countInput.value : 1;
+            parts.push(`${partText}${dimText} - ${count} Stk.`);
+        } else if (assemblyInput && assemblyInput.value.trim() !== "") {
+            const assemblyText = assemblyInput.value.trim().replace(/[\-\|]/g, ' ');
+            parts.push(`[Montagemaß] ${assemblyText}`);
         }
     });
 
@@ -4416,7 +4473,6 @@ window.loadDimensionsIntoForm = function(dimensionsString) {
     container.innerHTML = ''; // Vorherige Zeilen leeren
 
     if (!dimensionsString || dimensionsString.trim() === "") {
-        // Standardmäßig direkt 1 leere Zeile beim Öffnen anzeigen
         window.addDimensionRow();
         return;
     }
@@ -4425,17 +4481,34 @@ window.loadDimensionsIntoForm = function(dimensionsString) {
     let addedAny = false;
 
     entries.forEach(entry => {
-        const parts = entry.trim().split('-');
-        if (parts.length >= 2) {
-            const dim = parts[0].trim();
-            const countMatch = parts[1].match(/\d+/);
-            const count = countMatch ? parseInt(countMatch[0], 10) : 1;
-            
-            window.addDimensionRow(dim, count);
+        const trimmed = entry.trim();
+        if (trimmed.startsWith('[Montagemaß]')) {
+            const assemblyVal = trimmed.replace('[Montagemaß]', '').trim();
+            window.addAssemblyMeasureRow(assemblyVal);
             addedAny = true;
-        } else if (entry.trim() !== "") {
-            window.addDimensionRow(entry.trim(), 1);
-            addedAny = true;
+        } else {
+            // Prüfen, ob ein Bauteil-Name vorangestellt ist (z.B. "Lehne: 160/10/4 - 2 Stk.")
+            let partName = "";
+            let restString = trimmed;
+
+            if (trimmed.includes(':')) {
+                const splitPart = trimmed.split(':');
+                partName = splitPart[0].trim();
+                restString = splitPart.slice(1).join(':').trim();
+            }
+
+            const parts = restString.split('-');
+            if (parts.length >= 2) {
+                const dim = parts[0].trim();
+                const countMatch = parts[1].match(/\d+/);
+                const count = countMatch ? parseInt(countMatch[0], 10) : 1;
+                
+                window.addDimensionRow(partName, dim, count);
+                addedAny = true;
+            } else if (trimmed !== "") {
+                window.addDimensionRow(partName, restString.trim(), 1);
+                addedAny = true;
+            }
         }
     });
 
@@ -5000,10 +5073,15 @@ async function executeFinalDatabaseAction(actionType, workerName = null) {
 
     // Karten-Klick Event Handler für freie Flächen
     map.on('click', function(e) {
-        // 1. Ignorieren, wenn direkt auf das bestehende Popup oder dessen Inhalte geklickt wurde
-        if (e.originalEvent && (e.originalEvent._stopped || e.originalEvent.target.closest('.leaflet-popup-pane'))) {
-            return;
-        }
+    // 0. WICHTIG: Wenn der Holz-Zuschnitt-Modus aktiv ist, Klicks auf die Karte komplett ignorieren!
+    if (typeof isWoodSelectionMode !== 'undefined' && isWoodSelectionMode) {
+        return;
+    }
+
+    // 1. Ignorieren, wenn direkt auf das bestehende Popup oder dessen Inhalte geklickt wurde
+    if (e.originalEvent && (e.originalEvent._stopped || e.originalEvent.target.closest('.leaflet-popup-pane'))) {
+        return;
+    }
 
         // 2. Falls noch ein altes Bank-Popup offen war: Erst einklappen, damit der Klick verarbeitet werden kann
         map.closePopup();
@@ -5588,7 +5666,6 @@ function updateTextSuggestions() {
     assemblyList.innerHTML = sortedAssembly.map(item => `<option value="${item}">`).join('');
 }
 
-
 // ==========================================
 // 2. LOKALE MAßE-HISTORIE (LOCALSTORAGE)
 // ==========================================
@@ -5675,59 +5752,130 @@ function resetInlineDamageFields() {
     toggleInlineDamageFields();
 }
 
-// Status des Auswahlmodus
+// ==========================================
+// 1. HILFSFUNKTIONEN (MÜSSEN GANZ OBEN STEHEN)
+// ==========================================
+
+// Farbgenerierung für Bank-IDs mit maximaler Farbkontrast-Verteilung
+function getBankColor(id) {
+    const num = parseInt(id, 10) || 0;
+    const hue = (num * 137.5) % 360;
+    return `hsl(${hue}, 70%, 40%)`;
+}
+
+// Parsen & Sortieren nach Bauteil-Name und Länge absteigend
+function parseAndSortWoodItems(dimensionsObject) {
+    if (!dimensionsObject) return [];
+
+    let parsedItems = [];
+
+    Object.keys(dimensionsObject).forEach(rawKey => {
+        const val = dimensionsObject[rawKey];
+        const count = (typeof val === 'object' && val !== null) ? (val.count || 0) : (val || 0);
+        const benchIds = (typeof val === 'object' && val !== null) ? (val.benchIds || []) : [];
+
+        if (!rawKey || rawKey.startsWith('[Montagemaß]')) return;
+
+        let partName = "";
+        let dimPart = rawKey.trim();
+
+        if (rawKey.includes(':')) {
+            const parts = rawKey.split(':');
+            partName = parts[0].trim();
+            dimPart = parts.slice(1).join(':').trim();
+        }
+
+        const numbers = dimPart.match(/\d+/g);
+        let maxLength = numbers && numbers.length > 0 ? Math.max(...numbers.map(Number)) : 0;
+
+        parsedItems.push({
+            rawKey: rawKey,
+            part: partName,
+            hasPart: !!partName,
+            dimension: dimPart,
+            count: count,
+            benchIds: benchIds,
+            length: maxLength
+        });
+    });
+
+    parsedItems.sort((a, b) => {
+        if (a.hasPart !== b.hasPart) {
+            return b.hasPart - a.hasPart;
+        }
+        if (a.hasPart && b.hasPart && a.part !== b.part) {
+            return a.part.localeCompare(b.part, 'de', { sensitivity: 'base' });
+        }
+        return b.length - a.length;
+    });
+
+    return parsedItems;
+}
+
+// Roh-Parsen der Maße einer einzelnen Bank
+function parseBenchDimensionsRaw(dimString) {
+    if (!dimString) return [];
+    return dimString.split('|').map(entry => {
+        const trimmed = entry.trim();
+        if (trimmed.startsWith('[Montagemaß]')) return null;
+        const parts = trimmed.split('-');
+        if (parts.length < 2) return null;
+        const rawKey = parts[0].trim();
+        const countMatch = parts[1].match(/\d+/);
+        const count = countMatch ? parseInt(countMatch[0], 10) : 1;
+        
+        let partName = "";
+        let dimPart = rawKey;
+        if (rawKey.includes(':')) {
+            const split = rawKey.split(':');
+            partName = split[0].trim();
+            dimPart = split.slice(1).join(':').trim();
+        }
+        return { part: partName, dimension: dimPart, count };
+    }).filter(Boolean);
+}
+
+
+// ==========================================
+// 2. AUSWAHLMODUS & LOGIK
+// ==========================================
+
 let isWoodSelectionMode = false;
 let selectedWoodBenchIds = new Set();
 
-// 1. Zuschnitt-Modus umschalten und Karte neu zeichnen
 function toggleWoodSelectionMode() {
     isWoodSelectionMode = !isWoodSelectionMode;
     selectedWoodBenchIds.clear();
     
     if (typeof map !== 'undefined' && map) map.closePopup();
 
-    // Schwebendes Badge aufräumen
     const existingBadge = document.getElementById('wood-selection-counter');
-    if (existingBadge) {
-        existingBadge.remove();
-    }
+    if (existingBadge) existingBadge.remove();
 
     if (isWoodSelectionMode) {
-        // Sidebar automatisch schließen
-        if (typeof toggleSidebar === 'function') {
-            toggleSidebar();
-        }
-
-        // Direkt das kleine Fenster am unteren Rand anzeigen (mit 0 Bänken zu Beginn)
+        if (typeof toggleSidebar === 'function') toggleSidebar();
         updateWoodSelectionBadge();
     }
     
-    // Karte und Filter neu zeichnen
     if (typeof updateApp === 'function') updateApp();
 }
 
-// 2. Wird beim Klick auf eine Bank aufgerufen
 function handleBenchClickForWood(bench) {
-    if (!isWoodSelectionMode) return false; // Normales Verhalten, wenn Modus aus ist
+    if (!isWoodSelectionMode) return false;
 
     if (selectedWoodBenchIds.has(bench.id)) {
         selectedWoodBenchIds.delete(bench.id);
-        console.log(`Bank ${bench.id} abgewählt.`);
     } else {
         selectedWoodBenchIds.add(bench.id);
-        console.log(`Bank ${bench.id} ausgewählt.`);
     }
 
-    // Zeigt kurz an, wie viele Bänke aktuell im Korb sind
     updateWoodSelectionBadge();
-    return true; // Signalisiert, dass der normale Klick abgefangen wurde
+    return true;
 }
 
-// Optional: Ein kleiner Zähler im UI, damit du siehst, wie viele du hast
 function updateWoodSelectionBadge() {
     let badge = document.getElementById('wood-selection-counter');
     
-    // Wenn der Zuschnitt-Modus aktiv ist, aber das Badge noch nicht existiert, erstellen wir es sofort!
     if (!badge && typeof isWoodSelectionMode !== 'undefined' && isWoodSelectionMode) {
         const div = document.createElement('div');
         div.id = 'wood-selection-counter';
@@ -5742,53 +5890,54 @@ function updateWoodSelectionBadge() {
     }
     
     if (badge) {
-        // Wenn der Modus deaktiviert wird, entfernen wir das Badge wieder
         if (!isWoodSelectionMode) {
             badge.remove();
         } else {
-            // Ansonsten aktualisieren wir nur die Anzahl
             const countEl = document.getElementById('wood-count');
             if (countEl) countEl.innerText = selectedWoodBenchIds.size;
         }
     }
 }
 
-// 3. Die erweiterte Holz- und Zuschnittliste mit Speicher- und Exportfunktion
-function showSelectedWoodCuttingList() {
+
+// ==========================================
+// 3. HOLZLISTE ANZEIGEN (MIT ZWEI ANSICHTEN)
+// ==========================================
+
+function showSelectedWoodCuttingList(currentView = 'parts') {
     if (selectedWoodBenchIds.size === 0) {
         alert("Du hast keine Bänke ausgewählt!");
         return;
     }
 
     const districtRequirements = {};
+    const benchWiseData = {};
     let missingDimensionsCount = 0;
 
     selectedWoodBenchIds.forEach(id => {
         const bench = benches.find(b => b.id === id);
         if (bench) {
             const district = bench.district || 'Unbekannt';
+            
+            benchWiseData[id] = {
+                district: district,
+                items: parseBenchDimensionsRaw(bench.dimensions)
+            };
+
             if (!districtRequirements[district]) {
-                districtRequirements[district] = {
-                    benchIds: [],
-                    dimensions: {}
-                };
+                districtRequirements[district] = { benchIds: [], dimensions: {} };
             }
             districtRequirements[district].benchIds.push(bench.id);
 
             if (bench.dimensions && bench.dimensions.trim() !== "") {
-                const entries = bench.dimensions.split('|');
-                
-                entries.forEach(entry => {
-                    const parts = entry.trim().split('-');
-                    if (parts.length >= 2) {
-                        const dim = parts[0].trim();
-                        const countMatch = parts[1].match(/\d+/);
-                        const count = countMatch ? parseInt(countMatch[0], 10) : 1;
-                        
-                        if (!districtRequirements[district].dimensions[dim]) {
-                            districtRequirements[district].dimensions[dim] = 0;
-                        }
-                        districtRequirements[district].dimensions[dim] += count;
+                benchWiseData[id].items.forEach(item => {
+                    const dimKey = item.part ? `${item.part}: ${item.dimension}` : item.dimension;
+                    if (!districtRequirements[district].dimensions[dimKey]) {
+                        districtRequirements[district].dimensions[dimKey] = { count: 0, benchIds: [] };
+                    }
+                    districtRequirements[district].dimensions[dimKey].count += item.count;
+                    if (!districtRequirements[district].dimensions[dimKey].benchIds.includes(bench.id)) {
+                        districtRequirements[district].dimensions[dimKey].benchIds.push(bench.id);
                     }
                 });
             } else {
@@ -5797,54 +5946,93 @@ function showSelectedWoodCuttingList() {
         }
     });
 
+    document.getElementById('active-wood-list-modal')?.remove();
+
     let htmlContent = `
         <div id="active-wood-list-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10001; display: flex; justify-content: center; align-items: center;">
-            <div style="background: #fff; padding: 25px; border-radius: 8px; width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-family: sans-serif;">
-                <h3 style="margin-top: 0; color: #2C3E50;">🪵 Projekt-Zuschnittliste (${selectedWoodBenchIds.size} Bänke ausgewählt)</h3>
+            <div style="background: #fff; padding: 25px; border-radius: 8px; width: 90%; max-width: 750px; max-height: 85vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-family: sans-serif;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
+                    <h3 style="margin: 0; color: #2C3E50;">🪵 Projekt-Zuschnittliste (${selectedWoodBenchIds.size} Bänke)</h3>
+                    <div style="display: flex; background: #f1f2f6; padding: 3px; border-radius: 6px;">
+                        <button type="button" onclick="showSelectedWoodCuttingList('parts')" style="background: ${currentView === 'parts' ? '#2980b9' : 'transparent'}; color: ${currentView === 'parts' ? '#fff' : '#555'}; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px;">📋 Nach Bauteilen</button>
+                        <button type="button" onclick="showSelectedWoodCuttingList('benches')" style="background: ${currentView === 'benches' ? '#2980b9' : 'transparent'}; color: ${currentView === 'benches' ? '#fff' : '#555'}; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px;">🪑 Nach Bänken</button>
+                    </div>
+                </div>
     `;
 
     if (missingDimensionsCount > 0) {
         htmlContent += `<p style="color: #e74c3c; font-size: 13px;">⚠️ Achtung: Bei ${missingDimensionsCount} der ausgewählten Bänke sind keine Maße hinterlegt.</p>`;
     }
 
-    if (Object.keys(districtRequirements).length === 0) {
-        htmlContent += `<p>Für keine der ausgewählten Bänke sind Maße eingetragen.</p>`;
-    } else {
-        const sortedDistricts = Object.keys(districtRequirements).sort();
+    if (currentView === 'parts') {
+        if (Object.keys(districtRequirements).length === 0) {
+            htmlContent += `<p>Für keine der ausgewählten Bänke sind Maße eingetragen.</p>`;
+        } else {
+            const sortedDistricts = Object.keys(districtRequirements).sort();
+            sortedDistricts.forEach(district => {
+                const distData = districtRequirements[district];
+                const sortedWoodItems = parseAndSortWoodItems(distData.dimensions);
 
-        sortedDistricts.forEach(district => {
-            const distData = districtRequirements[district];
-            const sortedDims = Object.keys(distData.dimensions).sort((a, b) => distData.dimensions[b] - distData.dimensions[a]);
+                htmlContent += `
+                    <div style="margin-top: 15px; border-bottom: 2px solid #2980b9; padding-bottom: 4px;">
+                        <h4 style="margin: 0 0 4px 0; color: #2980b9; font-size: 15px;">📍 Stadtteil: ${district} <span style="font-size: 11px; color: #7f8c8d; font-weight: normal;">(Bänke: ${distData.benchIds.map(id => '#' + id).join(', ')})</span></h4>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 6px; margin-bottom: 12px;">
+                        <thead>
+                            <tr style="background: #f4f4f4; border-bottom: 1px solid #ddd;">
+                                <th style="padding: 6px; text-align: left; font-size: 13px;">Dimension / Maß & Bänke</th>
+                                <th style="padding: 6px; text-align: center; width: 80px; font-size: 13px;">Anzahl</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
 
-            htmlContent += `
-                <div style="margin-top: 20px; border-bottom: 2px solid #2980b9; padding-bottom: 5px;">
-                    <h4 style="margin: 0 0 5px 0; color: #2980b9; font-size: 16px;">📍 Stadtteil: ${district} <span style="font-size: 12px; color: #7f8c8d; font-weight: normal;">(Bänke: ${distData.benchIds.map(id => '#' + id).join(', ')})</span></h4>
-                </div>
-                <table style="width: 100%; border-collapse: collapse; margin-top: 8px; margin-bottom: 15px;">
-                    <thead>
-                        <tr style="background: #f4f4f4; border-bottom: 1px solid #ddd;">
-                            <th style="padding: 6px; text-align: left; font-size: 13px;">Dimension / Maß</th>
-                            <th style="padding: 6px; text-align: center; width: 90px; font-size: 13px;">Anzahl</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
+                sortedWoodItems.forEach(item => {
+                    const labelText = item.hasPart ? `<strong style="color: #2c3e50;">${item.part}:</strong> ${item.dimension}` : item.dimension;
+                    let benchTags = "";
+                    if (item.benchIds && item.benchIds.length > 0) {
+                        const sortedIds = [...item.benchIds].sort((a, b) => Number(a) - Number(b));
+                        const badges = sortedIds.map(id => `<span style="background: ${getBankColor(id)}; color: white; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: bold; display: inline-block; margin: 1px;">#${id}</span>`).join('');
+                        benchTags = `<div style="margin-top: 2px; display: flex; flex-wrap: wrap; gap: 2px; align-items: center;"><span style="font-size: 10px; color: #7f8c8d; margin-right: 2px;">Für Bank:</span> ${badges}</div>`;
+                    }
 
-            if (sortedDims.length === 0) {
-                htmlContent += `<tr><td colspan="2" style="padding: 6px; color: #7f8c8d; font-size: 13px;">Keine Maße für diesen Stadtteil hinterlegt.</td></tr>`;
-            } else {
-                sortedDims.forEach(dim => {
-                    const count = distData.dimensions[dim];
                     htmlContent += `
                         <tr style="border-bottom: 1px solid #eee;">
-                            <td style="padding: 6px; font-weight: bold; font-size: 14px; color: #333;">${dim}</td>
-                            <td style="padding: 6px; text-align: center; font-weight: bold; color: #e67e22; font-size: 15px;">${count} Stk.</td>
+                            <td style="padding: 6px; font-size: 13px; color: #333;">${labelText}${benchTags}</td>
+                            <td style="padding: 6px; text-align: center; font-weight: bold; color: #e67e22; font-size: 14px; vertical-align: middle;">${item.count} Stk.</td>
                         </tr>
                     `;
                 });
+                htmlContent += `</tbody></table>`;
+            });
+        }
+    } else {
+        const sortedBenchIds = Object.keys(benchWiseData).sort((a, b) => Number(a) - Number(b));
+        
+        sortedBenchIds.forEach(id => {
+            const data = benchWiseData[id];
+            const benchColor = getBankColor(id);
+
+            htmlContent += `
+                <div style="margin-top: 15px; background: #fdfdfd; border: 1px solid #e0e0e0; border-left: 5px solid ${benchColor}; border-radius: 6px; padding: 10px 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 6px; margin-bottom: 8px;">
+                        <h4 style="margin: 0; color: #2c3e50; font-size: 15px;">🪑 Bank <span style="background: ${benchColor}; color: white; padding: 2px 6px; border-radius: 4px;">#${id}</span></h4>
+                        <span style="font-size: 12px; color: #7f8c8d;">📍 Stadtteil: ${data.district}</span>
+                    </div>
+            `;
+
+            if (!data.items || data.items.length === 0) {
+                htmlContent += `<p style="margin: 4px 0; font-size: 12px; color: #e74c3c;">Keine Maße hinterlegt.</p>`;
+            } else {
+                htmlContent += `<ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #333;">`;
+                data.items.forEach(i => {
+                    const partLabel = i.part ? `<strong>${i.part}:</strong> ` : '';
+                    htmlContent += `<li style="margin-bottom: 3px;">${partLabel}${i.dimension} &nbsp;&rightarrow;&nbsp; <strong style="color: #e67e22;">${i.count} Stk.</strong></li>`;
+                });
+                htmlContent += `</ul>`;
             }
 
-            htmlContent += `</tbody></table>`;
+            htmlContent += `</div>`;
         });
     }
 
@@ -5866,23 +6054,43 @@ function showSelectedWoodCuttingList() {
     document.body.appendChild(container);
 }
 
-// Holzprojekt direkt in Supabase speichern
+
+// ==========================================
+// 4. SPEICHERN IN SUPABASE
+// ==========================================
+
 async function saveCurrentWoodProject(woodData) {
     if (!supabaseClient) {
         alert("Keine Cloud-Verbindung. Speicherung fehlgeschlagen.");
         return;
     }
 
-    // Projekttitel abfragen
     const projectTitle = prompt("Gib einen Namen für das Holzprojekt ein:", `Zuschnitt-Projekt vom ${new Date().toLocaleDateString('de-DE')}`);
-    if (!projectTitle) return; // Abgebrochen
+    if (!projectTitle) return;
 
-    // Alle ausgewählten Bench-IDs als Array umwandeln
     const benchIdsArray = Array.from(selectedWoodBenchIds).map(id => Number(id));
+
+    // Bank-Daten für die 2. Ansicht aufbereiten
+    const benchWiseData = {};
+    selectedWoodBenchIds.forEach(id => {
+        const bench = benches.find(b => b.id === id);
+        if (bench) {
+            benchWiseData[id] = {
+                district: bench.district || 'Unbekannt',
+                items: parseBenchDimensionsRaw(bench.dimensions)
+            };
+        }
+    });
+
+    // Wir bündeln beides sicher im bestehenden 'project_data'-Feld (keine Migration nötig!)
+    const combinedProjectData = {
+        districtRequirements: woodData,
+        benchWiseData: benchWiseData
+    };
 
     const payload = {
         title: projectTitle,
-        project_data: woodData,
+        project_data: combinedProjectData,
         bench_ids: benchIdsArray,
         worker_name: typeof currentRole !== 'undefined' ? currentRole : 'Zimmerer'
     };
@@ -5896,37 +6104,27 @@ async function saveCurrentWoodProject(woodData) {
 
         alert(`Projekt "${projectTitle}" erfolgreich in der Cloud gespeichert! 🪵💾`);
 
-        // 1. Das aktive Zuschnittlisten-Modal schließen
         const activeModal = document.getElementById('active-wood-list-modal');
-        if (activeModal) {
-            activeModal.remove();
-        }
+        if (activeModal) activeModal.remove();
 
-        // 2. Auswahlmodus komplett beenden & zurücksetzen
-        if (typeof isWoodSelectionMode !== 'undefined') {
-            isWoodSelectionMode = false;
-        }
-        
-        if (typeof selectedWoodBenchIds !== 'undefined') {
-            selectedWoodBenchIds.clear();
-        }
+        if (typeof isWoodSelectionMode !== 'undefined') isWoodSelectionMode = false;
+        if (typeof selectedWoodBenchIds !== 'undefined') selectedWoodBenchIds.clear();
 
-        // 3. Schwebendes Auswahl-Badge auf der Karte entfernen
         const existingBadge = document.getElementById('wood-selection-counter');
-        if (existingBadge) {
-            existingBadge.remove();
-        }
+        if (existingBadge) existingBadge.remove();
 
-        // 4. Karte und UI neu zeichnen, um Markierungen aufzuheben
-        if (typeof updateApp === 'function') {
-            updateApp();
-        }
+        if (typeof updateApp === 'function') updateApp();
 
     } catch (e) {
         console.error("Fehler beim Speichern in Supabase:", e);
         alert("Fehler beim Speichern in der Cloud: " + e.message);
     }
 }
+
+
+// ==========================================
+// 5. ARCHIV & GESPEICHERTE PROJEKTE ANSEHEN
+// ==========================================
 
 async function openWoodProjectsArchive() {
     if (!supabaseClient) {
@@ -5949,7 +6147,6 @@ async function openWoodProjectsArchive() {
 
         if (error) throw error;
 
-        // 💡 Feste ID "wood-archive-modal" für den Haupt-Container vergeben!
         let htmlContent = `
             <div id="wood-archive-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10001; display: flex; justify-content: center; align-items: center;">
                 <div style="background: #fff; padding: 25px; border-radius: 8px; width: 90%; max-width: 700px; max-height: 85vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-family: sans-serif;">
@@ -6003,115 +6200,154 @@ async function openWoodProjectsArchive() {
     }
 }
 
-
-// Zeigt ein bereits gespeichertes Projekt im Detail-Pop-up an inklusive Druck-Button
-function viewSavedWoodProject(project) {
+function viewSavedWoodProject(project, currentView = 'parts') {
     const archiveModal = document.getElementById('wood-archive-modal');
     if (archiveModal) archiveModal.remove();
 
-    const woodData = project.project_data || {};
+    window.currentWoodProjectForExport = project;
+
+    // Daten aus dem kombinierten JSON-Feld auslesen (mit Fallback für ältere Projekte)
+    const rawData = project.project_data || {};
+    const woodData = rawData.districtRequirements || rawData; 
+    let benchWiseData = rawData.benchWiseData || project.bench_wise_data || {};
+
+    if (Object.keys(benchWiseData).length === 0 && project.bench_ids) {
+        project.bench_ids.forEach(id => {
+            const bench = benches.find(b => b.id === Number(id));
+            if (bench) {
+                benchWiseData[id] = {
+                    district: bench.district || 'Unbekannt',
+                    items: parseBenchDimensionsRaw(bench.dimensions)
+                };
+            }
+        });
+    }
+
+    document.getElementById('saved-detail-wood-modal')?.remove();
 
     let htmlContent = `
         <div id="saved-detail-wood-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10003; display: flex; justify-content: center; align-items: center;">
-            <div style="background: #fff; padding: 25px; border-radius: 8px; width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-family: sans-serif;">
-                <h3 style="margin-top: 0; color: #2C3E50;">🪵 ${project.title || 'Holzprojekt'}</h3>
-                <p style="font-size: 12px; color: #7f8c8d;">Gespeichert am: ${new Date(project.created_at).toLocaleString('de-DE')} | 👷 ${project.worker_name || 'Unbekannt'}</p>
+            <div style="background: #fff; padding: 25px; border-radius: 8px; width: 90%; max-width: 750px; max-height: 85vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-family: sans-serif;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
+                    <div>
+                        <h3 style="margin: 0 0 3px 0; color: #2C3E50;">🪵 ${project.title || 'Holzprojekt'}</h3>
+                        <p style="margin: 0; font-size: 11px; color: #7f8c8d;">Gespeichert am: ${new Date(project.created_at).toLocaleString('de-DE')} | 👷 ${project.worker_name || 'Unbekannt'}</p>
+                    </div>
+                    <div style="display: flex; background: #f1f2f6; padding: 3px; border-radius: 6px;">
+                        <button type="button" onclick='viewSavedWoodProject(${JSON.stringify(project).replace(/'/g, "&#39;")}, "parts")' style="background: ${currentView === 'parts' ? '#2980b9' : 'transparent'}; color: ${currentView === 'parts' ? '#fff' : '#555'}; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px;">📋 Nach Bauteilen</button>
+                        <button type="button" onclick='viewSavedWoodProject(${JSON.stringify(project).replace(/'/g, "&#39;")}, "benches")' style="background: ${currentView === 'benches' ? '#2980b9' : 'transparent'}; color: ${currentView === 'benches' ? '#fff' : '#555'}; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px;">🪑 Nach Bänken</button>
+                    </div>
+                </div>
     `;
 
-    const isDistrictGrouped = Object.values(woodData).some(val => val && val.dimensions && val.benchIds);
+    if (currentView === 'parts') {
+        const isDistrictGrouped = Object.values(woodData).some(val => val && val.dimensions && val.benchIds);
 
-    if (isDistrictGrouped) {
-        const sortedDistricts = Object.keys(woodData).sort();
-        sortedDistricts.forEach(district => {
-            const distData = woodData[district];
-            const sortedDims = Object.keys(distData.dimensions || {}).sort((a, b) => distData.dimensions[b] - distData.dimensions[a]);
+        if (isDistrictGrouped) {
+            const sortedDistricts = Object.keys(woodData).sort();
+            sortedDistricts.forEach(district => {
+                const distData = woodData[district];
+                const sortedWoodItems = parseAndSortWoodItems(distData.dimensions || {});
 
+                htmlContent += `
+                    <div style="margin-top: 15px; border-bottom: 2px solid #2980b9; padding-bottom: 4px;">
+                        <h4 style="margin: 0 0 4px 0; color: #2980b9; font-size: 15px;">📍 Stadtteil: ${district} <span style="font-size: 11px; color: #7f8c8d; font-weight: normal;">(Bänke: ${(distData.benchIds || []).map(id => '#' + id).join(', ')})</span></h4>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 6px; margin-bottom: 12px;">
+                        <thead>
+                            <tr style="background: #f4f4f4; border-bottom: 1px solid #ddd;">
+                                <th style="padding: 6px; text-align: left; font-size: 13px;">Dimension / Maß & Bänke</th>
+                                <th style="padding: 6px; text-align: center; width: 80px; font-size: 13px;">Anzahl</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                sortedWoodItems.forEach(item => {
+                    const labelText = item.hasPart ? `<strong style="color: #2c3e50;">${item.part}:</strong> ${item.dimension}` : item.dimension;
+                    let benchTags = "";
+                    if (item.benchIds && item.benchIds.length > 0) {
+                        const sortedIds = [...item.benchIds].sort((a, b) => Number(a) - Number(b));
+                        const badges = sortedIds.map(id => `<span style="background: ${getBankColor(id)}; color: white; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: bold; display: inline-block; margin: 1px;">#${id}</span>`).join('');
+                        benchTags = `<div style="margin-top: 2px; display: flex; flex-wrap: wrap; gap: 2px; align-items: center;"><span style="font-size: 10px; color: #7f8c8d; margin-right: 2px;">Für Bank:</span> ${badges}</div>`;
+                    }
+
+                    htmlContent += `
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 6px; font-size: 13px; color: #333;">${labelText}${benchTags}</td>
+                            <td style="padding: 6px; text-align: center; font-weight: bold; color: #e67e22; font-size: 14px; vertical-align: middle;">${item.count} Stk.</td>
+                        </tr>
+                    `;
+                });
+                htmlContent += `</tbody></table>`;
+            });
+        } else {
+            const sortedWoodItems = parseAndSortWoodItems(woodData);
             htmlContent += `
-                <div style="margin-top: 20px; border-bottom: 2px solid #2980b9; padding-bottom: 5px;">
-                    <h4 style="margin: 0 0 5px 0; color: #2980b9; font-size: 16px;">📍 Stadtteil: ${district} <span style="font-size: 12px; color: #7f8c8d; font-weight: normal;">(Bänke: ${(distData.benchIds || []).map(id => '#' + id).join(', ')})</span></h4>
-                </div>
-                <table style="width: 100%; border-collapse: collapse; margin-top: 8px; margin-bottom: 15px;">
+                <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
                     <thead>
-                        <tr style="background: #f4f4f4; border-bottom: 1px solid #ddd;">
+                        <tr style="background: #f4f4f4; border-bottom: 2px solid #ddd;">
                             <th style="padding: 6px; text-align: left; font-size: 13px;">Dimension / Maß</th>
-                            <th style="padding: 6px; text-align: center; width: 90px; font-size: 13px;">Anzahl</th>
+                            <th style="padding: 6px; text-align: center; width: 80px; font-size: 13px;">Gesamt</th>
                         </tr>
                     </thead>
                     <tbody>
             `;
-
-            if (sortedDims.length === 0) {
-                htmlContent += `<tr><td colspan="2" style="padding: 6px; color: #7f8c8d; font-size: 13px;">Keine Maße für diesen Stadtteil hinterlegt.</td></tr>`;
-            } else {
-                sortedDims.forEach(dim => {
-                    const count = distData.dimensions[dim];
-                    htmlContent += `
-                        <tr style="border-bottom: 1px solid #eee;">
-                            <td style="padding: 6px; font-weight: bold; font-size: 14px; color: #333;">${dim}</td>
-                            <td style="padding: 6px; text-align: center; font-weight: bold; color: #e67e22; font-size: 15px;">${count} Stk.</td>
-                        </tr>
-                    `;
-                });
-            }
-
-            htmlContent += `</tbody></table>`;
-        });
-    } else {
-        // Fallback für ältere Projekte im alten Format
-        htmlContent += `
-            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
-                <thead>
-                    <tr style="background: #f4f4f4; border-bottom: 2px solid #ddd;">
-                        <th style="padding: 8px; text-align: left;">Dimension / Maß</th>
-                        <th style="padding: 8px; text-align: center; width: 90px;">Gesamt</th>
-                        <th style="padding: 8px; text-align: left;">Zugeordnet zu Bank & Stadtteil</th>
+            sortedWoodItems.forEach(item => {
+                const labelText = item.hasPart ? `<strong style="color: #2c3e50;">${item.part}:</strong> ${item.dimension}` : item.dimension;
+                htmlContent += `
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 6px; font-size: 13px; color: #2980b9;">${labelText}</td>
+                        <td style="padding: 6px; text-align: center; font-weight: bold; color: #e67e22; font-size: 14px;">${item.count} Stk.</td>
                     </tr>
-                </thead>
-                <tbody>
-        `;
-        const sortedDims = Object.keys(woodData).sort((a, b) => {
-            const countA = woodData[a].totalCount !== undefined ? woodData[a].totalCount : (woodData[a].count || 0);
-            const countB = woodData[b].totalCount !== undefined ? woodData[b].totalCount : (woodData[b].count || 0);
-            return countB - countB;
-        });
+                `;
+            });
+            htmlContent += `</tbody></table>`;
+        }
+    } else {
+        const sortedBenchIds = Object.keys(benchWiseData).sort((a, b) => Number(a) - Number(b));
 
-        sortedDims.forEach(dim => {
-            const data = woodData[dim];
-            const totalCount = data.totalCount !== undefined ? data.totalCount : (data.count || 0);
+        if (sortedBenchIds.length === 0) {
+            htmlContent += `<p style="color: #7f8c8d; text-align: center; padding: 20px;">Keine Bank-Details für dieses Projekt verfügbar.</p>`;
+        } else {
+            sortedBenchIds.forEach(id => {
+                const data = benchWiseData[id];
+                const benchColor = getBankColor(id);
 
-            let detailsFormatted = "";
-            if (data.benchMap) {
-                detailsFormatted = Object.keys(data.benchMap).map(bid => {
-                    const val = data.benchMap[bid];
-                    if (typeof val === 'object' && val !== null) {
-                        return `<span style="background: #ecf0f1; padding: 3px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block; margin: 2px; border-left: 3px solid #2980b9;">#${bid} <span style="color: #555; font-weight: normal;">(${val.district || 'Unbekannt'})</span> [${val.count}x]</span>`;
-                    } else {
-                        return `<span style="background: #ecf0f1; padding: 3px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block; margin: 2px;">#${bid} (${val}x)</span>`;
-                    }
-                }).join(' ');
-            } else if (data.benchIds) {
-                detailsFormatted = data.benchIds.map(id => `<span style="background: #ecf0f1; padding: 3px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block; margin: 2px;">#${id}</span>`).join(' ');
-            }
+                htmlContent += `
+                    <div style="margin-top: 15px; background: #fdfdfd; border: 1px solid #e0e0e0; border-left: 5px solid ${benchColor}; border-radius: 6px; padding: 10px 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 6px; margin-bottom: 8px;">
+                            <h4 style="margin: 0; color: #2c3e50; font-size: 15px;">🪑 Bank <span style="background: ${benchColor}; color: white; padding: 2px 6px; border-radius: 4px;">#${id}</span></h4>
+                            <span style="font-size: 12px; color: #7f8c8d;">📍 Stadtteil: ${data.district || 'Unbekannt'}</span>
+                        </div>
+                `;
 
-            htmlContent += `
-                <tr style="border-bottom: 1px solid #eee;">
-                    <td style="padding: 8px; font-weight: bold; vertical-align: top; font-size: 15px; color: #2980b9;">${dim}</td>
-                    <td style="padding: 8px; text-align: center; font-weight: bold; color: #e67e22; vertical-align: top; font-size: 16px;">${totalCount} Stk.</td>
-                    <td style="padding: 8px; text-align: left; vertical-align: top;">${detailsFormatted}</td>
-                </tr>
-            `;
-        });
-        htmlContent += `</tbody></table>`;
+                if (!data.items || data.items.length === 0) {
+                    htmlContent += `<p style="margin: 4px 0; font-size: 12px; color: #e74c3c;">Keine Maße hinterlegt.</p>`;
+                } else {
+                    htmlContent += `<ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #333;">`;
+                    data.items.forEach(i => {
+                        const partLabel = i.part ? `<strong>${i.part}:</strong> ` : '';
+                        htmlContent += `<li style="margin-bottom: 3px;">${partLabel}${i.dimension} &nbsp;&rightarrow;&nbsp; <strong style="color: #e67e22;">${i.count} Stk.</strong></li>`;
+                    });
+                    htmlContent += `</ul>`;
+                }
+
+                htmlContent += `</div>`;
+            });
+        }
     }
 
     htmlContent += `
-                <div style="margin-top: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                    <button type="button" onclick="document.getElementById('saved-detail-wood-modal').remove(); openWoodProjectsArchive();" style="background: #7f8c8d; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">← Zurück zur Übersicht</button>
-                    
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button type="button" onclick="printWoodCuttingListPopup()" style="background: #2980b9; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">🖨️ Drucken / Ansicht</button>
-                        <button type="button" onclick="triggerManualWoodPDFDownload()" style="background: #e67e22; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">📥 PDF herunterladen / Teilen</button>
-                        <button type="button" onclick="document.getElementById('saved-detail-wood-modal').remove()" style="background: #2C3E50; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Schließen</button>
+                <div style="margin-top: 25px; display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; gap: 10px; width: 100%;">
+                        <button type="button" onclick="printWoodCuttingListPopup()" style="flex: 1; width: 50%; background: #2980b9; color: #fff; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 6px;">🖨️ Drucken</button>
+                        <button type="button" onclick="triggerManualWoodPDFDownload()" style="flex: 1; width: 50%; background: #e67e22; color: #fff; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 6px;">📥 PDF / Teilen</button>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; width: 100%;">
+                        <button type="button" onclick="document.getElementById('saved-detail-wood-modal').remove(); openWoodProjectsArchive();" style="flex: 1; width: 50%; background: #7f8c8d; color: #fff; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;">← Zurück</button>
+                        <button type="button" onclick="document.getElementById('saved-detail-wood-modal').remove()" style="flex: 1; width: 50%; background: #2C3E50; color: #fff; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;">Schließen</button>
                     </div>
                 </div>
             </div>
