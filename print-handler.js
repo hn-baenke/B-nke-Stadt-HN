@@ -226,11 +226,10 @@ window.triggerManualPDFDownload = async function(repId) {
         const pdfBlob = await html2pdf().set(opt).from(targetElement).output('blob');
         const file = new File([pdfBlob], filename, { type: 'application/pdf' });
 
-        // Wenn Web Share API verfügbar ist (iOS / Android / Chrome Desktop)
+// Wenn Web Share API verfügbar ist (iOS / Android / Chrome Desktop)
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({
-                files: [file],
-                title: filename
+                files: [file]
             });
             pdfContainer.remove();
             return;
