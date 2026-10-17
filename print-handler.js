@@ -18,13 +18,11 @@ window.triggerManualPDFDownload = async function(repId) {
     const reportsList = window.currentReportData || [];
     let rep = null;
 
-    // 1. Report über ID oder globale Variable ermitteln
     let targetRepId = repId || window.currentSelectedReportId;
     if (targetRepId) {
         rep = reportsList.find(r => String(r.id) === String(targetRepId));
     }
 
-    // 2. Fallback über Ticket-Nummer im Modal-DOM
     if (!rep) {
         const modalTextElements = document.querySelectorAll('#report-detail-modal-body h4, #report-detail-modal-body h2, .report-card');
         for (let el of modalTextElements) {
@@ -46,9 +44,7 @@ window.triggerManualPDFDownload = async function(repId) {
         return;
     }
 
-    // 3. Bild-URL NUR aus den echten Daten holen (kein wildes Suchen im DOM mehr, wenn keins da ist!)
     let rawImageUrl = rep.image_url || rep.image || rep.photo_url || (rep.benches && rep.benches.image_url);
-
     let finalImageUrl = null;
     if (rawImageUrl && typeof rawImageUrl === 'string' && rawImageUrl.trim() !== '') {
         finalImageUrl = await getBlobUrl(rawImageUrl);
@@ -70,7 +66,6 @@ window.triggerManualPDFDownload = async function(repId) {
     const lng = b.lng ? Number(b.lng) : 9.2199;
     const benchId = rep.bench_id || 'Unbekannt';
 
-    // App-Link für den QR-Code
     const appUrl = window.location.origin + window.location.pathname + `?bench=${benchId}&lat=${lat}&lng=${lng}`;
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(appUrl)}`;
 
@@ -109,7 +104,6 @@ window.triggerManualPDFDownload = async function(repId) {
     const assemblyNote = (b.assembly_note && b.assembly_note.trim() !== '') ? '<div style="margin-bottom: 4px;"><strong style="color: #475569;">Montagehinweis:</strong> ' + b.assembly_note + '</div>' : '';
     const note = (b.note && b.note.trim() !== '') ? '<div><strong style="color: #475569;">Notiz:</strong> ' + b.note + '</div>' : '';
 
-    // Nur wenn ein echtes Bild existiert, wird dieser Block gerendert. Andernfalls bleibt er unsichtbar!
     const imageHtml = finalImageUrl ? 
         '<div style="margin-bottom: 10px;" class="print-no-break">' +
             '<h3 style="margin: 0 0 4px 0; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; color: #334155;">Foto vom Schaden</h3>' +
@@ -125,13 +119,60 @@ window.triggerManualPDFDownload = async function(repId) {
             <meta charset="utf-8">
             <title>Schadensmeldung ${ticket}</title>
             <style>
-                body { margin: 0; padding: 15px; background: #fff; font-family: Arial, sans-serif; }
+                body { margin: 0; padding: 15px; background: #f1f5f9; font-family: Arial, sans-serif; }
+                .sheet { background: #fff; width: 794px; margin: 0 auto; padding: 20px; box-sizing: border-box; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; }
                 .print-no-break { page-break-inside: avoid; break-inside: avoid; }
-                @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+                
+                /* Aktionsleiste für iOS / Web (wird beim Drucken ausgeblendet) */
+                .action-bar {
+                    position: sticky;
+                    top: 0;
+                    z-index: 1000;
+                    background: #1e293b;
+                    color: white;
+                    padding: 12px 20px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-radius: 8px;
+                    margin-bottom: 20px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                }
+                .action-bar button {
+                    background: #2563eb;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    font-size: 14px;
+                }
+                .action-bar button.secondary {
+                    background: #475569;
+                }
+
+                @media print {
+                    body { background: #fff; padding: 0; }
+                    .sheet { box-shadow: none; border-radius: 0; width: 100%; padding: 0; }
+                    .action-bar { display: none !important; }
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                }
             </style>
         </head>
         <body>
-            <div style="padding: 5px; background: #fff; width: 794px; margin: 0 auto; box-sizing: border-box;">
+            <!-- Extra Menüleiste für iPhones/iPads im Standalone-Modus -->
+            <div class="action-bar">
+                <div>
+                    <strong>PDF-Ansicht (${ticket})</strong>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="window.print()">🖨️ Drucken / Als PDF sichern</button>
+                    <button class="secondary" onclick="window.close()">✖ Schließen</button>
+                </div>
+            </div>
+
+            <div class="sheet">
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2C3E50; padding-bottom: 6px; margin-bottom: 10px;">
                     <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/hnlogo.png" style="height: 50px; object-fit: contain;" alt="Stadt Heilbronn" crossorigin="anonymous">
                     <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/Logo%20SitzFinder.png" style="height: 56px; margin: -4px 0; object-fit: contain;" alt="SitzFinder" crossorigin="anonymous">
@@ -195,33 +236,6 @@ window.triggerManualPDFDownload = async function(repId) {
                     </div>
                 </div>
             </div>
-            <script>
-                window.onload = function() {
-                    const images = Array.from(document.querySelectorAll('img'));
-                    if (images.length === 0) {
-                        setTimeout(() => window.print(), 300);
-                        return;
-                    }
-                    let loadedCount = 0;
-                    const checkLoaded = () => {
-                        loadedCount++;
-                        if (loadedCount >= images.length) {
-                            setTimeout(() => window.print(), 500);
-                        }
-                    };
-                    images.forEach(img => {
-                        if (img.complete && img.naturalHeight !== 0) {
-                            checkLoaded();
-                        } else {
-                            img.onload = checkLoaded;
-                            img.onerror = checkLoaded;
-                        }
-                    });
-                    setTimeout(() => {
-                        window.print();
-                    }, 3500);
-                };
-            </script>
         </body>
         </html>
     `;
