@@ -1,5 +1,5 @@
 // ==========================================
-// ZENTRALE DRUCK- UND PDF-STEUERUNG (SAUBERES CANVAS-RENDERING)
+// ZENTRALE DRUCK- UND PDF-STEUERUNG (POPUP-GARANTIE)
 // ==========================================
 
 async function getBlobUrl(imageUrl) {
@@ -40,7 +40,7 @@ window.triggerManualPDFDownload = async function(repId) {
     }
 
     if (!rep) {
-        alert("Keine Schadensdaten für das PDF gefunden.");
+        alert("Keine Schadensdaten für den Druck gefunden.");
         return;
     }
 
@@ -77,8 +77,8 @@ window.triggerManualPDFDownload = async function(repId) {
 
     const xt = Math.floor(xFloat);
     const yt = Math.floor(yFloat);
-    const containerWidth = 750; 
-    const containerHeight = 230;
+    const containerWidth = 774; 
+    const containerHeight = 240;
     const centerX = containerWidth / 2; 
     const centerY = containerHeight / 2;
 
@@ -105,142 +105,165 @@ window.triggerManualPDFDownload = async function(repId) {
     const note = (b.note && b.note.trim() !== '') ? '<div><strong style="color: #475569;">Notiz:</strong> ' + b.note + '</div>' : '';
 
     const imageHtml = finalImageUrl ? 
-        '<div style="margin-bottom: 10px;">' +
+        '<div style="margin-bottom: 10px;" class="print-no-break">' +
             '<h3 style="margin: 0 0 4px 0; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; color: #334155;">Foto vom Schaden</h3>' +
             '<div style="display: flex; justify-content: center; background: #f1f5f9; border-radius: 6px; border: 1px solid #cbd5e1; overflow: hidden; max-height: 220px;">' +
                 '<img src="' + finalImageUrl + '" style="max-width: 100%; max-height: 220px; object-fit: contain; display: block;" />' +
             '</div>' +
         '</div>' : '';
 
-    // Render-Container temporär erzeugen
-    let pdfContainer = document.getElementById('pdf-render-container');
-    if (!pdfContainer) {
-        pdfContainer = document.createElement('div');
-        pdfContainer.id = 'pdf-render-container';
-        pdfContainer.style.position = 'fixed';
-        pdfContainer.style.top = '0';
-        pdfContainer.style.left = '0';
-        pdfContainer.style.width = '794px';
-        pdfContainer.style.zIndex = '-9999';
-        pdfContainer.style.opacity = '0.99'; // Stellt sicher, dass das DOM das Rendering verarbeitet
-        pdfContainer.style.background = '#ffffff';
-        document.body.appendChild(pdfContainer);
-    }
+    const fullHtmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Schadensmeldung ${ticket}</title>
+            <style>
+                body { margin: 0; padding: 15px; background: #e2e8f0; font-family: Arial, sans-serif; }
+                .sheet { background: #fff; width: 794px; margin: 0 auto; padding: 25px; box-sizing: border-box; box-shadow: 0 4px 15px rgba(0,0,0,0.15); border-radius: 8px; }
+                .print-no-break { page-break-inside: avoid; break-inside: avoid; }
+                
+                /* Steuerleiste oben im Fenster */
+                .action-bar {
+                    max-width: 794px;
+                    margin: 0 auto 15px auto;
+                    background: #1e293b;
+                    color: white;
+                    padding: 12px 20px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                }
+                .action-bar button {
+                    background: #2563eb;
+                    color: white;
+                    border: none;
+                    padding: 10px 18px;
+                    border-radius: 6px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    font-size: 14px;
+                }
+                .action-bar button.secondary {
+                    background: #475569;
+                }
 
-    pdfContainer.innerHTML = `
-        <div style="padding: 20px; background: #fff; width: 794px; box-sizing: border-box; font-family: Arial, sans-serif;">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2C3E50; padding-bottom: 6px; margin-bottom: 10px;">
-                <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/hnlogo.png" style="height: 45px; object-fit: contain;" alt="Stadt Heilbronn" crossorigin="anonymous">
-                <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/Logo%20SitzFinder.png" style="height: 50px; margin: -4px 0; object-fit: contain;" alt="SitzFinder" crossorigin="anonymous">
-            </div>
-
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; background: #f8fafc; padding: 10px 15px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                @media print {
+                    body { background: #fff; padding: 0; }
+                    .sheet { box-shadow: none; border-radius: 0; width: 100%; padding: 0; }
+                    .action-bar { display: none !important; }
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="action-bar">
                 <div>
-                    <h2 style="margin: 0 0 2px 0; font-size: 18px; color: #1e293b;">Schadensmeldung: ${ticket}</h2>
-                    <div style="font-size: 14px; font-weight: bold; color: #2563eb;">Zuständiger Trupp: ${trupp}</div>
-                    <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Gemeldet am: ${date}</div>
+                    <span style="font-size: 16px;">📋 <strong>Meldung ${ticket}</strong></span>
                 </div>
-                <div style="text-align: center; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; display: flex; flex-direction: column; align-items: center;">
-                    <img src="${qrCodeUrl}" style="width: 70px; height: 70px; display: block;" alt="QR-Code" crossorigin="anonymous"/>
-                    <span style="font-size: 9px; color: #475569; margin-top: 2px; font-weight: bold;">In App öffnen</span>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="window.print()">🖨️ Drucken / Als PDF sichern</button>
+                    <button class="secondary" onclick="window.close()">✖ Schließen</button>
                 </div>
             </div>
 
-            <div style="margin-bottom: 10px;">
-                <h3 style="margin: 0 0 4px 0; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; color: #334155;">Details zur Bank & Schaden</h3>
-                <div style="display: flex; gap: 20px; font-size: 13px; line-height: 1.4;">
-                    <div style="flex: 1;">
-                        <div style="margin-bottom: 3px;"><strong style="color: #475569;">Bank-ID:</strong> #${benchId}</div>
-                        <div style="margin-bottom: 3px;"><strong style="color: #475569;">Stadtteil:</strong> ${district}</div>
-                        <div><strong style="color: #475569;">Banktyp:</strong> ${benchType}</div>
+            <div class="sheet" id="print-area">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2C3E50; padding-bottom: 6px; margin-bottom: 10px;">
+                    <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/hnlogo.png" style="height: 50px; object-fit: contain;" alt="Stadt Heilbronn" crossorigin="anonymous">
+                    <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/Logo%20SitzFinder.png" style="height: 56px; margin: -4px 0; object-fit: contain;" alt="SitzFinder" crossorigin="anonymous">
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; background: #f8fafc; padding: 10px 15px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                    <div>
+                        <h2 style="margin: 0 0 2px 0; font-size: 20px; color: #1e293b;">Schadensmeldung: ${ticket}</h2>
+                        <div style="font-size: 15px; font-weight: bold; color: #2563eb;">Zuständiger Trupp: ${trupp}</div>
+                        <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Gemeldet am: ${date}</div>
                     </div>
-                    <div style="flex: 1.2;">
-                        ${dimensions}
-                        ${description}
-                        ${assemblyNote}
-                        ${note}
+                    <div style="text-align: center; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; display: flex; flex-direction: column; align-items: center;">
+                        <img src="${qrCodeUrl}" style="width: 75px; height: 75px; display: block;" alt="QR-Code" crossorigin="anonymous"/>
+                        <span style="font-size: 9px; color: #475569; margin-top: 2px; font-weight: bold;">In App öffnen</span>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 10px;" class="print-no-break">
+                    <h3 style="margin: 0 0 4px 0; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; color: #334155;">Details zur Bank & Schaden</h3>
+                    <div style="display: flex; gap: 24px; font-size: 13px; line-height: 1.4;">
+                        <div style="flex: 1;">
+                            <div style="margin-bottom: 3px;"><strong style="color: #475569;">Bank-ID:</strong> #${benchId}</div>
+                            <div style="margin-bottom: 3px;"><strong style="color: #475569;">Stadtteil:</strong> ${district}</div>
+                            <div><strong style="color: #475569;">Banktyp:</strong> ${benchType}</div>
+                        </div>
+                        <div style="flex: 1.2;">
+                            ${dimensions}
+                            ${description}
+                            ${assemblyNote}
+                            ${note}
+                        </div>
+                    </div>
+                </div>
+
+                ${imageHtml}
+
+                <div style="margin-bottom: 10px;" class="print-no-break">
+                    <h3 style="margin: 0 0 4px 0; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; color: #334155;">Orientierungskarte</h3>
+                    <div style="height: ${containerHeight}px; width: ${containerWidth}px; margin: 0 auto; border-radius: 6px; border: 1px solid #cbd5e1; background: #e2e8f0; position: relative; overflow: hidden; box-sizing: border-box;">
+                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+                            ${tilesHtml}
+                        </div>
+                        <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -100%); width: 16px; height: 16px; background-color: #dc2626 !important; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.5); z-index: 10;"></div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 8px; padding-top: 8px; border-top: 2px dashed #94a3b8;" class="print-no-break">
+                    <div style="display: flex; justify-content: space-between; font-size: 11px;">
+                        <div style="width: 30%;">
+                            <strong>Datum Erledigt:</strong>
+                            <div style="border-bottom: 1px solid #000; margin-top: 30px;"></div>
+                        </div>
+                        <div style="width: 30%;">
+                            <strong>Bearbeitet durch:</strong>
+                            <div style="border-bottom: 1px solid #000; margin-top: 30px;"></div>
+                        </div>
+                        <div style="width: 30%;">
+                            <strong>Unterschrift:</strong>
+                            <div style="border-bottom: 1px solid #000; margin-top: 30px;"></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            ${imageHtml}
-
-            <div style="margin-bottom: 10px;">
-                <h3 style="margin: 0 0 4px 0; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; color: #334155;">Orientierungskarte</h3>
-                <div style="height: ${containerHeight}px; width: ${containerWidth}px; margin: 0 auto; border-radius: 6px; border: 1px solid #cbd5e1; background: #e2e8f0; position: relative; overflow: hidden; box-sizing: border-box;">
-                    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
-                        ${tilesHtml}
-                    </div>
-                    <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -100%); width: 16px; height: 16px; background-color: #dc2626 !important; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.5); z-index: 10;"></div>
-                </div>
-            </div>
-
-            <div style="margin-top: 15px; padding-top: 8px; border-top: 2px dashed #94a3b8;">
-                <div style="display: flex; justify-content: space-between; font-size: 11px;">
-                    <div style="width: 30%;">
-                        <strong>Datum Erledigt:</strong>
-                        <div style="border-bottom: 1px solid #000; margin-top: 25px;"></div>
-                    </div>
-                    <div style="width: 30%;">
-                        <strong>Bearbeitet durch:</strong>
-                        <div style="border-bottom: 1px solid #000; margin-top: 25px;"></div>
-                    </div>
-                    <div style="width: 30%;">
-                        <strong>Unterschrift:</strong>
-                        <div style="border-bottom: 1px solid #000; margin-top: 25px;"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
+            <script>
+                // Warten bis Bilder und OSM-Kacheln komplett geladen sind, damit das Dokument nie leer ist!
+                window.onload = function() {
+                    const images = Array.from(document.querySelectorAll('img'));
+                    if (images.length === 0) return;
+                    let loadedCount = 0;
+                    images.forEach(img => {
+                        if (img.complete && img.naturalHeight !== 0) {
+                            loadedCount++;
+                        } else {
+                            img.onload = () => loadedCount++;
+                            img.onerror = () => loadedCount++;
+                        }
+                    });
+                };
+            </script>
+        </body>
+        </html>
     `;
 
-    // Sicherstellen, dass alle Bilder geladen sind
-    const images = pdfContainer.querySelectorAll('img');
-    await Promise.all(Array.from(images).map(img => {
-        if (img.complete) return Promise.resolve();
-        return new Promise(resolve => {
-            img.onload = resolve;
-            img.onerror = resolve;
-        });
-    }));
-
-    await new Promise(r => setTimeout(r, 300));
-
-    const filename = `Schadensmeldung_${ticket}.pdf`;
-    const opt = {
-        margin:       0,
-        filename:     filename,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false },
-        jsPDF:        { unit: 'pt', format: 'a4', orientation: 'portrait' }
-    };
-
-    try {
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
-        if (isIOS && navigator.canShare && window.File) {
-            const pdfBlob = await html2pdf().set(opt).from(pdfContainer).output('blob');
-            const file = new File([pdfBlob], filename, { type: 'application/pdf' });
-            
-            if (navigator.canShare({ files: [file] })) {
-                // WICHTIG: Kein 'text'-Feld mitgeben, damit iOS nur die PDF-Datei teilt!
-                await navigator.share({
-                    files: [file],
-                    title: filename
-                });
-                pdfContainer.remove();
-                return;
-            }
-        }
-
-        await html2pdf().set(opt).from(pdfContainer).save();
-        pdfContainer.remove();
-
-    } catch (err) {
-        console.error("Fehler bei der PDF-Erstellung:", err);
-        alert("PDF konnte nicht erstellt werden.");
-        if (pdfContainer) pdfContainer.remove();
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        alert("Pop-up wurde vom Browser blockiert. Bitte erlaube Pop-ups für diese App.");
+        return;
     }
+
+    printWindow.document.open();
+    printWindow.document.write(fullHtmlContent);
+    printWindow.document.close();
 };
 
 function printWoodCuttingList() {
