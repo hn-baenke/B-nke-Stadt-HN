@@ -1,5 +1,5 @@
 // ==========================================
-// ZENTRALE DRUCK- UND PDF-STEUERUNG (UNIVERSELL)
+// ZENTRALE DRUCK- UND PDF-STEUERUNG (CANVAS-VISIBILITY-FIX)
 // ==========================================
 
 async function getBlobUrl(imageUrl) {
@@ -112,7 +112,7 @@ window.triggerManualPDFDownload = async function(repId) {
             '</div>' +
         '</div>' : '';
 
-    // Render-Container temporär erzeugen
+    // Render-Container im sichtbaren DOM platzieren, aber hinter einem Fix-Layer verstecken
     let pdfContainer = document.getElementById('pdf-render-container');
     if (!pdfContainer) {
         pdfContainer = document.createElement('div');
@@ -121,14 +121,13 @@ window.triggerManualPDFDownload = async function(repId) {
         pdfContainer.style.top = '0';
         pdfContainer.style.left = '0';
         pdfContainer.style.width = '794px';
-        pdfContainer.style.zIndex = '-9999';
-        pdfContainer.style.opacity = '0.99';
+        pdfContainer.style.zIndex = '-1'; // Hinter der UI verbergen
         pdfContainer.style.background = '#ffffff';
         document.body.appendChild(pdfContainer);
     }
 
     pdfContainer.innerHTML = `
-        <div style="padding: 20px; background: #fff; width: 794px; box-sizing: border-box; font-family: Arial, sans-serif;">
+        <div id="pdf-inner-content" style="padding: 20px; background: #ffffff; width: 794px; box-sizing: border-box; font-family: Arial, sans-serif; color: #000000;">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2C3E50; padding-bottom: 6px; margin-bottom: 10px;">
                 <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/hnlogo.png" style="height: 45px; object-fit: contain;" alt="Stadt Heilbronn" crossorigin="anonymous">
                 <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/Logo%20SitzFinder.png" style="height: 50px; margin: -4px 0; object-fit: contain;" alt="SitzFinder" crossorigin="anonymous">
@@ -194,33 +193,42 @@ window.triggerManualPDFDownload = async function(repId) {
         </div>
     `;
 
-    // Sicherstellen, dass alle Bilder geladen sind
+    // 1. Warten auf das Laden aller Bilder
     const images = pdfContainer.querySelectorAll('img');
     await Promise.all(Array.from(images).map(img => {
-        if (img.complete) return Promise.resolve();
+        if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
         return new Promise(resolve => {
             img.onload = resolve;
             img.onerror = resolve;
         });
     }));
 
-    await new Promise(r => setTimeout(r, 300));
+    await new Promise(r => setTimeout(r, 400));
 
+    const targetElement = document.getElementById('pdf-inner-content');
     const filename = `Schadensmeldung_${ticket}.pdf`;
+    
     const opt = {
         margin:       0,
         filename:     filename,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        html2canvas:  { 
+            scale: 2, 
+            useCORS: true, 
+            logging: true,
+            scrollX: 0,
+            scrollY: 0
+        },
         jsPDF:        { unit: 'pt', format: 'a4', orientation: 'portrait' }
     };
 
     try {
-        const pdfBlob = await html2pdf().set(opt).from(pdfContainer).output('blob');
+        const pdfBlob = await html2pdf().set(opt).from(targetElement).output('blob');
         const file = new File([pdfBlob], filename, { type: 'application/pdf' });
 
-        // Wenn Web Share API mit Dateiversand unterstützt wird (iOS, Android, moderne Browser)
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+        if (isIOS && navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({
                 files: [file],
                 title: filename
@@ -229,7 +237,7 @@ window.triggerManualPDFDownload = async function(repId) {
             return;
         }
 
-        // Fallback für Windows / Desktops ohne File-Share-API: Direkter, sauberer Download
+        // Fallback für Windows / Android
         const blobUrl = URL.createObjectURL(pdfBlob);
         const link = document.createElement('a');
         link.href = blobUrl;
