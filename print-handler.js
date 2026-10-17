@@ -1,5 +1,5 @@
 // ==========================================
-// ZENTRALE DRUCK- UND PDF-STEUERUNG (iOS-FIX)
+// ZENTRALE DRUCK- UND PDF-STEUERUNG (Option B)
 // ==========================================
 
 async function getBlobUrl(imageUrl) {
@@ -52,7 +52,7 @@ window.triggerManualPDFDownload = async function(repId) {
 
     const date = rep.created_at ? new Date(rep.created_at).toLocaleString('de-DE') : new Date().toLocaleString('de-DE');
     const b = rep.benches || {};
-    const ticket = rep.ticket_number ? String(rep.ticket_number).trim() : 'Unbekannt';
+    const ticket = rep.ticket_number ? String(rep.ticket_number).trim() : 'Meldung';
     const descLower = (rep.description || '').toLowerCase();
     let trupp = 'Allgemein';
     
@@ -66,6 +66,7 @@ window.triggerManualPDFDownload = async function(repId) {
     const lng = b.lng ? Number(b.lng) : 9.2199;
     const benchId = rep.bench_id || 'Unbekannt';
 
+    // QR-Code führt zur App-Ansicht
     const appUrl = window.location.origin + window.location.pathname + `?bench=${benchId}&lat=${lat}&lng=${lng}`;
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(appUrl)}`;
 
@@ -105,158 +106,128 @@ window.triggerManualPDFDownload = async function(repId) {
     const note = (b.note && b.note.trim() !== '') ? '<div><strong style="color: #475569;">Notiz:</strong> ' + b.note + '</div>' : '';
 
     const imageHtml = finalImageUrl ? 
-        '<div style="margin-bottom: 10px;" class="print-no-break">' +
+        '<div style="margin-bottom: 10px;">' +
             '<h3 style="margin: 0 0 4px 0; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; color: #334155;">Foto vom Schaden</h3>' +
             '<div style="display: flex; justify-content: center; background: #f1f5f9; border-radius: 6px; border: 1px solid #cbd5e1; overflow: hidden; max-height: 220px;">' +
                 '<img src="' + finalImageUrl + '" style="max-width: 100%; max-height: 220px; object-fit: contain; display: block;" />' +
             '</div>' +
         '</div>' : '';
 
-    const mailSubject = encodeURIComponent(`Schadensmeldung ${ticket} - Bank #${benchId}`);
-    const mailBody = encodeURIComponent(`Hallo,\n\nhier ist die Schadensmeldung ${ticket} für Bank #${benchId} (${district}).\n\nLink in SitzFinder: ${appUrl}\n\nViele Grüße`);
-
-    const fullHtmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Schadensmeldung ${ticket}</title>
-            <style>
-                body { margin: 0; padding: 10px; background: #f1f5f9; font-family: Arial, sans-serif; }
-                .sheet { background: #fff; width: 100%; max-width: 794px; margin: 0 auto; padding: 15px; box-sizing: border-box; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; }
-                .print-no-break { page-break-inside: avoid; break-inside: avoid; }
-                
-                .action-bar {
-                    position: sticky;
-                    top: 0;
-                    z-index: 1000;
-                    background: #1e293b;
-                    color: white;
-                    padding: 10px 15px;
-                    display: flex;
-                    flex-wrap: wrap;
-                    justify-content: space-between;
-                    align-items: center;
-                    gap: 10px;
-                    border-radius: 8px;
-                    margin-bottom: 15px;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-                }
-                .action-bar button, .action-bar a.btn-link {
-                    background: #2563eb;
-                    color: white;
-                    border: none;
-                    padding: 8px 14px;
-                    border-radius: 6px;
-                    font-weight: bold;
-                    cursor: pointer;
-                    font-size: 13px;
-                    text-decoration: none;
-                    display: inline-block;
-                }
-                .action-bar button.secondary {
-                    background: #475569;
-                }
-
-                @media print {
-                    body { background: #fff; padding: 0; }
-                    .sheet { box-shadow: none; border-radius: 0; width: 100%; max-width: 100%; padding: 0; }
-                    .action-bar { display: none !important; }
-                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="action-bar">
-                <div>
-                    <strong>Meldung ${ticket}</strong>
-                </div>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button onclick="window.print()">🖨️ Drucken / PDF</button>
-                    <a href="mailto:?subject=${mailSubject}&body=${mailBody}" class="btn-link" style="background:#059669;">✉️ Per E-Mail senden</a>
-                    <button class="secondary" onclick="window.close()">✖ Zu</button>
-                </div>
-            </div>
-
-            <div class="sheet">
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2C3E50; padding-bottom: 6px; margin-bottom: 10px;">
-                    <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/hnlogo.png" style="height: 45px; object-fit: contain;" alt="Stadt Heilbronn" crossorigin="anonymous">
-                    <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/Logo%20SitzFinder.png" style="height: 50px; margin: -4px 0; object-fit: contain;" alt="SitzFinder" crossorigin="anonymous">
-                </div>
-
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; background: #f8fafc; padding: 10px 15px; border-radius: 6px; border: 1px solid #cbd5e1;">
-                    <div>
-                        <h2 style="margin: 0 0 2px 0; font-size: 18px; color: #1e293b;">Schadensmeldung: ${ticket}</h2>
-                        <div style="font-size: 14px; font-weight: bold; color: #2563eb;">Zuständiger Trupp: ${trupp}</div>
-                        <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Gemeldet am: ${date}</div>
-                    </div>
-                    <div style="text-align: center; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; display: flex; flex-direction: column; align-items: center;">
-                        <img src="${qrCodeUrl}" style="width: 70px; height: 70px; display: block;" alt="QR-Code" crossorigin="anonymous"/>
-                        <span style="font-size: 9px; color: #475569; margin-top: 2px; font-weight: bold;">In App öffnen</span>
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 10px;" class="print-no-break">
-                    <h3 style="margin: 0 0 4px 0; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; color: #334155;">Details zur Bank & Schaden</h3>
-                    <div style="display: flex; gap: 20px; font-size: 13px; line-height: 1.4;">
-                        <div style="flex: 1;">
-                            <div style="margin-bottom: 3px;"><strong style="color: #475569;">Bank-ID:</strong> #${benchId}</div>
-                            <div style="margin-bottom: 3px;"><strong style="color: #475569;">Stadtteil:</strong> ${district}</div>
-                            <div><strong style="color: #475569;">Banktyp:</strong> ${benchType}</div>
-                        </div>
-                        <div style="flex: 1.2;">
-                            ${dimensions}
-                            ${description}
-                            ${assemblyNote}
-                            ${note}
-                        </div>
-                    </div>
-                </div>
-
-                ${imageHtml}
-
-                <div style="margin-bottom: 10px;" class="print-no-break">
-                    <h3 style="margin: 0 0 4px 0; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; color: #334155;">Orientierungskarte</h3>
-                    <div style="height: ${containerHeight}px; width: 100%; max-width: ${containerWidth}px; margin: 0 auto; border-radius: 6px; border: 1px solid #cbd5e1; background: #e2e8f0; position: relative; overflow: hidden; box-sizing: border-box;">
-                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
-                            ${tilesHtml}
-                        </div>
-                        <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -100%); width: 16px; height: 16px; background-color: #dc2626 !important; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.5); z-index: 10;"></div>
-                    </div>
-                </div>
-
-                <div style="margin-top: 8px; padding-top: 8px; border-top: 2px dashed #94a3b8;" class="print-no-break">
-                    <div style="display: flex; justify-content: space-between; font-size: 11px;">
-                        <div style="width: 30%;">
-                            <strong>Datum Erledigt:</strong>
-                            <div style="border-bottom: 1px solid #000; margin-top: 25px;"></div>
-                        </div>
-                        <div style="width: 30%;">
-                            <strong>Bearbeitet durch:</strong>
-                            <div style="border-bottom: 1px solid #000; margin-top: 25px;"></div>
-                        </div>
-                        <div style="width: 30%;">
-                            <strong>Unterschrift:</strong>
-                            <div style="border-bottom: 1px solid #000; margin-top: 25px;"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </body>
-        </html>
-    `;
-
-    // iOS PWA Popup Handling
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-        alert("Pop-up wurde vom Browser blockiert. Bitte erlaube Pop-ups.");
-        return;
+    // Unsichtbaren Container im DOM für die PDF-Generierung erzeugen
+    let pdfContainer = document.getElementById('pdf-render-container');
+    if (!pdfContainer) {
+        pdfContainer = document.createElement('div');
+        pdfContainer.id = 'pdf-render-container';
+        pdfContainer.style.position = 'absolute';
+        pdfContainer.style.left = '-9999px';
+        pdfContainer.style.top = '-9999px';
+        pdfContainer.style.width = '794px';
+        document.body.appendChild(pdfContainer);
     }
 
-    printWindow.document.open();
-    printWindow.document.write(fullHtmlContent);
-    printWindow.document.close();
+    pdfContainer.innerHTML = `
+        <div style="padding: 20px; background: #fff; width: 794px; box-sizing: border-box; font-family: Arial, sans-serif;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2C3E50; padding-bottom: 6px; margin-bottom: 10px;">
+                <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/hnlogo.png" style="height: 45px; object-fit: contain;" alt="Stadt Heilbronn" crossorigin="anonymous">
+                <img src="https://aqownulwmwdtrgzmsgqn.supabase.co/storage/v1/object/public/bench-images/Logo%20SitzFinder.png" style="height: 50px; margin: -4px 0; object-fit: contain;" alt="SitzFinder" crossorigin="anonymous">
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; background: #f8fafc; padding: 10px 15px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                <div>
+                    <h2 style="margin: 0 0 2px 0; font-size: 18px; color: #1e293b;">Schadensmeldung: ${ticket}</h2>
+                    <div style="font-size: 14px; font-weight: bold; color: #2563eb;">Zuständiger Trupp: ${trupp}</div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Gemeldet am: ${date}</div>
+                </div>
+                <div style="text-align: center; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; display: flex; flex-direction: column; align-items: center;">
+                    <img src="${qrCodeUrl}" style="width: 70px; height: 70px; display: block;" alt="QR-Code" crossorigin="anonymous"/>
+                    <span style="font-size: 9px; color: #475569; margin-top: 2px; font-weight: bold;">In App öffnen</span>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 10px;">
+                <h3 style="margin: 0 0 4px 0; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; color: #334155;">Details zur Bank & Schaden</h3>
+                <div style="display: flex; gap: 20px; font-size: 13px; line-height: 1.4;">
+                    <div style="flex: 1;">
+                        <div style="margin-bottom: 3px;"><strong style="color: #475569;">Bank-ID:</strong> #${benchId}</div>
+                        <div style="margin-bottom: 3px;"><strong style="color: #475569;">Stadtteil:</strong> ${district}</div>
+                        <div><strong style="color: #475569;">Banktyp:</strong> ${benchType}</div>
+                    </div>
+                    <div style="flex: 1.2;">
+                        ${dimensions}
+                        ${description}
+                        ${assemblyNote}
+                        ${note}
+                    </div>
+                </div>
+            </div>
+
+            ${imageHtml}
+
+            <div style="margin-bottom: 10px;">
+                <h3 style="margin: 0 0 4px 0; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; color: #334155;">Orientierungskarte</h3>
+                <div style="height: ${containerHeight}px; width: ${containerWidth}px; margin: 0 auto; border-radius: 6px; border: 1px solid #cbd5e1; background: #e2e8f0; position: relative; overflow: hidden; box-sizing: border-box;">
+                    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+                        ${tilesHtml}
+                    </div>
+                    <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -100%); width: 16px; height: 16px; background-color: #dc2626 !important; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.5); z-index: 10;"></div>
+                </div>
+            </div>
+
+            <div style="margin-top: 15px; padding-top: 8px; border-top: 2px dashed #94a3b8;">
+                <div style="display: flex; justify-content: space-between; font-size: 11px;">
+                    <div style="width: 30%;">
+                        <strong>Datum Erledigt:</strong>
+                        <div style="border-bottom: 1px solid #000; margin-top: 25px;"></div>
+                    </div>
+                    <div style="width: 30%;">
+                        <strong>Bearbeitet durch:</strong>
+                        <div style="border-bottom: 1px solid #000; margin-top: 25px;"></div>
+                    </div>
+                    <div style="width: 30%;">
+                        <strong>Unterschrift:</strong>
+                        <div style="border-bottom: 1px solid #000; margin-top: 25px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Optionen für html2pdf
+    const filename = `Schadensmeldung_${ticket}.pdf`;
+    const opt = {
+        margin:       0,
+        filename:     filename,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        jsPDF:        { unit: 'pt', format: 'a4', orientation: 'portrait' }
+    };
+
+    try {
+        // PDF im Speicher generieren
+        const pdfWorker = html2pdf().set(opt).from(pdfContainer);
+        
+        // Prüfen ob mobiles Teilen (iOS) unterstützt wird
+        if (navigator.canShare && window.File) {
+            const pdfBlob = await pdfWorker.output('blob');
+            const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+            
+            if (navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: `Schadensmeldung ${ticket}`,
+                    text: `Hier ist die Schadensmeldung ${ticket} als PDF.`
+                });
+                return;
+            }
+        }
+        
+        // Standard Download (Desktop / Android)
+        await pdfWorker.save();
+
+    } catch (err) {
+        console.error("Fehler beim Erstellen/Teilen des PDFs:", err);
+        alert("Fehler beim Erstellen des PDFs.");
+    }
 };
 
 function printWoodCuttingList() {
