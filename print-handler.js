@@ -1,5 +1,5 @@
 // ==========================================
-// ZENTRALE DRUCK- UND PDF-STEUERUNG (UNIVERSAL-FIX)
+// ZENTRALE DRUCK- UND PDF-STEUERUNG (ASYNC-WARTESCHL、ICHE)
 // ==========================================
 
 async function getBlobUrl(imageUrl) {
@@ -112,7 +112,6 @@ window.triggerManualPDFDownload = async function(repId) {
             '</div>' +
         '</div>' : '';
 
-    // Temp-Container zum Rendern des A4-Layouts im Hintergrund
     let pdfContainer = document.getElementById('pdf-render-container');
     if (!pdfContainer) {
         pdfContainer = document.createElement('div');
@@ -191,6 +190,19 @@ window.triggerManualPDFDownload = async function(repId) {
         </div>
     `;
 
+    // WICHTIG: Warten, bis alle Bilder und Kacheln im Container geladen sind!
+    const images = pdfContainer.querySelectorAll('img');
+    await Promise.all(Array.from(images).map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(resolve => {
+            img.onload = resolve;
+            img.onerror = resolve;
+        });
+    }));
+
+    // Kleine zusätzliche Sicherheitspause für das Rendering
+    await new Promise(r => setTimeout(r, 400));
+
     const filename = `Schadensmeldung_${ticket}.pdf`;
     const opt = {
         margin:       0,
@@ -203,7 +215,6 @@ window.triggerManualPDFDownload = async function(repId) {
     try {
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-        // iOS: Über das native Share-Sheet teilen (In Dateien sichern, AirDrop, etc.)
         if (isIOS && navigator.canShare && window.File) {
             const pdfBlob = await html2pdf().set(opt).from(pdfContainer).output('blob');
             const file = new File([pdfBlob], filename, { type: 'application/pdf' });
@@ -218,7 +229,6 @@ window.triggerManualPDFDownload = async function(repId) {
             }
         }
 
-        // Windows, Mac & Android: Direkter Datei-Download im Downloads-Ordner!
         await html2pdf().set(opt).from(pdfContainer).save();
 
     } catch (err) {
